@@ -1,0 +1,81 @@
+{
+  "name": "domainlint",
+  "description": "Linter for domain-based repository",
+  "version": "0.1.1",
+  "author": "Gabriel Pichot",
+  "bin": {
+    "domainlint": "./bin/run.js"
+  },
+  "bugs": "https://github.com/gpichot/domainlint/issues",
+  "dependencies": {
+    "@oclif/core": "^4",
+    "@oclif/plugin-help": "^6",
+    "@swc/core": "^1.15.7",
+    "@swc/types": "^0.1.25",
+    "chalk": "^5.6.2",
+    "glob": "^13.0.0",
+    "jsonc-parser": "^3.3.1",
+    "minimatch": "^10.1.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@oclif/prettier-config": "^0.2.1",
+    "@oclif/test": "^4",
+    "@types/node": "^20",
+    "@vitest/ui": "^4.0.16",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "memfs": "^4.51.1",
+    "oclif": "^4",
+    "shx": "^0.3.3",
+    "ts-node": "^10",
+    "typescript": "^5",
+    "vitest": "^4.0.16"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "./bin",
+    "./dist",
+    "./oclif.manifest.json"
+  ],
+  "homepage": "https://github.com/gpichot/domainlint",
+  "keywords": [
+    "oclif"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "type": "module",
+  "oclif": {
+    "bin": "domainlint",
+    "dirname": "domainlint",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "topicSeparator": " "
+  },
+  "repository": "gpichot/domainlint",
+  "scripts": {
+    "build": "shx rm -rf dist && tsc -b",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "pnpm run lint",
+    "prepack": "oclif manifest && oclif readme",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "version": "oclif readme && git add README.md",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,json}": [
+      "biome check --write"
+    ]
+  },
+  "types": "dist/index.d.ts"
+}
