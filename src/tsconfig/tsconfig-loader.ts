@@ -1,0 +1,111 @@
+import { readFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { parse } from 'jsonc-parser';
+import type { ResolvedTsConfig, TsConfig } from './types.js';
+
+export async function loadTsConfig(
+  tsconfigPath: string,
+): Promise<ResolvedTsConfig> {
+  const resolvedTsConfig = await loadTsConfigWithExtends(tsconfigPath);
+  const rootDir = dirname(tsconfigPath);
+
+  return {
+    baseUrl: resolvedTsConfig.compilerOptions?.baseUrl,
+    paths: resolvedTsConfig.compilerOptions?.paths,
+    rootDir,
+  };
+}
+
+async function loadTsConfigWithExtends(
+  tsconfigPath: string,
+): Promise<TsConfig> {
+  let configContent: string;
+  try {
+    configContent = await readFile(tsconfigPath, 'utf-8');
+  } catch (error) {
+    throw new Error(
+      `Failed to read tsconfig.json at ${tsconfigPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  let config: TsConfig;
+  try {
+    config = parse(configContent) as TsConfig;
+  } catch (error) {
+    throw new Error(
+      `Failed to parse tsconfig.json at ${tsconfigPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  // Handle extends
+  if (config.extends) {
+    const basePath = resolve(dirname(tsconfigPath), config.extends);
+    let baseConfigPath = basePath;
+
+    // Handle extends without .json extension
+    if (!baseConfigPath.endsWith('.json')) {
+      baseConfigPath += '.json';
+    }
+
+    const baseConfig = await loadTsConfigWithExtends(baseConfigPath);
+
+    // Merge configurations
+    return {
+      ...baseConfig,
+      ...config,
+      compilerOptions: {
+        ...baseConfig.compilerOptions,
+        ...config.compilerOptions,
+        paths: {
+          ...baseConfig.compilerOptions?.paths,
+          ...config.compilerOptions?.paths,
+        },
+      },
+    };
+  }
+
+  return config;
+}
+
+export function resolvePathMapping(
+  specifier: string,
+  paths: Record<string, string[]> | undefined,
+  baseUrl: string | undefined,
+  rootDir: string,
+): string[] {
+  if (!paths || !baseUrl) {
+    return [];
+  }
+
+  const resolvedBaseUrl = resolve(rootDir, baseUrl);
+  const candidates: string[] = [];
+
+  for (const [pattern, mappings] of Object.entries(paths)) {
+    const match = matchPattern(specifier, pattern);
+    if (match !== null) {
+      for (const mapping of mappings) {
+        const resolvedMapping = mapping.replace('*', match);
+        candidates.push(resolve(resolvedBaseUrl, resolvedMapping));
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function matchPattern(specifier: string, pattern: string): string | null {
+  const starIndex = pattern.indexOf('*');
+
+  if (starIndex === -1) {
+    return specifier === pattern ? '' : null;
+  }
+
+  const prefix = pattern.slice(0, starIndex);
+  const suffix = pattern.slice(starIndex + 1);
+
+  if (!specifier.startsWith(prefix) || !specifier.endsWith(suffix)) {
+    return null;
+  }
+
+  return specifier.slice(prefix.length, specifier.length - suffix.length);
+}
