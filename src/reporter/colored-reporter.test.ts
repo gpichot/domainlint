@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Violation } from '../graph/types.js';
-import { ColoredReporter } from '../reporter/colored-reporter.js';
-import { createDefaultConfig } from './setup.js';
+import { createDefaultConfig } from '../test-utils/setup.js';
+import { ColoredReporter } from './colored-reporter.js';
 
 describe('ColoredReporter', () => {
   const cycleViolation: Violation = {

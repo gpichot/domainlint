@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
-import { FeatureBoundariesLinter } from '../linter/feature-boundaries-linter.js';
+import { FeatureBoundariesLinter } from './feature-boundaries-linter.js';
 
 // Mock the filesystem
 vi.mock('node:fs/promises', async () => {

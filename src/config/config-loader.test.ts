@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadConfig } from '../config/config-loader.js';
-import { createMockFileSystem } from './setup.js';
+import { createMockFileSystem } from '../test-utils/setup.js';
+import { loadConfig } from './config-loader.js';
 
 // Mock fs module
 vi.mock('node:fs/promises', async () => {
@@ -24,7 +24,7 @@ describe('Config Loader', () => {
       srcDir: '/project/src',
       featuresDir: '/project/src/features',
       barrelFiles: ['index.ts'],
-      extensions: ['.ts', '.tsx'],
+      extensions: ['.ts', '.tsx', '.d.ts'],
       tsconfigPath: '/project/tsconfig.json',
       includeDynamicImports: false,
       overrides: {},

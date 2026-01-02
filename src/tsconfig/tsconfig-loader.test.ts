@@ -1,10 +1,7 @@
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  loadTsConfig,
-  resolvePathMapping,
-} from '../tsconfig/tsconfig-loader.js';
-import { createMockFileSystem } from './setup.js';
+import { createMockFileSystem } from '../test-utils/setup.js';
+import { loadTsConfig, resolvePathMapping } from './tsconfig-loader.js';
 
 // Mock fs module
 vi.mock('node:fs/promises', async () => {

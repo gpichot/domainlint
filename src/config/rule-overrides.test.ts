@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { Violation } from '../graph/types.js';
 import {
   checkRuleOverride,
   filterViolationsByOverrides,
-} from '../config/rule-overrides.js';
-import type { FeatureBoundariesConfig } from '../config/types.js';
-import type { Violation } from '../graph/types.js';
+} from './rule-overrides.js';
+import type { FeatureBoundariesConfig } from './types.js';
 
 describe('Rule Overrides', () => {
   let baseConfig: FeatureBoundariesConfig;

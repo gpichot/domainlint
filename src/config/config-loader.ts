@@ -12,7 +12,7 @@ const DEFAULT_CONFIG: FeatureBoundariesConfig = {
   srcDir: 'src',
   featuresDir: 'src/features',
   barrelFiles: ['index.ts'],
-  extensions: ['.ts', '.tsx'],
+  extensions: ['.ts', '.tsx', '.d.ts'],
   tsconfigPath: './tsconfig.json',
   exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
   includeDynamicImports: false,

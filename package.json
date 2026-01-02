@@ -1,7 +1,7 @@
 {
   "name": "domainlint",
   "description": "Linter for domain-based repository",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "author": "Gabriel Pichot",
   "bin": {
     "domainlint": "./bin/run.js"
@@ -10,7 +10,6 @@
   "dependencies": {
     "@oclif/core": "^4",
     "@oclif/plugin-help": "^6",
-    "@oclif/plugin-plugins": "^5",
     "@swc/core": "^1.15.7",
     "@swc/types": "^0.1.25",
     "chalk": "^5.6.2",
@@ -53,8 +52,7 @@
     "dirname": "domainlint",
     "commands": "./dist/commands",
     "plugins": [
-      "@oclif/plugin-help",
-      "@oclif/plugin-plugins"
+      "@oclif/plugin-help"
     ],
     "topicSeparator": " "
   },

@@ -9,8 +9,13 @@ export async function loadTsConfig(
   const resolvedTsConfig = await loadTsConfigWithExtends(tsconfigPath);
   const rootDir = dirname(tsconfigPath);
 
+  // TypeScript defaults baseUrl to "." when paths is defined but baseUrl is not
+  const baseUrl =
+    resolvedTsConfig.compilerOptions?.baseUrl ??
+    (resolvedTsConfig.compilerOptions?.paths ? '.' : undefined);
+
   return {
-    baseUrl: resolvedTsConfig.compilerOptions?.baseUrl,
+    baseUrl,
     paths: resolvedTsConfig.compilerOptions?.paths,
     rootDir,
   };

@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FeatureBoundariesLinter } from '../linter/feature-boundaries-linter.js';
-import { createDefaultConfig } from './setup.js';
+import { createDefaultConfig } from '../test-utils/setup.js';
+import { FeatureBoundariesLinter } from './feature-boundaries-linter.js';
 
 // Mock fs module completely
 vi.mock('node:fs/promises', async () => {
