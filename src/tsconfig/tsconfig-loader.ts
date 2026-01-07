@@ -1,12 +1,16 @@
+import { exec } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { parse } from 'jsonc-parser';
 import type { ResolvedTsConfig, TsConfig } from './types.js';
+
+const execAsync = promisify(exec);
 
 export async function loadTsConfig(
   tsconfigPath: string,
 ): Promise<ResolvedTsConfig> {
-  const resolvedTsConfig = await loadTsConfigWithExtends(tsconfigPath);
+  const resolvedTsConfig = await loadTsConfigWithFallback(tsconfigPath);
   const rootDir = dirname(tsconfigPath);
 
   // TypeScript defaults baseUrl to "." when paths is defined but baseUrl is not
@@ -19,6 +23,21 @@ export async function loadTsConfig(
     paths: resolvedTsConfig.compilerOptions?.paths,
     rootDir,
   };
+}
+
+async function loadTsConfigWithFallback(
+  tsconfigPath: string,
+): Promise<TsConfig> {
+  // Try using tsc --showConfig first for full resolution including extends
+  try {
+    const { stdout } = await execAsync(
+      `tsc --showConfig --project "${tsconfigPath}"`,
+    );
+    return JSON.parse(stdout) as TsConfig;
+  } catch {
+    // Fallback to manual parsing for cases where tsc is not available or fails
+    return await loadTsConfigWithExtends(tsconfigPath);
+  }
 }
 
 async function loadTsConfigWithExtends(

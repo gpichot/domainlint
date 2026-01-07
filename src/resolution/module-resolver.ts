@@ -11,6 +11,9 @@ export interface ResolvedImport {
 }
 
 export class ModuleResolver {
+  private fileExistsCache = new Map<string, boolean>();
+  private resolutionCache = new Map<string, ResolvedImport>();
+
   constructor(
     private config: FeatureBoundariesConfig,
     private tsconfig: ResolvedTsConfig,
@@ -20,13 +23,24 @@ export class ModuleResolver {
     specifier: string,
     fromFile: string,
   ): Promise<ResolvedImport> {
+    // Create cache key for this specific import context
+    const cacheKey = `${specifier}::${fromFile}`;
+
+    // Check resolution cache first
+    const cached = this.resolutionCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     // Skip external packages
     if (this.isExternalPackage(specifier)) {
-      return {
+      const result = {
         originalSpecifier: specifier,
         resolvedPath: null,
         isExternal: true,
       };
+      this.resolutionCache.set(cacheKey, result);
+      return result;
     }
 
     let resolvedPath: string | null = null;
@@ -39,11 +53,15 @@ export class ModuleResolver {
       resolvedPath = await this.resolvePathMappedImport(specifier, fromFile);
     }
 
-    return {
+    const result = {
       originalSpecifier: specifier,
       resolvedPath,
       isExternal: resolvedPath === null,
     };
+
+    // Cache the result
+    this.resolutionCache.set(cacheKey, result);
+    return result;
   }
 
   private isExternalPackage(specifier: string): boolean {
@@ -189,10 +207,19 @@ export class ModuleResolver {
   }
 
   private async fileExists(path: string): Promise<boolean> {
+    // Check cache first
+    const cached = this.fileExistsCache.get(path);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     try {
       const stats = await stat(path);
-      return stats.isFile();
+      const exists = stats.isFile();
+      this.fileExistsCache.set(path, exists);
+      return exists;
     } catch {
+      this.fileExistsCache.set(path, false);
       return false;
     }
   }

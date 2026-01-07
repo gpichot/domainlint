@@ -1,89 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { Args, Command, Flags } from '@oclif/core';
 import { loadConfig } from '../config/config-loader.js';
-import type { FeatureBoundariesConfig } from '../config/types.js';
-import {
-  discoverFiles,
-  type FileInfo,
-  getFeature,
-} from '../files/file-discovery.js';
-import {
-  FeatureBoundariesLinter,
-  type LintResult,
-} from '../linter/feature-boundaries-linter.js';
-import {
-  ColoredReporter,
-  type FeatureStats,
-} from '../reporter/colored-reporter.js';
-
-async function calculateFeatureStats(
-  allFiles: FileInfo[],
-  config: FeatureBoundariesConfig,
-  lintResult: LintResult,
-): Promise<FeatureStats[]> {
-  const featureStatsMap = new Map<
-    string,
-    { fileCount: number; totalLines: number; dependencies: Set<string> }
-  >();
-
-  // Initialize stats for all features
-  for (const file of allFiles) {
-    const feature = getFeature(file.path, config);
-    if (!feature) continue; // Skip non-feature files
-
-    if (!featureStatsMap.has(feature)) {
-      featureStatsMap.set(feature, {
-        fileCount: 0,
-        totalLines: 0,
-        dependencies: new Set(),
-      });
-    }
-
-    const stats = featureStatsMap.get(feature)!;
-    stats.fileCount++;
-
-    try {
-      const content = await readFile(file.path, 'utf-8');
-      // Count non-empty lines (simple LOC metric)
-      const lines = content
-        .split('\n')
-        .filter((line) => line.trim().length > 0);
-      stats.totalLines += lines.length;
-    } catch {
-      // If we can't read the file, skip it
-    }
-  }
-
-  // Calculate dependencies by analyzing the dependency graph
-  for (const edge of lintResult.dependencyGraph.edges) {
-    const fromOriginalPath =
-      lintResult.dependencyGraph.normalizedToOriginalPath?.get(edge.from) ||
-      edge.from;
-    const toOriginalPath =
-      lintResult.dependencyGraph.normalizedToOriginalPath?.get(edge.to) ||
-      edge.to;
-
-    const fromFeature = getFeature(fromOriginalPath, config);
-    const toFeature = getFeature(toOriginalPath, config);
-
-    // Only track cross-feature dependencies
-    if (fromFeature && toFeature && fromFeature !== toFeature) {
-      const fromStats = featureStatsMap.get(fromFeature);
-      if (fromStats) {
-        fromStats.dependencies.add(toFeature);
-      }
-    }
-  }
-
-  return Array.from(featureStatsMap.entries()).map(([feature, stats]) => ({
-    feature,
-    fileCount: stats.fileCount,
-    linesOfCode: stats.totalLines,
-    dependencies: Array.from(stats.dependencies).sort(),
-  }));
-}
+import { LintOrchestrator } from '../services/lint-orchestrator.js';
 
 export default class Lint extends Command {
+  private orchestrator = new LintOrchestrator();
+
   static override args = {
     path: Args.string({
       description: 'Path to the project to lint',
@@ -136,7 +57,35 @@ export default class Lint extends Command {
     const { args, flags } = await this.parse(Lint);
 
     try {
-      // Load configuration
+      // Execute linting using orchestrator
+      const result = await this.orchestrator.executeLinting({
+        projectPath: args.path,
+        configPath: flags.config,
+        configOverrides: {
+          srcDir: flags['src-dir'],
+          featuresDir: flags['features-dir'],
+          tsconfigPath: flags['tsconfig-path'],
+          includeDynamicImports: flags['include-dynamic-imports'],
+        },
+        filterOptions: {
+          feature: flags.feature,
+          shortestCycles: flags['shortest-cycles'],
+          maxCycleLength: flags['max-cycle-length'],
+        },
+        reporterOptions: {
+          colors: !flags['no-color'],
+          verbose: flags.verbose,
+        },
+        includeFeatureStats: !flags.feature,
+      });
+
+      // Display analysis information
+      this.log(
+        `Analyzed ${result.fileCount} files in ${result.analysisTimeMs}ms`,
+      );
+      this.log('');
+
+      // Load config for formatting (we need this for the rootDir)
       const config = await loadConfig(args.path, flags.config, {
         srcDir: flags['src-dir'],
         featuresDir: flags['features-dir'],
@@ -144,105 +93,40 @@ export default class Lint extends Command {
         includeDynamicImports: flags['include-dynamic-imports'],
       });
 
-      // Create and run linter
-      const linter = new FeatureBoundariesLinter(config);
-      const lintResult = await linter.lint();
-
-      // Display analysis information
-      this.log(
-        `Analyzed ${lintResult.fileCount} files in ${lintResult.analysisTimeMs}ms`,
-      );
-      this.log('');
-
-      let violations = lintResult.violations;
-
-      // Filter violations by feature if specified
-      if (flags.feature) {
-        violations = violations.filter((violation) => {
-          const feature = getFeature(violation.file, config);
-          return feature === flags.feature;
-        });
-      }
-
-      // Filter and analyze cycles
-      const cycleViolations = violations.filter(
-        (v) => v.code === 'ARCH_IMPORT_CYCLE',
-      );
-      const otherViolations = violations.filter(
-        (v) => v.code !== 'ARCH_IMPORT_CYCLE',
+      // Format and display results
+      const formatted = this.orchestrator.formatResults(
+        result,
+        config,
+        {
+          colors: !flags['no-color'],
+          verbose: flags.verbose,
+        },
+        {
+          feature: flags.feature,
+        },
       );
 
-      let filteredCycleViolations = cycleViolations;
-
-      // Apply cycle-specific filters
-      if (flags['shortest-cycles'] || flags['max-cycle-length'] < 50) {
-        filteredCycleViolations = this.filterCycles(cycleViolations, flags);
-      }
-
-      violations = [...filteredCycleViolations, ...otherViolations];
-
-      // Create reporter with options
-      const reporter = new ColoredReporter({
-        colors: !flags['no-color'],
-        verbose: flags.verbose,
-      });
-
-      // Output violations with improved formatting
-      for (const violation of violations) {
-        this.log(reporter.formatViolation(violation, config.rootDir));
+      // Output violations
+      for (const violation of formatted.violationOutput) {
+        this.log(violation);
       }
 
       // Output summary
       this.log('');
-      if (flags.feature) {
-        this.log(
-          reporter.formatSummary(violations, `feature "${flags.feature}"`),
-        );
-      } else {
-        this.log(reporter.formatSummary(violations));
+      this.log(formatted.summaryOutput);
+
+      // Output domain summary
+      if (formatted.domainSummaryOutput) {
+        this.log(formatted.domainSummaryOutput);
       }
 
-      // Discover all features for comprehensive status (only when not filtering by specific feature)
-      let allFeatures: string[] | undefined;
-      let featureStats: FeatureStats[] | undefined;
-
-      if (!flags.feature) {
-        const allFiles = await discoverFiles(config);
-        allFeatures = [
-          ...new Set(
-            allFiles
-              .map((file) => getFeature(file.path, config))
-              .filter((feature) => feature !== null),
-          ),
-        ] as string[];
-
-        // Calculate feature statistics
-        featureStats = await calculateFeatureStats(
-          allFiles,
-          config,
-          lintResult,
-        );
-      }
-
-      // Output domain-based summary
-      const domainSummary = reporter.formatDomainSummary(
-        violations,
-        config,
-        allFeatures,
-        featureStats,
-      );
-      if (domainSummary) {
-        this.log(domainSummary);
-      }
-
-      // Output cycle analysis if there are cycles
-      const cycleAnalysis = reporter.formatCycleAnalysis(violations);
-      if (cycleAnalysis) {
-        this.log(cycleAnalysis);
+      // Output cycle analysis
+      if (formatted.cycleAnalysisOutput) {
+        this.log(formatted.cycleAnalysisOutput);
       }
 
       // Exit with appropriate code
-      if (violations.length > 0) {
+      if (result.hasViolations) {
         this.exit(1);
       }
     } catch (error) {
@@ -251,62 +135,5 @@ export default class Lint extends Command {
         { exit: 2 },
       );
     }
-  }
-
-  private filterCycles(cycleViolations: any[], flags: any): any[] {
-    // Extract cycle length from violation messages
-    const cyclesWithLength = cycleViolations.map((violation) => {
-      const lengthMatch = violation.message.match(
-        /\(Total cycle length: (\d+) files\)/,
-      );
-      const truncatedMatch = violation.message.match(
-        /\[\.\.\.(\d+) more imports in cycle\]/,
-      );
-
-      let cycleLength: number;
-      if (lengthMatch) {
-        cycleLength = parseInt(lengthMatch[1]);
-      } else if (truncatedMatch) {
-        // Estimate length from truncated display
-        const hiddenCount = parseInt(truncatedMatch[1]);
-        const visibleParts = violation.message.split(' -> ').length - 1;
-        cycleLength = hiddenCount + visibleParts;
-      } else {
-        // Count visible parts for short cycles
-        cycleLength = violation.message.split(' -> ').length - 1;
-      }
-
-      return { ...violation, cycleLength };
-    });
-
-    // Apply filters
-    let filtered = cyclesWithLength;
-
-    // Filter by max cycle length
-    if (flags['max-cycle-length']) {
-      filtered = filtered.filter(
-        (v) => v.cycleLength <= flags['max-cycle-length'],
-      );
-    }
-
-    // If shortest-cycles flag is set, show only the shortest unique cycles
-    if (flags['shortest-cycles']) {
-      // Group by starting file and keep only the shortest cycle for each
-      const shortestCycles = new Map();
-
-      filtered.forEach((violation) => {
-        const startFile = violation.file;
-        if (
-          !shortestCycles.has(startFile) ||
-          shortestCycles.get(startFile).cycleLength > violation.cycleLength
-        ) {
-          shortestCycles.set(startFile, violation);
-        }
-      });
-
-      filtered = Array.from(shortestCycles.values());
-    }
-
-    return filtered;
   }
 }
