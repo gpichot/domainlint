@@ -13,6 +13,11 @@ import {
   type FeatureStats,
   type ReporterOptions,
 } from '../reporter/colored-reporter.js';
+import { detectWorkspace } from '../workspace/workspace-detector.js';
+import {
+  runWorkspaceLint,
+  type WorkspaceLintResult,
+} from '../workspace/workspace-runner.js';
 import { StatisticsCalculator } from './statistics-calculator.js';
 import {
   type ViolationFilterOptions,
@@ -35,6 +40,8 @@ export interface LintExecutionResult {
   analysisTimeMs: number;
   fileCount: number;
   hasViolations: boolean;
+  /** Present when running in workspace mode */
+  workspaceResult?: WorkspaceLintResult;
 }
 
 export class LintOrchestrator {
@@ -47,6 +54,41 @@ export class LintOrchestrator {
   }
 
   async executeLinting(options: LintOptions): Promise<LintExecutionResult> {
+    // Check for workspace mode
+    const workspace = await detectWorkspace(options.projectPath);
+    if (workspace && workspace.packages.length > 0) {
+      return this.executeWorkspaceLinting(workspace, options);
+    }
+
+    return this.executeSingleProjectLinting(options);
+  }
+
+  private async executeWorkspaceLinting(
+    workspace: import('../workspace/workspace-detector.js').WorkspaceInfo,
+    options: LintOptions,
+  ): Promise<LintExecutionResult> {
+    const workspaceResult = await runWorkspaceLint(workspace, {
+      configOverrides: options.configOverrides,
+      configPath: options.configPath,
+    });
+
+    // Aggregate violations across all packages
+    const allViolations = workspaceResult.packageResults
+      .filter((r) => !r.skipped)
+      .flatMap((r) => r.result.violations);
+
+    return {
+      violations: allViolations,
+      analysisTimeMs: workspaceResult.totalTimeMs,
+      fileCount: workspaceResult.totalFileCount,
+      hasViolations: workspaceResult.hasViolations,
+      workspaceResult,
+    };
+  }
+
+  private async executeSingleProjectLinting(
+    options: LintOptions,
+  ): Promise<LintExecutionResult> {
     // Load configuration
     const config = await loadConfig(
       options.projectPath,
