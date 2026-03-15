@@ -52,6 +52,21 @@ export function filterViolationsByOverrides(
 ): Violation[] {
   return violations
     .map((violation) => {
+      // Custom rule violations already carry their own level; pass through as-is
+      if (
+        violation.code === 'ARCH_CUSTOM_RULE' ||
+        ![
+          'ARCH_IMPORT_CYCLE',
+          'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+          'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+        ].includes(violation.code)
+      ) {
+        return {
+          ...violation,
+          level: violation.level ?? 'error',
+        } as Violation & { level: Exclude<RuleLevel, 'off'> };
+      }
+
       const ruleName: RuleName =
         violation.code === 'ARCH_IMPORT_CYCLE'
           ? 'import-cycles'

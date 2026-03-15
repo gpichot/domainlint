@@ -17,14 +17,14 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ## 2. Custom rules support
 
-**Status:** not implemented
-**Scope:** new feature, non-trivial
+**Status:** done
+**Scope:** `src/rules/custom-rule-validator.ts`, `src/config/types.ts`, `src/linter/feature-boundaries-linter.ts`
 
-Allow users to define additional import restriction rules in `domainlint.json`:
+Users can define additional import restriction rules in `domainlint.json` via the `customRules` array:
 
 ```json
 {
-  "rules": [
+  "customRules": [
     {
       "from": "src/features/**",
       "deny": ["src/lib/**", "src/utils/**"],
@@ -34,11 +34,14 @@ Allow users to define additional import restriction rules in `domainlint.json`:
 }
 ```
 
-Design notes:
-- Rules are path-glob pairs (`from` + `deny`)
-- Evaluated after resolution, same as R2
+Implemented features:
+- Config-based rules with `from`/`deny`/`allow` glob patterns
+- Custom `message` and `level` (`warn` | `error`) per rule
 - New violation code: `ARCH_CUSTOM_RULE`
-- Documented in `SPEC.md` as R4+
+- Programmatic API: `linter.addRule((graph) => violations)` for full graph access
+- Exported types: `CustomRuleConfig`, `CustomRuleFunction`, `DependencyGraph`
+- Documented in `SPEC.md` as R4
+- Tests cover deny, allow, multiple rules, level, messages, normalized paths
 
 ---
 

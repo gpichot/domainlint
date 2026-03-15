@@ -81,6 +81,92 @@ Within a feature, files may import each other freely. domainlint does not enforc
 
 ---
 
+## R4 — Custom rules
+
+**Violation code:** `ARCH_CUSTOM_RULE`
+
+Custom rules let you define project-specific import restrictions using glob patterns. They are evaluated against the resolved import graph, just like the built-in rules.
+
+### Configuration
+
+Add a `customRules` array to your `domainlint.json`:
+
+```json
+{
+  "customRules": [
+    {
+      "from": "src/features/**",
+      "deny": ["src/lib/**", "src/utils/**"],
+      "message": "Features must not import from shared lib directly"
+    }
+  ]
+}
+```
+
+### Rule fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `from` | `string` | Yes | — | Glob pattern matching source files (relative to `rootDir`). |
+| `deny` | `string[]` | No | — | Glob patterns for forbidden import targets. |
+| `allow` | `string[]` | No | — | Glob patterns for exclusively allowed import targets. |
+| `message` | `string` | No | Auto-generated | Custom violation message. |
+| `level` | `"warn" \| "error"` | No | `"error"` | Severity level. |
+
+### Deny vs Allow
+
+- **`deny`** — blocklist approach. Only imports matching a deny pattern are violations.
+- **`allow`** — allowlist approach. Any import **not** matching an allow pattern is a violation.
+
+<Tabs>
+  <TabItem label="Deny: block specific targets">
+    ```json
+    {
+      "customRules": [
+        {
+          "from": "src/features/**",
+          "deny": ["src/lib/**"],
+          "message": "Features must not import from lib"
+        }
+      ]
+    }
+    ```
+  </TabItem>
+  <TabItem label="Allow: restrict to specific targets">
+    ```json
+    {
+      "customRules": [
+        {
+          "from": "src/features/**",
+          "allow": ["src/features/**", "src/shared/**"],
+          "message": "Features can only import from features or shared"
+        }
+      ]
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+### Programmatic API
+
+When using domainlint as a library, you can also add rule functions that receive the full dependency graph:
+
+```ts
+import { FeatureBoundariesLinter, loadConfig } from 'domainlint';
+
+const config = await loadConfig('.');
+const linter = new FeatureBoundariesLinter(config);
+
+linter.addRule((graph) => {
+  // graph.nodes, graph.edges, graph.adjacencyList
+  return []; // return Violation[]
+});
+
+const result = await linter.lint();
+```
+
+---
+
 ## Configuration schema
 
 Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project root. All fields are optional — the defaults work for a standard `src/features/` layout.
@@ -97,6 +183,13 @@ Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project 
   "tsconfigPath": "./tsconfig.json",
   "exclude": ["**/node_modules/**", "**/dist/**", "**/.next/**"],
   "includeDynamicImports": false,
+  "customRules": [
+    {
+      "from": "src/features/**",
+      "deny": ["src/lib/**"],
+      "message": "Features must not import from lib"
+    }
+  ],
   "overrides": {
     "global": {
       "rules": {
@@ -128,6 +221,7 @@ Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project 
 | `tsconfigPath` | `string` | `"./tsconfig.json"` | Path to `tsconfig.json` for path alias resolution. |
 | `exclude` | `string[]` | `["**/node_modules/**", "**/dist/**", "**/.next/**"]` | Glob patterns to exclude from analysis. |
 | `includeDynamicImports` | `boolean` | `false` | Whether to include `await import()` expressions in the dependency graph. |
+| `customRules` | `object[]` | — | Custom import restriction rules (see [R4](#r4--custom-rules) above). |
 | `overrides` | `object` | — | Rule-level overrides (see below). |
 
 ### Rule overrides

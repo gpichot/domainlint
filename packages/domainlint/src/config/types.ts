@@ -16,6 +16,20 @@ const ruleOverrideSchema = z.object({
     .optional(),
 });
 
+export const customRuleSchema = z.object({
+  from: z.string().min(1, '"from" must be a non-empty glob pattern'),
+  deny: z
+    .array(z.string().min(1, '"deny" entries must be non-empty strings'))
+    .optional(),
+  allow: z
+    .array(z.string().min(1, '"allow" entries must be non-empty strings'))
+    .optional(),
+  message: z.string().optional(),
+  level: z.enum(['warn', 'error']).optional(),
+});
+
+export type CustomRuleConfig = z.infer<typeof customRuleSchema>;
+
 export const configFileSchema = z.object({
   rootDir: z.string().optional(),
   srcDir: z.string().optional(),
@@ -31,6 +45,7 @@ export const configFileSchema = z.object({
   tsconfigPath: z.string().optional(),
   exclude: z.array(z.string()).optional(),
   includeDynamicImports: z.boolean().optional(),
+  customRules: z.array(customRuleSchema).optional(),
   overrides: z
     .object({
       global: ruleOverrideSchema.optional(),
@@ -50,6 +65,7 @@ export interface FeatureBoundariesConfig {
   tsconfigPath: string;
   exclude: string[];
   includeDynamicImports: boolean;
+  customRules?: CustomRuleConfig[];
   overrides?: {
     global?: RuleOverride;
     features?: Record<string, RuleOverride>;

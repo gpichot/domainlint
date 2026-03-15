@@ -299,6 +299,78 @@ The following are explicitly out of scope for this spec:
 
 ---
 
+## RULE R4 — Custom rules
+
+### Intent
+Allow users to define project-specific import restrictions beyond the built-in rules.
+
+### Configuration
+Custom rules are defined in the `customRules` array in `domainlint.json`:
+
+```json
+{
+  “customRules”: [
+    {
+      “from”: “src/features/**”,
+      “deny”: [“src/lib/**”, “src/utils/**”],
+      “message”: “Features must not import from shared lib directly”
+    },
+    {
+      “from”: “src/features/**”,
+      “allow”: [“src/features/**”, “src/shared/**”],
+      “message”: “Features can only import from features or shared”,
+      “level”: “warn”
+    }
+  ]
+}
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `from` | `string` | Yes | Glob pattern matching source files (relative to `rootDir`) |
+| `deny` | `string[]` | No | Glob patterns for forbidden import targets |
+| `allow` | `string[]` | No | Glob patterns for exclusively allowed import targets |
+| `message` | `string` | No | Custom violation message |
+| `level` | `”warn” \| “error”` | No | Severity level (default: `”error”`) |
+
+### Semantics
+- `from` is matched against the importing file's path (relative to `rootDir`)
+- When `deny` is specified: imports resolving to a path matching any deny pattern produce a violation
+- When `allow` is specified: imports resolving to a path **not** matching any allow pattern produce a violation
+- If neither `deny` nor `allow` is specified, the rule has no effect
+- All patterns use [minimatch](https://github.com/isaacs/minimatch) glob syntax
+
+### Reporting
+Violations emit:
+- `code`: `ARCH_CUSTOM_RULE`
+- `file`: importer file path
+- `line`/`col`: import statement location
+- `message`: custom message if provided, otherwise a default message
+
+### Programmatic API
+When using the JS API, users can also add rule functions that receive the full `DependencyGraph`:
+
+```ts
+import { FeatureBoundariesLinter, loadConfig } from 'domainlint';
+
+const config = await loadConfig('.');
+const linter = new FeatureBoundariesLinter(config);
+
+linter.addRule((graph) => {
+  const violations = [];
+  for (const edge of graph.edges) {
+    // Custom logic using the full graph
+  }
+  return violations;
+});
+
+const result = await linter.lint();
+```
+
+---
+
 ## 10. Suggested future extensions (not part of current rules)
 
 - Allow a `public.ts` instead of `index.ts`
