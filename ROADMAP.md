@@ -111,7 +111,7 @@ Design notes:
 
 ## 7. Documentation
 
-**Status:** README + SPEC exist, gaps elsewhere
+**Status:** done
 **Scope:** several independent doc files
 
 - `CONTRIBUTING.md` — setup, branch conventions, commit format, PR process
