@@ -39,19 +39,19 @@ Follow conventions from `TESTING.md` (memfs, behavioral style, colocated files).
 
 ## 3. Tests — Integration scenarios
 
-**Status:** partially covered (7 scenarios)
+**Status:** done
 **Scope:** extend `src/linter/integration.test.ts`
 
-Missing scenarios:
-- Cycles with 3+ files
-- `includeDynamicImports` flag
-- Type-only imports
-- Multiple barrel file types (`index.tsx`, `index.js`)
-- tsconfig path mapping (`paths` + `baseUrl`)
-- `tsconfig extends` chain
-- Project with no features directory
-- Deeply nested features
-- Non-violation paths that could produce false positives
+All scenarios covered (16 total):
+- Cycles with 3+ files (3-node and 4-node cycles)
+- `includeDynamicImports` flag (false: ignored, true: cycle + cross-feature detected)
+- Type-only imports (violations still reported; barrel imports allowed)
+- Multiple barrel file types (`index.tsx` recognised as barrel when configured)
+- tsconfig path mapping (`paths` + `baseUrl`: violation via alias, barrel via alias)
+- `tsconfig extends` chain (baseUrl and path aliases inherited from base config)
+- Project with no features directory (no crash, no false positives)
+- Deeply nested features (cross-feature detected; same-feature allowed)
+- Non-violation paths (external packages, non-feature files, acyclic graphs)
 
 ---
 

@@ -22,13 +22,14 @@
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^4",
     "@types/node": "^20",
-    "@vitest/ui": "^4.0.16",
+    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/ui": "^4.1.0",
     "memfs": "^4.51.1",
     "oclif": "^4",
     "shx": "^0.3.3",
     "ts-node": "^10",
     "typescript": "^5",
-    "vitest": "^4.0.16"
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
