@@ -70,6 +70,10 @@ Config file: `domainlint.json` (or via CLI flags). Key options:
 - `1` — violations found
 - `2` — internal error
 
+## Testing
+
+See `TESTING.md` for conventions (colocation, memfs, behavioral style).
+
 ## Spec
 
 See `SPEC.md` for the full formal specification.
