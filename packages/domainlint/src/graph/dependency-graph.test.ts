@@ -150,64 +150,6 @@ describe('DependencyGraphBuilder', () => {
     });
   });
 
-  describe('duplicate .ts/.tsx files', () => {
-    it('keeps both files as separate nodes when a.ts and a.tsx both exist', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': '',
-        '/project/src/a.tsx': '',
-      });
-      const files = [
-        makeFileInfo('/project/src/a.ts'),
-        makeFileInfo('/project/src/a.tsx'),
-      ];
-      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
-      const graph = await builder.buildGraph(files, []);
-      expect(graph.nodes.size).toBe(2);
-      expect(graph.nodes.has('/project/src/a.ts')).toBe(true);
-      expect(graph.nodes.has('/project/src/a.tsx')).toBe(true);
-    });
-
-    it('resolves edges correctly when .ts and .tsx coexist', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': '',
-        '/project/src/a.tsx': '',
-        '/project/src/b.ts': '',
-      });
-      const files = [
-        makeFileInfo('/project/src/a.ts'),
-        makeFileInfo('/project/src/a.tsx'),
-        makeFileInfo('/project/src/b.ts'),
-      ];
-      // b.ts imports ./a which resolves to a.ts (first extension match)
-      const parseResults = [
-        makeParseResult('/project/src/b.ts', ['./a']),
-        makeParseResult('/project/src/a.ts', []),
-        makeParseResult('/project/src/a.tsx', []),
-      ];
-      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
-      const graph = await builder.buildGraph(files, parseResults);
-      expect(graph.edges).toHaveLength(1);
-      expect(graph.edges[0].from).toBe('/project/src/b');
-      expect(graph.edges[0].to).toBe('/project/src/a.ts');
-    });
-
-    it('does not collapse non-colliding files', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': '',
-        '/project/src/b.tsx': '',
-      });
-      const files = [
-        makeFileInfo('/project/src/a.ts'),
-        makeFileInfo('/project/src/b.tsx'),
-      ];
-      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
-      const graph = await builder.buildGraph(files, []);
-      // Non-colliding files should still be normalized
-      expect(graph.nodes.has('/project/src/a')).toBe(true);
-      expect(graph.nodes.has('/project/src/b')).toBe(true);
-    });
-  });
-
   describe('adjacency list', () => {
     it('updates adjacency list for each edge', async () => {
       vol.fromJSON({

@@ -171,38 +171,15 @@ export class ModuleResolver {
     return null;
   }
 
-  /**
-   * Map from JS output extensions to their TS source equivalents.
-   * Handles the common ESM pattern where imports use .js/.jsx
-   * but the actual source files are .ts/.tsx.
-   */
-  private static readonly jsToTsExtensions: Record<string, string[]> = {
-    '.js': ['.ts', '.tsx'],
-    '.jsx': ['.tsx'],
-  };
-
   private async resolveFile(basePath: string): Promise<string | null> {
     // Try exact path first
     if (await this.fileExists(basePath)) {
       return basePath;
     }
 
-    // Try .js/.jsx → .ts/.tsx remapping (ESM convention)
-    const ext = extname(basePath);
-    const tsEquivalents = ModuleResolver.jsToTsExtensions[ext];
-    if (tsEquivalents) {
-      const withoutExt = basePath.slice(0, -ext.length);
-      for (const tsExt of tsEquivalents) {
-        const remapped = withoutExt + tsExt;
-        if (await this.fileExists(remapped)) {
-          return remapped;
-        }
-      }
-    }
-
     // Try with configured extensions
-    for (const configExt of this.config.extensions) {
-      const pathWithExt = basePath + configExt;
+    for (const ext of this.config.extensions) {
+      const pathWithExt = basePath + ext;
       if (await this.fileExists(pathWithExt)) {
         return pathWithExt;
       }

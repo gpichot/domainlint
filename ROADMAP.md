@@ -15,19 +15,7 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ---
 
-## 2. Duplicate .ts/.tsx file handling
-
-**Status:** done
-**Scope:** `packages/domainlint/src/graph/dependency-graph.ts`
-
-- When both `a.ts` and `a.tsx` exist, they are no longer collapsed into a single graph node
-- Path normalization now detects collisions and preserves full paths for ambiguous files
-- Prevents false positive cycle detection when both extensions coexist
-- Tests cover: separate nodes, correct edge resolution, non-colliding files unaffected
-
----
-
-## 3. Custom rules support
+## 2. Custom rules support
 
 **Status:** not implemented
 **Scope:** new feature, non-trivial

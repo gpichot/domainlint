@@ -46,39 +46,18 @@ export class DependencyGraphBuilder {
     // Track mapping from normalized paths to original paths
     const normalizedToOriginal = new Map<string, string>();
 
-    // Detect collisions: multiple files normalizing to the same path (e.g. a.ts + a.tsx)
-    const normalizedCount = new Map<string, number>();
-    for (const file of files) {
-      const normalized = this.normalizeModulePath(file.path);
-      normalizedCount.set(
-        normalized,
-        (normalizedCount.get(normalized) || 0) + 1,
-      );
-    }
-    const collisions = new Set(
-      [...normalizedCount.entries()]
-        .filter(([, count]) => count > 1)
-        .map(([path]) => path),
-    );
-
-    // Add all files as nodes (using normalized paths, but keep original for collisions)
+    // Add all files as nodes (using normalized paths)
     for (const file of files) {
       const normalizedPath = this.normalizeModulePath(file.path);
-      const nodeKey = collisions.has(normalizedPath)
-        ? file.path
-        : normalizedPath;
-      nodes.add(nodeKey);
-      adjacencyList.set(nodeKey, new Set());
-      normalizedToOriginal.set(nodeKey, file.path);
+      nodes.add(normalizedPath);
+      adjacencyList.set(normalizedPath, new Set());
+      normalizedToOriginal.set(normalizedPath, file.path);
     }
 
     // Process each file's imports
     for (const parseResult of parseResults) {
       const fromFile = parseResult.filePath;
       const normalizedFromFile = this.normalizeModulePath(fromFile);
-      const fromNodeKey = collisions.has(normalizedFromFile)
-        ? fromFile
-        : normalizedFromFile;
 
       for (const importInfo of parseResult.imports) {
         const resolved = await this.resolver.resolveImport(
@@ -91,23 +70,20 @@ export class DependencyGraphBuilder {
           const normalizedResolvedPath = this.normalizeModulePath(
             resolved.resolvedPath,
           );
-          const toNodeKey = collisions.has(normalizedResolvedPath)
-            ? resolved.resolvedPath
-            : normalizedResolvedPath;
 
-          if (nodes.has(toNodeKey)) {
+          if (nodes.has(normalizedResolvedPath)) {
             const edge: DependencyEdge = {
-              from: fromNodeKey,
-              to: toNodeKey,
+              from: normalizedFromFile,
+              to: normalizedResolvedPath,
               importInfo,
             };
 
             edges.push(edge);
 
             // Update adjacency list
-            const fromAdjacency = adjacencyList.get(fromNodeKey);
+            const fromAdjacency = adjacencyList.get(normalizedFromFile);
             if (fromAdjacency) {
-              fromAdjacency.add(toNodeKey);
+              fromAdjacency.add(normalizedResolvedPath);
             }
           }
         }

@@ -114,53 +114,6 @@ describe('ModuleResolver', () => {
       expect(result.resolvedPath).toBe('/project/src/shared.ts');
     });
 
-    it('resolves a .js import to the corresponding .ts file', async () => {
-      vol.fromJSON({ '/project/src/b.ts': 'export const b = 1;' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
-      const result = await resolver.resolveImport(
-        './b.js',
-        '/project/src/a.ts',
-      );
-      expect(result.resolvedPath).toBe('/project/src/b.ts');
-    });
-
-    it('resolves a .js import to a .tsx file when no .ts exists', async () => {
-      vol.fromJSON({
-        '/project/src/Component.tsx': 'export const C = () => null;',
-      });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
-      const result = await resolver.resolveImport(
-        './Component.js',
-        '/project/src/a.ts',
-      );
-      expect(result.resolvedPath).toBe('/project/src/Component.tsx');
-    });
-
-    it('resolves a .jsx import to the corresponding .tsx file', async () => {
-      vol.fromJSON({
-        '/project/src/Component.tsx': 'export const C = () => null;',
-      });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
-      const result = await resolver.resolveImport(
-        './Component.jsx',
-        '/project/src/a.ts',
-      );
-      expect(result.resolvedPath).toBe('/project/src/Component.tsx');
-    });
-
-    it('prefers the actual .js file if it exists on disk', async () => {
-      vol.fromJSON({
-        '/project/src/b.js': 'module.exports.b = 1;',
-        '/project/src/b.ts': 'export const b = 1;',
-      });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
-      const result = await resolver.resolveImport(
-        './b.js',
-        '/project/src/a.ts',
-      );
-      expect(result.resolvedPath).toBe('/project/src/b.js');
-    });
-
     it('returns null resolvedPath when file does not exist', async () => {
       const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
