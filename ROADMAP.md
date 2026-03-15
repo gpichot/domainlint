@@ -6,25 +6,15 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ## 1. Monorepo migration
 
-**Status:** not started
+**Status:** done
 **Scope:** repo restructuring, prerequisite for the docs package
 
-Move to a pnpm monorepo to host the documentation site as a separate package alongside the CLI.
+Migrated to a pnpm monorepo. CLI lives at `packages/domainlint/`, workspace root is private.
 
-Proposed structure:
 ```
 packages/
-  domainlint/       # current CLI (moved from root)
-  docs/             # documentation site (new)
+  domainlint/       # CLI
 ```
-
-Steps:
-- Add `pnpm-workspace.yaml` at root
-- Move current CLI source into `packages/domainlint/`
-- Update root `package.json` to workspace config (no longer the CLI package)
-- Verify `pnpm test:run` and `pnpm build` still work inside `packages/domainlint/`
-- Update CI workflows to run commands in the right package
-- Update `release-please` config (item 5) to target `packages/domainlint/`
 
 ---
 
@@ -68,7 +58,7 @@ Missing scenarios:
 ## 4. Tests — Coverage reporting in CI
 
 **Status:** script exists (`pnpm test:coverage`), not wired into CI
-**Scope:** `.github/workflows/test.yml`
+**Scope:** `.github/workflows/ci.yml`
 
 - Add coverage step to CI (Vitest v8 coverage)
 - Set a minimum threshold (e.g. 70% lines)
@@ -78,16 +68,17 @@ Missing scenarios:
 
 ## 5. Release — release-please
 
-**Status:** currently manual version bumps + ad-hoc GitHub Actions
-**Scope:** replace `onPushToMain.yml` release logic
+**Status:** done
+**Scope:** replace manual release flow with release-please
 
-- Add `release-please` GitHub Action on push to `main`
-- Use `node` release type (updates `package.json` version)
-- Auto-generates `CHANGELOG.md` from Conventional Commits
-- Creates GitHub release on merge of release PR
-- Wire existing `onRelease.yml` (npm publish) to the release event
+Replaced `test.yml`, `onPushToMain.yml`, and `onRelease.yml` with a single `ci.yml` workflow:
+- `test` job runs on all pushes/PRs (matrix: OS + Node versions)
+- `release-please` job runs on push to `main`, creates/updates a Release PR
+- `publish` job runs when release-please creates a GitHub release → publishes to npm
 
-Conventional commit format to enforce: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
+Config: `release-please-config.json` + `.release-please-manifest.json` at repo root, targeting `packages/domainlint`.
+
+Conventional commit format: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
 
 ---
 
