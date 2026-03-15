@@ -1,0 +1,236 @@
+---
+title: Rules & Configuration Schema
+description: Complete reference for domainlint rules, violation codes, and configuration schema.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+domainlint enforces two core architectural rules plus a permissive default for same-feature imports. Each rule can be configured globally or per-feature.
+
+---
+
+## R1 — No import cycles
+
+**Violation code:** `ARCH_IMPORT_CYCLE`
+
+Circular dependencies make code harder to reason about, cause runtime issues with module initialization, and block tree-shaking. domainlint builds a directed graph of every local import edge and checks that it is acyclic.
+
+### What triggers it
+
+Any strongly connected component with more than one node, or a self-loop (`A → A`), is reported as a cycle.
+
+```
+src/features/auth/session.ts ARCH_IMPORT_CYCLE
+  Cycle: auth/session.ts → auth/user.ts → auth/session.ts
+```
+
+### How to fix
+
+- Extract shared state into a third module that both files import.
+- Use dependency inversion — depend on an interface rather than a concrete implementation.
+- Merge tightly coupled files if they truly belong together.
+
+---
+
+## R2 — Cross-feature imports must use the barrel
+
+**Violation code:** `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
+
+Features expose a public API through a barrel file (`index.ts` by default). Any import that reaches into a feature's internals from outside that feature is a violation.
+
+### Formal definition
+
+For every resolved import edge `from → to`:
+
+- Let `FX = featureOf(from)` and `FY = featureOf(to)`.
+- If `FY` is not `null` **and** `FX ≠ FY` (including `FX = null`), then `to` **must** equal `barrelOf(FY)`.
+
+### Allowed
+
+```ts
+// ✅ Importing through the barrel
+import { Invoice } from "../features/billing";
+
+// ✅ Same-feature deep import (see R3)
+// (from src/features/billing/ui/Form.tsx)
+import { validate } from "../domain/invoice";
+```
+
+### Forbidden
+
+```ts
+// ❌ Bypasses the barrel — reaches into billing internals
+import { Invoice } from "../features/billing/domain/invoice";
+```
+
+```
+src/pages/home.tsx:5:1 ARCH_NO_CROSS_FEATURE_DEEP_IMPORT
+  Importing src/features/billing/domain/invoice.ts directly.
+  Expected: src/features/billing/index.ts
+```
+
+### How to fix
+
+Re-export the symbol from the feature's barrel file (`index.ts`), then import from there.
+
+---
+
+## R3 — Same-feature deep imports are allowed
+
+Within a feature, files may import each other freely. domainlint does not enforce internal layering (e.g. `ui` cannot import `domain`). This keeps day-to-day development ergonomic while still protecting feature boundaries.
+
+---
+
+## Configuration schema
+
+Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project root. All fields are optional — the defaults work for a standard `src/features/` layout.
+
+### Full schema
+
+```json
+{
+  "rootDir": ".",
+  "srcDir": "src",
+  "featuresDir": "src/features",
+  "barrelFiles": ["index.ts"],
+  "extensions": [".ts", ".tsx"],
+  "tsconfigPath": "./tsconfig.json",
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+  "includeDynamicImports": false,
+  "overrides": {
+    "global": {
+      "rules": {
+        "import-cycles": "error",
+        "cross-feature-imports": "error"
+      }
+    },
+    "features": {
+      "legacy-feature": {
+        "rules": {
+          "import-cycles": "off",
+          "cross-feature-imports": "warn"
+        }
+      }
+    }
+  }
+}
+```
+
+### Field reference
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `rootDir` | `string` | `"."` | Project root directory. |
+| `srcDir` | `string` | `"src"` | Source directory to analyze. |
+| `featuresDir` | `string` | `"src/features"` | Directory containing feature modules. |
+| `barrelFiles` | `string[]` | `["index.ts"]` | Filenames treated as public API barrels. |
+| `extensions` | `string[]` | `[".ts", ".tsx"]` | File extensions to include in analysis. Each entry must start with `.`. |
+| `tsconfigPath` | `string` | `"./tsconfig.json"` | Path to `tsconfig.json` for path alias resolution. |
+| `exclude` | `string[]` | `["**/node_modules/**", "**/dist/**", "**/.next/**"]` | Glob patterns to exclude from analysis. |
+| `includeDynamicImports` | `boolean` | `false` | Whether to include `await import()` expressions in the dependency graph. |
+| `overrides` | `object` | — | Rule-level overrides (see below). |
+
+### Rule overrides
+
+Overrides let you change the severity of each rule — or disable it entirely — at the global or per-feature level.
+
+#### Rule names
+
+| Rule name | Maps to |
+|-----------|---------|
+| `import-cycles` | R1 — No import cycles |
+| `cross-feature-imports` | R2 — Cross-feature barrel imports |
+
+#### Severity levels
+
+| Level | Behavior |
+|-------|----------|
+| `"error"` | Reported as an error. Causes exit code `1`. |
+| `"warn"` | Reported as a warning. Does **not** cause exit code `1`. |
+| `"off"` | Rule is skipped entirely for the scope. |
+
+#### Override resolution order
+
+1. **Feature-level** — `overrides.features["<featureName>"].rules` applies to files inside that feature.
+2. **Global** — `overrides.global.rules` applies to all other files.
+3. **Default** — `"error"` if no override matches.
+
+#### Examples
+
+<Tabs>
+  <TabItem label="Disable cycles for one feature">
+    ```json
+    {
+      "overrides": {
+        "features": {
+          "legacy-billing": {
+            "rules": {
+              "import-cycles": "off"
+            }
+          }
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Warn globally, error for one feature">
+    ```json
+    {
+      "overrides": {
+        "global": {
+          "rules": {
+            "cross-feature-imports": "warn"
+          }
+        },
+        "features": {
+          "payments": {
+            "rules": {
+              "cross-feature-imports": "error"
+            }
+          }
+        }
+      }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Zod validation schema
+
+The configuration file is validated at load time using [Zod](https://zod.dev). Here is the schema used internally:
+
+```ts
+const ruleOverrideSchema = z.object({
+  rules: z
+    .object({
+      "import-cycles": z.enum(["off", "warn", "error"]).optional(),
+      "cross-feature-imports": z.enum(["off", "warn", "error"]).optional(),
+    })
+    .optional(),
+});
+
+const configFileSchema = z.object({
+  rootDir: z.string().optional(),
+  srcDir: z.string().optional(),
+  featuresDir: z.string().optional(),
+  barrelFiles: z
+    .array(z.string().min(1))
+    .optional(),
+  extensions: z
+    .array(z.string().startsWith("."))
+    .optional(),
+  tsconfigPath: z.string().optional(),
+  exclude: z.array(z.string()).optional(),
+  includeDynamicImports: z.boolean().optional(),
+  overrides: z
+    .object({
+      global: ruleOverrideSchema.optional(),
+      features: z.record(z.string(), ruleOverrideSchema).optional(),
+    })
+    .optional(),
+});
+```
+
+Invalid configuration will cause domainlint to exit with code `2`.
