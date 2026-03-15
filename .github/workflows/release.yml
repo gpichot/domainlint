@@ -25,13 +25,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: latest
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install
-      - run: pnpm --filter domainlint build
-      - run: pnpm --filter domainlint prepack
-      - uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: packages/domainlint/package.json
-      - run: pnpm --filter domainlint postpack
+      - run: pnpm --filter domainlint publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
