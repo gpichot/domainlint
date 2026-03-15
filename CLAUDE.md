@@ -89,6 +89,10 @@ Examples:
 - `fix(resolver): handle symlinked node_modules`
 - `docs(readme): update configuration options`
 
+## Docs
+
+The `docs/` directory contains an Astro/Starlight site. When changing CLI commands, flags, or user-facing behaviour, update the relevant pages under `docs/src/content/docs/` as well.
+
 ## Roadmap
 
 At the start of every task, read `ROADMAP.md` to understand the current state of the project.
