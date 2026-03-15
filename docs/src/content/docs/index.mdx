@@ -1,0 +1,35 @@
+---
+title: domainlint
+description: Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.
+template: splash
+hero:
+  tagline: Keep your feature boundaries clean. Catch import cycles before they catch you.
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/gpichot/domainlint
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## What it does
+
+<CardGrid>
+  <Card title="Enforce feature boundaries" icon="puzzle">
+    Cross-feature imports must go through barrel files only (`src/features/<name>/index.ts`). No sneaking into internals.
+  </Card>
+  <Card title="Detect import cycles" icon="warning">
+    Finds circular dependencies across the module graph before they cause runtime surprises.
+  </Card>
+  <Card title="tsconfig-aware" icon="setting">
+    Resolves `baseUrl` and `paths` from your `tsconfig.json` so aliased imports are handled correctly.
+  </Card>
+  <Card title="Zero-config defaults" icon="rocket">
+    Works out of the box for `src/features/` layouts. Override anything with a simple `domainlint.json`.
+  </Card>
+</CardGrid>
