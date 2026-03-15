@@ -7,9 +7,13 @@ export default defineConfig({
       title: "domainlint",
       description:
         "Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.",
-      social: {
-        github: "https://github.com/gpichot/domainlint",
-      },
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/gpichot/domainlint",
+        },
+      ],
       sidebar: [
         {
           label: "Start Here",
