@@ -34,3 +34,20 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter domainlint build
       - run: pnpm --filter domainlint test:coverage
+      - name: Write coverage summary
+        if: always()
+        run: |
+          node -e "
+            const s = require('./packages/domainlint/coverage/coverage-summary.json').total;
+            const fmt = v => v.pct + '% (' + v.covered + '/' + v.total + ')';
+            const rows = [
+              '| Metric | Coverage |',
+              '|--------|----------|',
+              '| Lines | ' + fmt(s.lines) + ' |',
+              '| Statements | ' + fmt(s.statements) + ' |',
+              '| Functions | ' + fmt(s.functions) + ' |',
+              '| Branches | ' + fmt(s.branches) + ' |',
+            ];
+            const out = '## Coverage\n\n' + rows.join('\n') + '\n';
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, out);
+          "

@@ -9,7 +9,7 @@ export default defineConfig({
     testTimeout: 60000,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
       exclude: ['node_modules/', 'dist/', '**/*.test.ts'],
       thresholds: {
         lines: 70,
