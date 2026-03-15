@@ -170,7 +170,7 @@ describe('ViolationFilterService', () => {
         maxCycleLength: 4,
       });
 
-      expect(result).toHaveLength(1); // 2 visible + 3 hidden = 5, but our logic may differ
+      expect(result).toHaveLength(0); // 2 visible + 3 hidden = 5, which exceeds maxCycleLength of 4
     });
 
     it('should count visible parts for short cycles', () => {

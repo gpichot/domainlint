@@ -1,15 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { vol } from 'memfs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import type { LintResult } from '../linter/feature-boundaries-linter.js';
-import { createMockFileSystem } from '../test-utils/setup.js';
 import { StatisticsCalculator } from './statistics-calculator.js';
+
+vi.mock('node:fs/promises', async () => {
+  const memfs = await import('memfs');
+  return memfs.fs.promises;
+});
 
 describe('StatisticsCalculator', () => {
   let calculator: StatisticsCalculator;
   let mockConfig: FeatureBoundariesConfig;
 
   beforeEach(() => {
+    vol.reset();
     calculator = new StatisticsCalculator();
     mockConfig = {
       rootDir: '/project',
@@ -25,12 +31,9 @@ describe('StatisticsCalculator', () => {
 
   describe('calculateFeatureStats', () => {
     it('should calculate basic feature statistics', async () => {
-      const mockFiles = await createMockFileSystem({
+      vol.fromJSON({
         '/project/src/features/auth/user.ts': 'export interface User {}',
-        '/project/src/features/auth/service.ts': `
-          import { User } from './user';
-          export class AuthService {}
-        `,
+        '/project/src/features/auth/service.ts': `import { User } from './user';\nexport class AuthService {}`,
         '/project/src/features/billing/invoice.ts': 'export class Invoice {}',
       });
 

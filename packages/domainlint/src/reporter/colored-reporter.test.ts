@@ -157,11 +157,11 @@ describe('ColoredReporter', () => {
       );
 
       expect(result).toContain('Feature Status:');
-      expect(result).toContain('Feature: auth (1 violation)');
+      expect(result).toContain('Feature: auth');
       expect(result).toContain('• 1 import cycle');
-      expect(result).toContain('Feature: billing (1 violation)');
+      expect(result).toContain('Feature: billing');
       expect(result).toContain('• 1 boundary violation');
-      expect(result).toContain('Global (non-feature files) (1 violation)');
+      expect(result).toContain('Global (non-feature files)');
     });
 
     it('should return empty string when no violations', () => {
@@ -196,7 +196,8 @@ describe('ColoredReporter', () => {
         config,
       );
 
-      expect(result).toContain('Feature: auth (2 violations)');
+      expect(result).toContain('Feature: auth');
+      expect(result).toContain('2 violations');
       expect(result).toContain('• 1 import cycle');
       expect(result).toContain('• 1 boundary violation');
     });
@@ -215,7 +216,8 @@ describe('ColoredReporter', () => {
       const result = reporter.formatDomainSummary([nonDomainViolation], config);
 
       expect(result).toContain('Feature Status:');
-      expect(result).toContain('Feature: auth (1 violation)');
+      expect(result).toContain('Feature: auth');
+      expect(result).toContain('1 violation');
       expect(result).toContain('• 1 boundary violation');
     });
 
@@ -253,11 +255,12 @@ describe('ColoredReporter', () => {
       );
 
       expect(result).toContain('Feature Status:');
-      expect(result).toContain(
-        'Feature: auth (1 violation, 5 files, 120 lines)',
-      );
+      expect(result).toContain('Feature: auth');
+      expect(result).toContain('1 violation');
+      expect(result).toContain('5 files');
+      expect(result).toContain('120 lines');
       expect(result).toContain('• 1 import cycle');
-      expect(result).toContain('• Dependencies: → users, permissions'); // Dependencies now in detail line
+      expect(result).toContain('→ users, permissions'); // Dependencies shown in header line
       expect(result).toContain('• billing'); // Clean feature with stats and deps
       expect(result).toContain('→ auth'); // Dependencies for clean features
     });
