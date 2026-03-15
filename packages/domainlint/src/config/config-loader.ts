@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'jsonc-parser';
 import type {
@@ -77,10 +77,46 @@ export async function loadConfig(
     overrides: fileConfig.overrides ?? DEFAULT_CONFIG.overrides,
   };
 
+  // Validate barrelFiles entries are non-empty strings
+  for (const entry of config.barrelFiles) {
+    if (typeof entry !== 'string' || entry.trim() === '') {
+      throw new Error(
+        `Invalid config: "barrelFiles" entries must be non-empty strings (got ${JSON.stringify(entry)})`,
+      );
+    }
+  }
+
+  // Validate extensions start with '.'
+  for (const ext of config.extensions) {
+    if (typeof ext !== 'string' || !ext.startsWith('.')) {
+      throw new Error(
+        `Invalid config: "extensions" entries must start with '.' (got ${JSON.stringify(ext)})`,
+      );
+    }
+  }
+
   // Resolve relative paths
   config.srcDir = resolve(rootDir, config.srcDir);
   config.featuresDir = resolve(rootDir, config.featuresDir);
   config.tsconfigPath = resolve(rootDir, config.tsconfigPath);
+
+  // Validate that srcDir exists
+  try {
+    await access(config.srcDir);
+  } catch {
+    throw new Error(
+      `Invalid config: "srcDir" does not exist: ${config.srcDir}`,
+    );
+  }
+
+  // Validate that featuresDir exists
+  try {
+    await access(config.featuresDir);
+  } catch {
+    throw new Error(
+      `Invalid config: "featuresDir" does not exist: ${config.featuresDir}`,
+    );
+  }
 
   return config;
 }

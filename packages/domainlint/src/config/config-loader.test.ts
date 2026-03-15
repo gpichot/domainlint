@@ -15,7 +15,10 @@ describe('Config Loader', () => {
   });
 
   it('should load default config when no config file exists', async () => {
-    createMockFileSystem({});
+    createMockFileSystem({
+      '/project/src/.keep': '',
+      '/project/src/features/.keep': '',
+    });
 
     const config = await loadConfig('/project');
 
@@ -38,6 +41,8 @@ describe('Config Loader', () => {
         extensions: ['.ts'],
         includeDynamicImports: true,
       }),
+      '/project/source/.keep': '',
+      '/project/src/features/.keep': '',
     });
 
     const config = await loadConfig('/project');
@@ -58,6 +63,8 @@ describe('Config Loader', () => {
         srcDir: 'source',
         includeDynamicImports: true,
       }),
+      '/project/app/.keep': '',
+      '/project/src/features/.keep': '',
     });
 
     const config = await loadConfig('/project', undefined, {
@@ -77,6 +84,8 @@ describe('Config Loader', () => {
         srcDir: 'custom',
         extensions: ['.js', '.jsx'],
       }),
+      '/project/custom/.keep': '',
+      '/project/src/features/.keep': '',
     });
 
     const config = await loadConfig('/project', 'custom-config.json');
@@ -93,5 +102,72 @@ describe('Config Loader', () => {
     });
 
     await expect(loadConfig('/project')).rejects.toThrow();
+  });
+
+  describe('config validation', () => {
+    it('should throw when srcDir does not exist', async () => {
+      createMockFileSystem({
+        '/project/src/features/.keep': '',
+      });
+
+      // Override srcDir to a non-existent directory
+      await expect(
+        loadConfig('/project', undefined, { srcDir: 'nonexistent' }),
+      ).rejects.toThrow('"srcDir" does not exist');
+    });
+
+    it('should throw when featuresDir does not exist', async () => {
+      createMockFileSystem({
+        '/project/src/.keep': '',
+      });
+
+      await expect(loadConfig('/project')).rejects.toThrow(
+        '"featuresDir" does not exist',
+      );
+    });
+
+    it('should throw for barrelFiles entry that is an empty string', async () => {
+      createMockFileSystem({
+        '/project/domainlint.json': JSON.stringify({
+          barrelFiles: ['index.ts', ''],
+        }),
+        '/project/src/.keep': '',
+        '/project/src/features/.keep': '',
+      });
+
+      await expect(loadConfig('/project')).rejects.toThrow(
+        '"barrelFiles" entries must be non-empty strings',
+      );
+    });
+
+    it('should throw for extensions entry missing leading dot', async () => {
+      createMockFileSystem({
+        '/project/domainlint.json': JSON.stringify({
+          extensions: ['.ts', 'tsx'],
+        }),
+        '/project/src/.keep': '',
+        '/project/src/features/.keep': '',
+      });
+
+      await expect(loadConfig('/project')).rejects.toThrow(
+        '"extensions" entries must start with \'.\'',
+      );
+    });
+
+    it('should accept valid barrelFiles and extensions', async () => {
+      createMockFileSystem({
+        '/project/domainlint.json': JSON.stringify({
+          barrelFiles: ['index.ts', 'index.js'],
+          extensions: ['.ts', '.tsx', '.js'],
+        }),
+        '/project/src/.keep': '',
+        '/project/src/features/.keep': '',
+      });
+
+      await expect(loadConfig('/project')).resolves.toMatchObject({
+        barrelFiles: ['index.ts', 'index.js'],
+        extensions: ['.ts', '.tsx', '.js'],
+      });
+    });
   });
 });
