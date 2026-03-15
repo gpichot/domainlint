@@ -1,0 +1,49 @@
+---
+title: Philosophy & Vision
+description: Why domainlint exists and where it is going.
+---
+
+## The problem
+
+Large TypeScript codebases tend to develop the same kind of rot over time: a component in `billing` quietly imports a helper from `auth`, a page imports a domain object two levels deep into a feature, and before long the whole codebase is an entangled graph that is hard to test, hard to refactor, and full of hidden cycles.
+
+These violations are rarely intentional. They happen gradually, one shortcut at a time, and no existing tool catches them at the right moment — in the editor, in CI, before the PR merges.
+
+## Core principles
+
+### Boundaries are explicit contracts
+
+A feature's public API is its barrel file (`index.ts`). Everything else is an implementation detail. `domainlint` treats this boundary as a hard contract: if you want something from `billing`, you import it from `billing/index.ts`. Full stop.
+
+This isn't an arbitrary restriction. It means features can be refactored internally without breaking callers, moved between packages, or deleted with confidence.
+
+### Linting beats conventions
+
+Conventions written in a README are ignored. Rules enforced by a linter are not. `domainlint` is designed to live in CI so that boundaries stay clean automatically, without relying on code review to catch every violation.
+
+### Minimal surface area
+
+`domainlint` does two things: enforce feature boundaries and detect import cycles. It does not try to enforce intra-feature layering, type-check imports, or auto-fix your code. A focused tool is easier to trust and easier to maintain.
+
+### Zero friction to adopt
+
+The default configuration works for the most common layout — `src/features/<name>/` — without writing any config file. You drop it in, run it, and see violations immediately. Tuning is opt-in.
+
+## What it is not
+
+- It is not a replacement for TypeScript's type checker.
+- It does not enforce internal layering within a feature (e.g. `ui` cannot import `infra`). That may come later as an opt-in rule.
+- It does not auto-fix violations. The decisions about how to restructure code belong to the developer.
+
+## Vision
+
+The long-term goal is to give teams a lightweight, fast, and configurable guard for any feature-based or domain-driven codebase — not just React apps, not just `src/features/`, but any project that has intentional module boundaries.
+
+Planned directions include:
+
+- **Custom rules** — define your own glob-based import restrictions beyond the built-in two.
+- **Per-feature allow-lists** — let specific features depend on each other when the architecture calls for it.
+- **Shared layer** — first-class support for a `src/shared/` directory that any feature can import from.
+- **Editor integration** — surface violations inline in VS Code and other editors via LSP.
+
+The focus will always be on being fast enough to run on every save, accurate enough to trust in CI, and simple enough to configure in five minutes.
