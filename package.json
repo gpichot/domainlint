@@ -16,6 +16,12 @@
     "lint": "pnpm --filter domainlint lint",
     "lint:fix": "pnpm --filter domainlint lint:fix"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ]
+  },
   "lint-staged": {
     "*.{js,ts,json}": [
       "biome check --write"

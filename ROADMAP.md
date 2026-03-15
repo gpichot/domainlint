@@ -6,7 +6,7 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ## 1. Monorepo migration
 
-**Status:** not started
+**Status:** done
 **Scope:** repo restructuring, prerequisite for the docs package
 
 Move to a pnpm monorepo to host the documentation site as a separate package alongside the CLI.
