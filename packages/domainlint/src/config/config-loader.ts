@@ -2,6 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'jsonc-parser';
 import { ZodError } from 'zod';
+import { normalizePath } from '../normalize-path.js';
 import type { ConfigOverrides, FeatureBoundariesConfig } from './types.js';
 import { configFileSchema } from './types.js';
 
@@ -22,7 +23,7 @@ export async function loadConfig(
   configFilePath?: string,
   overrides: ConfigOverrides = {},
 ): Promise<FeatureBoundariesConfig> {
-  const rootDir = resolve(projectPath);
+  const rootDir = normalizePath(resolve(projectPath));
   let rawFileConfig: unknown = {};
 
   // Try to load config file
@@ -90,9 +91,9 @@ export async function loadConfig(
   };
 
   // Resolve relative paths
-  config.srcDir = resolve(rootDir, config.srcDir);
-  config.featuresDir = resolve(rootDir, config.featuresDir);
-  config.tsconfigPath = resolve(rootDir, config.tsconfigPath);
+  config.srcDir = normalizePath(resolve(rootDir, config.srcDir));
+  config.featuresDir = normalizePath(resolve(rootDir, config.featuresDir));
+  config.tsconfigPath = normalizePath(resolve(rootDir, config.tsconfigPath));
 
   // Validate that srcDir exists
   try {

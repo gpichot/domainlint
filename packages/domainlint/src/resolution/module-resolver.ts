@@ -1,6 +1,7 @@
 import { dirname, extname, join, resolve } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { type FileSystem, nodeFileSystem } from '../fs.js';
+import { normalizePath } from '../normalize-path.js';
 import { resolvePathMapping } from '../tsconfig/tsconfig-loader.js';
 import type { ResolvedTsConfig } from '../tsconfig/types.js';
 
@@ -135,7 +136,7 @@ export class ModuleResolver {
     fromFile: string,
   ): Promise<string | null> {
     const fromDir = dirname(fromFile);
-    const targetPath = resolve(fromDir, specifier);
+    const targetPath = normalizePath(resolve(fromDir, specifier));
 
     return await this.resolveFile(targetPath);
   }
@@ -164,7 +165,7 @@ export class ModuleResolver {
     // Fallback to baseUrl resolution
     if (this.tsconfig.baseUrl) {
       const baseUrlPath = resolve(this.tsconfig.rootDir, this.tsconfig.baseUrl);
-      const targetPath = resolve(baseUrlPath, specifier);
+      const targetPath = normalizePath(resolve(baseUrlPath, specifier));
       return await this.resolveFile(targetPath);
     }
 
@@ -187,7 +188,7 @@ export class ModuleResolver {
 
     // Try index files
     for (const barrel of this.config.barrelFiles) {
-      const indexPath = join(basePath, barrel);
+      const indexPath = normalizePath(join(basePath, barrel));
       if (await this.fileExists(indexPath)) {
         return indexPath;
       }
@@ -197,7 +198,7 @@ export class ModuleResolver {
     for (const barrel of this.config.barrelFiles) {
       const barrelName = barrel.replace(extname(barrel), '');
       for (const ext of this.config.extensions) {
-        const indexPath = join(basePath, barrelName + ext);
+        const indexPath = normalizePath(join(basePath, barrelName + ext));
         if (await this.fileExists(indexPath)) {
           return indexPath;
         }

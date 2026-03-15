@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { parse } from 'jsonc-parser';
+import { normalizePath } from '../normalize-path.js';
 import type { ResolvedTsConfig, TsConfig } from './types.js';
 
 const execAsync = promisify(exec);
@@ -11,7 +12,7 @@ export async function loadTsConfig(
   tsconfigPath: string,
 ): Promise<ResolvedTsConfig> {
   const resolvedTsConfig = await loadTsConfigWithFallback(tsconfigPath);
-  const rootDir = dirname(tsconfigPath);
+  const rootDir = normalizePath(dirname(tsconfigPath));
 
   // TypeScript defaults baseUrl to "." when paths is defined but baseUrl is not
   const baseUrl =
@@ -85,7 +86,7 @@ async function loadTsConfigWithExtends(
 function resolveExtendsPath(extendsValue: string, configDir: string): string {
   // Relative or absolute path
   if (extendsValue.startsWith('.') || isAbsolute(extendsValue)) {
-    const resolved = resolve(configDir, extendsValue);
+    const resolved = normalizePath(resolve(configDir, extendsValue));
     return resolved.endsWith('.json') ? resolved : `${resolved}.json`;
   }
 
@@ -100,8 +101,10 @@ function resolveExtendsPath(extendsValue: string, configDir: string): string {
     : parts.slice(1).join('/');
 
   const resolved = subPath
-    ? resolve(configDir, 'node_modules', pkgName, subPath)
-    : resolve(configDir, 'node_modules', pkgName, 'tsconfig.json');
+    ? normalizePath(resolve(configDir, 'node_modules', pkgName, subPath))
+    : normalizePath(
+        resolve(configDir, 'node_modules', pkgName, 'tsconfig.json'),
+      );
 
   return resolved.endsWith('.json') ? resolved : `${resolved}.json`;
 }
@@ -141,7 +144,9 @@ export function resolvePathMapping(
     if (match !== null) {
       for (const mapping of mappings) {
         const resolvedMapping = mapping.replace('*', match);
-        candidates.push(resolve(resolvedBaseUrl, resolvedMapping));
+        candidates.push(
+          normalizePath(resolve(resolvedBaseUrl, resolvedMapping)),
+        );
       }
     }
   }

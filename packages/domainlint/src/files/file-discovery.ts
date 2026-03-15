@@ -2,6 +2,7 @@ import { relative, resolve } from 'node:path';
 import { glob as defaultGlob } from 'glob';
 import { minimatch } from 'minimatch';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { normalizePath } from '../normalize-path.js';
 
 export interface FileInfo {
   path: string;
@@ -40,13 +41,13 @@ export async function discoverFiles(
 
   // Filter out excluded files
   const filteredFiles = allFiles.filter((file) => {
-    const relativePath = relative(srcDir, file);
+    const relativePath = normalizePath(relative(srcDir, file));
     return !exclude.some((pattern) => minimatch(relativePath, pattern));
   });
 
   // Convert to FileInfo objects
   return filteredFiles.map((file) => {
-    const relativePath = relative(config.rootDir, file);
+    const relativePath = normalizePath(relative(config.rootDir, file));
     const feature = getFeature(file, config);
     const isBarrel = checkIsBarrel(file, feature, config);
 
@@ -64,7 +65,7 @@ export function getFeature(
   config: FeatureBoundariesConfig,
 ): string | null {
   const { featuresDir } = config;
-  const relativePath = relative(featuresDir, filePath);
+  const relativePath = normalizePath(relative(featuresDir, filePath));
 
   // Check if file is inside features directory
   if (relativePath.startsWith('../') || relativePath.startsWith('/')) {
@@ -87,9 +88,9 @@ function checkIsBarrel(
 
   const { featuresDir, barrelFiles } = config;
   const featureDir = resolve(featuresDir, feature);
-  const relativePath = relative(featureDir, filePath);
+  const rel = normalizePath(relative(featureDir, filePath));
 
-  return barrelFiles.includes(relativePath);
+  return barrelFiles.includes(rel);
 }
 
 export function getBarrelPath(
