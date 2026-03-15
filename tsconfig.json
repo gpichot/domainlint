@@ -9,6 +9,7 @@
     "moduleResolution": "node16"
   },
   "include": ["./src/**/*"],
+  "exclude": ["./src/web/**/*"],
   "ts-node": {
     "esm": true
   }
