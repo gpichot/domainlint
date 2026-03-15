@@ -1,7 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import { getFeature } from '../files/file-discovery.js';
+import { type FileSystem, nodeFileSystem } from '../fs.js';
 import type { LintResult } from '../linter/feature-boundaries-linter.js';
 import type { FeatureStats } from '../reporter/colored-reporter.js';
 
@@ -10,7 +10,10 @@ export interface StatisticsCalculatorOptions {
 }
 
 export class StatisticsCalculator {
-  constructor(private options: StatisticsCalculatorOptions = {}) {}
+  constructor(
+    private options: StatisticsCalculatorOptions = {},
+    private fs: FileSystem = nodeFileSystem,
+  ) {}
 
   async calculateFeatureStats(
     allFiles: FileInfo[],
@@ -40,7 +43,7 @@ export class StatisticsCalculator {
 
       if (this.options.includeLineCount !== false) {
         try {
-          const content = await readFile(file.path, 'utf-8');
+          const content = await this.fs.readFile(file.path, 'utf-8');
           // Count non-empty lines (simple LOC metric)
           const lines = content
             .split('\n')

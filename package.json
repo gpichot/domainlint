@@ -19,6 +19,12 @@
     "docs:build": "pnpm --filter domainlint-docs build",
     "docs:preview": "pnpm --filter domainlint-docs preview"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ]
+  },
   "lint-staged": {
     "*.{js,ts,json}": [
       "biome check --write"

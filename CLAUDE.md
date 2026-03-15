@@ -77,3 +77,8 @@ See `TESTING.md` for conventions (colocation, memfs, behavioral style).
 ## Spec
 
 See `SPEC.md` for the full formal specification.
+
+## Roadmap
+
+At the start of every task, read `ROADMAP.md` to understand the current state of the project.
+Once the task is complete, update `ROADMAP.md` to reflect the new status of any items worked on.
