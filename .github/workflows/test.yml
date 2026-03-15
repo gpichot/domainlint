@@ -19,5 +19,5 @@ jobs:
           node-version: ${{ matrix.node_version }}
           cache: pnpm
       - run: pnpm install
-      - run: pnpm run build
-      - run: pnpm run test
+      - run: pnpm --filter domainlint build
+      - run: pnpm --filter domainlint test:run
