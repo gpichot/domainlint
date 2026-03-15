@@ -57,12 +57,12 @@ Missing scenarios:
 
 ## 4. Tests — Coverage reporting in CI
 
-**Status:** script exists (`pnpm test:coverage`), not wired into CI
+**Status:** done
 **Scope:** `.github/workflows/ci.yml`
 
-- Add coverage step to CI (Vitest v8 coverage)
-- Set a minimum threshold (e.g. 70% lines)
-- Optionally upload to Codecov or similar
+- Added `coverage` job to CI (Vitest v8 coverage, lcov reporter)
+- Set 70% minimum threshold for lines, functions, branches, and statements
+- lcov reporter output available for future Codecov integration
 
 ---
 
