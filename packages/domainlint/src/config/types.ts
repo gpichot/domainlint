@@ -34,7 +34,7 @@ export const configFileSchema = z.object({
   overrides: z
     .object({
       global: ruleOverrideSchema.optional(),
-      features: z.record(ruleOverrideSchema).optional(),
+      features: z.record(z.string(), ruleOverrideSchema).optional(),
     })
     .optional(),
 });
