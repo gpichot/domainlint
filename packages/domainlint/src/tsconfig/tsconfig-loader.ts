@@ -1,16 +1,12 @@
-import { exec } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { promisify } from 'node:util';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { parse } from 'jsonc-parser';
 import type { ResolvedTsConfig, TsConfig } from './types.js';
-
-const execAsync = promisify(exec);
 
 export async function loadTsConfig(
   tsconfigPath: string,
 ): Promise<ResolvedTsConfig> {
-  const resolvedTsConfig = await loadTsConfigWithFallback(tsconfigPath);
+  const resolvedTsConfig = await loadTsConfigWithExtends(tsconfigPath);
   const rootDir = dirname(tsconfigPath);
 
   // TypeScript defaults baseUrl to "." when paths is defined but baseUrl is not
@@ -23,21 +19,6 @@ export async function loadTsConfig(
     paths: resolvedTsConfig.compilerOptions?.paths,
     rootDir,
   };
-}
-
-async function loadTsConfigWithFallback(
-  tsconfigPath: string,
-): Promise<TsConfig> {
-  // Try using tsc --showConfig first for full resolution including extends
-  try {
-    const { stdout } = await execAsync(
-      `tsc --showConfig --project "${tsconfigPath}"`,
-    );
-    return JSON.parse(stdout) as TsConfig;
-  } catch {
-    // Fallback to manual parsing for cases where tsc is not available or fails
-    return await loadTsConfigWithExtends(tsconfigPath);
-  }
 }
 
 async function loadTsConfigWithExtends(
@@ -61,34 +42,68 @@ async function loadTsConfigWithExtends(
     );
   }
 
-  // Handle extends
-  if (config.extends) {
-    const basePath = resolve(dirname(tsconfigPath), config.extends);
-    let baseConfigPath = basePath;
-
-    // Handle extends without .json extension
-    if (!baseConfigPath.endsWith('.json')) {
-      baseConfigPath += '.json';
-    }
-
-    const baseConfig = await loadTsConfigWithExtends(baseConfigPath);
-
-    // Merge configurations
-    return {
-      ...baseConfig,
-      ...config,
-      compilerOptions: {
-        ...baseConfig.compilerOptions,
-        ...config.compilerOptions,
-        paths: {
-          ...baseConfig.compilerOptions?.paths,
-          ...config.compilerOptions?.paths,
-        },
-      },
-    };
+  const extendsValue = config.extends;
+  if (!extendsValue) {
+    return config;
   }
 
-  return config;
+  // extends can be a string or an array (TypeScript 5.0+)
+  const extendsArray = Array.isArray(extendsValue)
+    ? extendsValue
+    : [extendsValue];
+
+  // Resolve each base config left-to-right, each overriding the previous
+  let merged: TsConfig = {};
+  for (const ext of extendsArray) {
+    const baseConfigPath = resolveExtendsPath(ext, dirname(tsconfigPath));
+    const baseConfig = await loadTsConfigWithExtends(baseConfigPath);
+    merged = mergeConfigs(merged, baseConfig);
+  }
+
+  // Current config overrides the merged base (strip extends to avoid re-processing)
+  const { extends: _extends, ...configWithoutExtends } = config;
+  return mergeConfigs(merged, configWithoutExtends);
+}
+
+function resolveExtendsPath(extendsValue: string, configDir: string): string {
+  // Relative or absolute path
+  if (extendsValue.startsWith('.') || isAbsolute(extendsValue)) {
+    const resolved = resolve(configDir, extendsValue);
+    return resolved.endsWith('.json') ? resolved : `${resolved}.json`;
+  }
+
+  // node_modules package resolution
+  // e.g. "tsconfig-strict" → node_modules/tsconfig-strict/tsconfig.json
+  // e.g. "@scope/pkg/base" → node_modules/@scope/pkg/base.json
+  const isScoped = extendsValue.startsWith('@');
+  const parts = extendsValue.split('/');
+  const pkgName = isScoped ? `${parts[0]}/${parts[1]}` : parts[0];
+  const subPath = isScoped
+    ? parts.slice(2).join('/')
+    : parts.slice(1).join('/');
+
+  const resolved = subPath
+    ? resolve(configDir, 'node_modules', pkgName, subPath)
+    : resolve(configDir, 'node_modules', pkgName, 'tsconfig.json');
+
+  return resolved.endsWith('.json') ? resolved : `${resolved}.json`;
+}
+
+function mergeConfigs(base: TsConfig, override: TsConfig): TsConfig {
+  const basePaths = base.compilerOptions?.paths;
+  const overridePaths = override.compilerOptions?.paths;
+  const mergedPaths =
+    basePaths || overridePaths ? { ...basePaths, ...overridePaths } : undefined;
+
+  return {
+    ...base,
+    ...override,
+    compilerOptions: {
+      ...base.compilerOptions,
+      ...override.compilerOptions,
+      ...(mergedPaths ? { paths: mergedPaths } : {}),
+    },
+  };
 }
 
 export function resolvePathMapping(

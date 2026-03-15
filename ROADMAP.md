@@ -6,12 +6,12 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ## 1. tsconfig `extends` chain
 
-**Status:** partial, relies on `tsc --showConfig` with fallback
+**Status:** done
 **Scope:** `src/tsconfig/tsconfig-loader.ts`
 
-- Ensure `extends` resolution is reliable without requiring `tsc` installed
-- Implement pure-TS `extends` resolution as fallback
-- Add tests for 2-level inheritance and monorepo-style tsconfig
+- Pure-TS `extends` resolution is now the primary path (no `tsc` dependency)
+- Supports 2-level inheritance, monorepo-style parent-directory extends, array extends (TypeScript 5.0+), and node_modules package extends
+- Tests cover: single-level, 2-level chain, monorepo (parent dir), array extends, node_modules extends
 
 ---
 

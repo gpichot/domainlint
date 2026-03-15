@@ -37,7 +37,7 @@ describe('TsConfig Loader', () => {
     });
   });
 
-  it('should handle extends chain', async () => {
+  it('should handle extends chain (single level)', async () => {
     createMockFileSystem({
       '/project/tsconfig.json': JSON.stringify({
         extends: './base.json',
@@ -63,8 +63,166 @@ describe('TsConfig Loader', () => {
       baseUrl: '.',
       paths: {
         '@shared/*': ['shared/*'],
-        '@/*': ['src/*'], // local paths override base
+        '@/*': ['src/*'],
       },
+      rootDir: '/project',
+    });
+  });
+
+  it('should handle 2-level extends chain (A extends B extends C)', async () => {
+    createMockFileSystem({
+      '/project/tsconfig.json': JSON.stringify({
+        extends: './tsconfig.app.json',
+        compilerOptions: {
+          paths: {
+            '@app/*': ['src/app/*'],
+          },
+        },
+      }),
+      '/project/tsconfig.app.json': JSON.stringify({
+        extends: './tsconfig.base.json',
+        compilerOptions: {
+          paths: {
+            '@features/*': ['src/features/*'],
+          },
+        },
+      }),
+      '/project/tsconfig.base.json': JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@shared/*': ['src/shared/*'],
+          },
+        },
+      }),
+    });
+
+    const tsconfig = await loadTsConfig('/project/tsconfig.json');
+
+    expect(tsconfig).toMatchObject({
+      baseUrl: '.',
+      paths: {
+        '@shared/*': ['src/shared/*'],
+        '@features/*': ['src/features/*'],
+        '@app/*': ['src/app/*'],
+      },
+      rootDir: '/project',
+    });
+  });
+
+  it('should handle monorepo-style extends (extends from parent directory)', async () => {
+    createMockFileSystem({
+      '/repo/tsconfig.base.json': JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@monorepo/*': ['packages/*/src'],
+          },
+        },
+      }),
+      '/repo/packages/my-app/tsconfig.json': JSON.stringify({
+        extends: '../../tsconfig.base.json',
+        compilerOptions: {
+          paths: {
+            '@/*': ['src/*'],
+          },
+        },
+      }),
+    });
+
+    const tsconfig = await loadTsConfig('/repo/packages/my-app/tsconfig.json');
+
+    expect(tsconfig).toMatchObject({
+      baseUrl: '.',
+      paths: {
+        '@monorepo/*': ['packages/*/src'],
+        '@/*': ['src/*'],
+      },
+      rootDir: '/repo/packages/my-app',
+    });
+  });
+
+  it('should handle extends as an array (TypeScript 5.0+)', async () => {
+    createMockFileSystem({
+      '/project/tsconfig.json': JSON.stringify({
+        extends: ['./base-a.json', './base-b.json'],
+        compilerOptions: {
+          paths: {
+            '@app/*': ['src/*'],
+          },
+        },
+      }),
+      '/project/base-a.json': JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: {
+            '@shared/*': ['shared/*'],
+          },
+        },
+      }),
+      '/project/base-b.json': JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@utils/*': ['utils/*'],
+          },
+        },
+      }),
+    });
+
+    const tsconfig = await loadTsConfig('/project/tsconfig.json');
+
+    expect(tsconfig).toMatchObject({
+      baseUrl: '.',
+      paths: {
+        '@shared/*': ['shared/*'],
+        '@utils/*': ['utils/*'],
+        '@app/*': ['src/*'],
+      },
+      rootDir: '/project',
+    });
+  });
+
+  it('should handle extends without .json extension', async () => {
+    createMockFileSystem({
+      '/project/tsconfig.json': JSON.stringify({
+        extends: './base',
+        compilerOptions: { paths: { '@/*': ['src/*'] } },
+      }),
+      '/project/base.json': JSON.stringify({
+        compilerOptions: { baseUrl: '.' },
+      }),
+    });
+
+    const tsconfig = await loadTsConfig('/project/tsconfig.json');
+
+    expect(tsconfig).toMatchObject({
+      baseUrl: '.',
+      paths: { '@/*': ['src/*'] },
+      rootDir: '/project',
+    });
+  });
+
+  it('should handle node_modules extends', async () => {
+    createMockFileSystem({
+      '/project/tsconfig.json': JSON.stringify({
+        extends: 'tsconfig-strict',
+        compilerOptions: {
+          baseUrl: '.',
+          paths: { '@/*': ['src/*'] },
+        },
+      }),
+      '/project/node_modules/tsconfig-strict/tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          strict: true,
+        },
+      }),
+    });
+
+    const tsconfig = await loadTsConfig('/project/tsconfig.json');
+
+    expect(tsconfig).toMatchObject({
+      baseUrl: '.',
+      paths: { '@/*': ['src/*'] },
       rootDir: '/project',
     });
   });
