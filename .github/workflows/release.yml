@@ -3,9 +3,16 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish_only:
+        description: Retrigger publish for the latest release (skip release-please)
+        type: boolean
+        default: true
 
 jobs:
   release-please:
+    if: inputs.publish_only != true
     permissions:
       contents: write
       pull-requests: write
@@ -22,7 +29,7 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: always() && (inputs.publish_only == true || needs.release-please.outputs.release_created == 'true')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
