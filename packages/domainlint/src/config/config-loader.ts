@@ -86,6 +86,7 @@ export async function loadConfig(
       overrides.includeDynamicImports ??
       fileConfig.includeDynamicImports ??
       DEFAULT_CONFIG.includeDynamicImports,
+    rulesFile: fileConfig.rulesFile,
     overrides: fileConfig.overrides ?? DEFAULT_CONFIG.overrides,
   };
 

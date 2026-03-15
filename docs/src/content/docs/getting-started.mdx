@@ -109,6 +109,31 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 | `1`  | Violations found |
 | `2`  | Internal error (e.g. unreadable tsconfig) |
 
+## Custom rules
+
+Create a `domainlint.rules.ts` file at the project root to add custom rules that run against the import graph. See [Rules & Configuration](/rules/#custom-rules) for the full API.
+
+```ts
+import type { CustomRule } from "domainlint";
+
+export const rules: CustomRule[] = [
+  {
+    name: "no-utils-import",
+    check({ graph }) {
+      return graph.edges
+        .filter((e) => e.to.includes("/utils/"))
+        .map((e) => ({
+          code: "CUSTOM_NO_UTILS",
+          file: e.from,
+          line: e.importInfo.line,
+          col: e.importInfo.col,
+          message: "Direct utils/ imports are not allowed",
+        }));
+    },
+  },
+];
+```
+
 ## Add to CI
 
 ```yaml

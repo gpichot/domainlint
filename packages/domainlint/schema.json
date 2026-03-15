@@ -37,6 +37,9 @@
     "includeDynamicImports": {
       "type": "boolean"
     },
+    "rulesFile": {
+      "type": "string"
+    },
     "overrides": {
       "type": "object",
       "properties": {

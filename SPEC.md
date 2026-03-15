@@ -163,6 +163,27 @@ If `featureOf(from) == featureOf(to) != null`, then deep imports MUST be allowed
 
 ---
 
+## RULE R4+ — Custom rules (user-defined)
+
+### Intent
+Allow users to define project-specific import restrictions beyond the built-in rules.
+
+### Requirements
+- The linter MUST look for a `domainlint.rules.ts` or `domainlint.rules.js` file at the project root.
+- Alternatively, the config MAY specify a `rulesFile` path pointing to a custom rules file.
+- The rules file MUST export a `rules` array of `CustomRule` objects.
+- Each `CustomRule` MUST have a `name` (string) and a `check` function.
+- The `check` function receives a context object with:
+  - `graph`: the full `DependencyGraph` (nodes, edges, adjacencyList)
+  - `config`: the resolved `FeatureBoundariesConfig`
+- The `check` function MUST return an array of violation results (sync or async), each with `code`, `file`, `line`, `col`, and `message`.
+- If `code` is empty, the linter MUST auto-generate one from the rule name (e.g. `CUSTOM_MY_RULE`).
+- Custom rule violations are reported alongside built-in violations.
+- If the rules file is specified but not found, the linter MUST throw an error.
+- If a custom rule throws during execution, the linter MUST propagate the error.
+
+---
+
 ## 5. Module Resolution
 
 Correctness depends on robust module resolution.
@@ -250,7 +271,8 @@ The linter SHOULD support a config file and CLI flags. If both exist, CLI flags 
   "extensions": [".ts", ".tsx"],
   "tsconfigPath": "./tsconfig.json",
   "exclude": ["**/node_modules/**", "**/dist/**", "**/.next/**"],
-  "includeDynamicImports": false
+  "includeDynamicImports": false,
+  "rulesFile": "domainlint.rules.ts"
 }
 ```
 

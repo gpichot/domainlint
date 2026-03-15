@@ -234,3 +234,78 @@ const configFileSchema = z.object({
 ```
 
 Invalid configuration will cause domainlint to exit with code `2`.
+
+---
+
+## Custom rules
+
+You can extend domainlint with your own rules by creating a `domainlint.rules.ts` (or `.js`) file at the project root. Each custom rule receives the full import graph and configuration, and returns violations.
+
+### Setup
+
+Create `domainlint.rules.ts` in your project root:
+
+```ts
+import type { CustomRule } from "domainlint";
+
+const noUtilsImport: CustomRule = {
+  name: "no-utils-import",
+  check({ graph, config }) {
+    return graph.edges
+      .filter((edge) => edge.to.includes("/utils/"))
+      .map((edge) => ({
+        code: "CUSTOM_NO_UTILS_IMPORT",
+        file: edge.from,
+        line: edge.importInfo.line,
+        col: edge.importInfo.col,
+        message: `Importing from utils/ is not allowed. Use a feature barrel instead.`,
+      }));
+  },
+};
+
+export const rules: CustomRule[] = [noUtilsImport];
+```
+
+### Custom rule interface
+
+Each rule must have:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `string` | Unique rule identifier. |
+| `check` | `(context) => Result[] \| Promise<Result[]>` | Function that inspects the graph and returns violations. |
+
+The `context` object contains:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `graph` | `DependencyGraph` | The full import graph with nodes, edges, and adjacency list. |
+| `config` | `FeatureBoundariesConfig` | The resolved domainlint configuration. |
+
+Each result must include:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `code` | `string` | Violation code (e.g. `CUSTOM_NO_UTILS_IMPORT`). Auto-generated from rule name if empty. |
+| `file` | `string` | Absolute path to the file with the violation. |
+| `line` | `number` | 1-based line number. |
+| `col` | `number` | 1-based column number. |
+| `message` | `string` | Human-readable explanation. |
+
+### Configuration
+
+By default, domainlint looks for `domainlint.rules.ts` or `domainlint.rules.js` in the project root. To use a different path:
+
+```json
+{
+  "rulesFile": "config/my-rules.ts"
+}
+```
+
+### Graph structure
+
+The `DependencyGraph` object gives you access to:
+
+- **`nodes`** (`Set<string>`) — all analyzed file paths
+- **`edges`** (`DependencyEdge[]`) — all import edges, each with `from`, `to`, and `importInfo` (specifier, line, col, isDynamic, isTypeOnly)
+- **`adjacencyList`** (`Map<string, Set<string>>`) — for fast neighbor lookups

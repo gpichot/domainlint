@@ -31,6 +31,7 @@ export const configFileSchema = z.object({
   tsconfigPath: z.string().optional(),
   exclude: z.array(z.string()).optional(),
   includeDynamicImports: z.boolean().optional(),
+  rulesFile: z.string().optional(),
   overrides: z
     .object({
       global: ruleOverrideSchema.optional(),
@@ -50,6 +51,7 @@ export interface FeatureBoundariesConfig {
   tsconfigPath: string;
   exclude: string[];
   includeDynamicImports: boolean;
+  rulesFile?: string;
   overrides?: {
     global?: RuleOverride;
     features?: Record<string, RuleOverride>;

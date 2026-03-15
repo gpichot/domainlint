@@ -4,6 +4,12 @@ import { discoverFiles } from '../files/file-discovery.js';
 import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
 import type { Violation } from '../graph/types.js';
 import { parseFile } from '../parser/swc-parser.js';
+import {
+  type CustomRule,
+  findRulesFile,
+  loadCustomRules,
+  runCustomRules,
+} from '../rules/custom-rules.js';
 import { detectCycles } from '../rules/cycle-detector.js';
 import { validateFeatureBoundaries } from '../rules/feature-boundary-validator.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
@@ -38,7 +44,7 @@ export class FeatureBoundariesLinter {
       const graphBuilder = new DependencyGraphBuilder(this.config, tsconfig);
       const graph = await graphBuilder.buildGraph(files, parseResults);
 
-      // Run rules
+      // Run built-in rules
       const cycleViolations = detectCycles(graph);
       violations.push(...cycleViolations);
 
@@ -48,6 +54,16 @@ export class FeatureBoundariesLinter {
         this.config,
       );
       violations.push(...boundaryViolations);
+
+      // Run custom rules
+      const customRules = await this.loadCustomRulesIfPresent();
+      if (customRules.length > 0) {
+        const customViolations = await runCustomRules(customRules, {
+          graph,
+          config: this.config,
+        });
+        violations.push(...customViolations);
+      }
 
       // Apply rule overrides
       const filteredViolations = filterViolationsByOverrides(
@@ -67,5 +83,16 @@ export class FeatureBoundariesLinter {
         `Linting failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  private async loadCustomRulesIfPresent(): Promise<CustomRule[]> {
+    const rulesFilePath = await findRulesFile(
+      this.config.rootDir,
+      this.config.rulesFile,
+    );
+    if (!rulesFilePath) {
+      return [];
+    }
+    return loadCustomRules(rulesFilePath);
   }
 }
