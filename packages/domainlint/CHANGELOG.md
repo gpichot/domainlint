@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.2.0...domainlint-v0.3.0) (2026-03-15)
+
+
+### Features
+
+* implement pure TypeScript tsconfig extends resolution ([#19](https://github.com/gpichot/domainlint/issues/19)) ([471459f](https://github.com/gpichot/domainlint/commit/471459f14224274ec435683f7801b1dcde6fe032))
+
 ## [0.2.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.1.1...domainlint-v0.2.0) (2026-03-15)
 
 
