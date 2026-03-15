@@ -6,10 +6,18 @@ on:
     paths:
       - "docs/**"
       - "netlify.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
   pull_request:
     paths:
       - "docs/**"
       - "netlify.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
 
 jobs:
   deploy:
