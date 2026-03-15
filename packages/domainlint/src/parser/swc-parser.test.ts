@@ -1,14 +1,12 @@
 import { vol } from 'memfs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { createTestFs } from '../test-utils/setup.js';
 import { parseFile } from './swc-parser.js';
 
-vi.mock('node:fs/promises', async () => {
-  const memfs = await import('memfs');
-  return memfs.fs.promises;
-});
-
 beforeEach(() => vol.reset());
+
+const testFs = createTestFs();
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -29,10 +27,8 @@ const configWithDynamicImports: FeatureBoundariesConfig = {
 describe('parseFile', () => {
   describe('static imports', () => {
     it('extracts a simple static import', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': `import { foo } from './foo';`,
-      });
-      const result = await parseFile('/project/src/a.ts', config);
+      vol.fromJSON({ '/project/src/a.ts': `import { foo } from './foo';` });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].specifier).toBe('./foo');
       expect(result.imports[0].isDynamic).toBe(false);
@@ -47,7 +43,7 @@ describe('parseFile', () => {
           `import { baz } from 'baz';`,
         ].join('\n'),
       });
-      const result = await parseFile('/project/src/a.ts', config);
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.imports).toHaveLength(3);
       expect(result.imports.map((i) => i.specifier)).toEqual([
         './foo',
@@ -60,27 +56,23 @@ describe('parseFile', () => {
       vol.fromJSON({
         '/project/src/a.ts': `import type { Foo } from './foo';`,
       });
-      const result = await parseFile('/project/src/a.ts', config);
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].specifier).toBe('./foo');
       expect(result.imports[0].isTypeOnly).toBe(true);
     });
 
     it('returns empty imports for a file with no imports', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': `export const x = 1;`,
-      });
-      const result = await parseFile('/project/src/a.ts', config);
+      vol.fromJSON({ '/project/src/a.ts': `export const x = 1;` });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.imports).toHaveLength(0);
     });
   });
 
   describe('re-exports', () => {
     it('extracts export * from re-exports', async () => {
-      vol.fromJSON({
-        '/project/src/index.ts': `export * from './service';`,
-      });
-      const result = await parseFile('/project/src/index.ts', config);
+      vol.fromJSON({ '/project/src/index.ts': `export * from './service';` });
+      const result = await parseFile('/project/src/index.ts', config, testFs);
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].specifier).toBe('./service');
     });
@@ -89,7 +81,7 @@ describe('parseFile', () => {
       vol.fromJSON({
         '/project/src/index.ts': `export { foo, bar } from './utils';`,
       });
-      const result = await parseFile('/project/src/index.ts', config);
+      const result = await parseFile('/project/src/index.ts', config, testFs);
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].specifier).toBe('./utils');
     });
@@ -98,7 +90,7 @@ describe('parseFile', () => {
       vol.fromJSON({
         '/project/src/index.ts': `export type { Foo } from './types';`,
       });
-      const result = await parseFile('/project/src/index.ts', config);
+      const result = await parseFile('/project/src/index.ts', config, testFs);
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].isTypeOnly).toBe(true);
     });
@@ -106,20 +98,17 @@ describe('parseFile', () => {
 
   describe('dynamic imports', () => {
     it('ignores dynamic imports when includeDynamicImports is false', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': `const m = import('./module');`,
-      });
-      const result = await parseFile('/project/src/a.ts', config);
+      vol.fromJSON({ '/project/src/a.ts': `const m = import('./module');` });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.imports).toHaveLength(0);
     });
 
     it('extracts dynamic imports when includeDynamicImports is true', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': `const m = import('./module');`,
-      });
+      vol.fromJSON({ '/project/src/a.ts': `const m = import('./module');` });
       const result = await parseFile(
         '/project/src/a.ts',
         configWithDynamicImports,
+        testFs,
       );
       expect(result.imports).toHaveLength(1);
       expect(result.imports[0].specifier).toBe('./module');
@@ -136,7 +125,11 @@ describe('parseFile', () => {
           `export const Component = () => <div />;`,
         ].join('\n'),
       });
-      const result = await parseFile('/project/src/Component.tsx', config);
+      const result = await parseFile(
+        '/project/src/Component.tsx',
+        config,
+        testFs,
+      );
       expect(result.imports).toHaveLength(2);
       expect(result.imports[0].specifier).toBe('react');
       expect(result.imports[1].specifier).toBe('./helper');
@@ -148,18 +141,16 @@ describe('parseFile', () => {
       vol.fromJSON({
         '/project/src/broken.ts': `this is not valid typescript @@@@`,
       });
-      await expect(parseFile('/project/src/broken.ts', config)).rejects.toThrow(
-        /Failed to parse/,
-      );
+      await expect(
+        parseFile('/project/src/broken.ts', config, testFs),
+      ).rejects.toThrow(/Failed to parse/);
     });
   });
 
   describe('result structure', () => {
     it('returns the correct filePath in the result', async () => {
-      vol.fromJSON({
-        '/project/src/a.ts': `export const x = 1;`,
-      });
-      const result = await parseFile('/project/src/a.ts', config);
+      vol.fromJSON({ '/project/src/a.ts': `export const x = 1;` });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
       expect(result.filePath).toBe('/project/src/a.ts');
     });
   });

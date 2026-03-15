@@ -1,17 +1,15 @@
 import { vol } from 'memfs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import type { ParseResult } from '../parser/types.js';
+import { createTestFs } from '../test-utils/setup.js';
 import type { ResolvedTsConfig } from '../tsconfig/types.js';
 import { DependencyGraphBuilder } from './dependency-graph.js';
 
-vi.mock('node:fs/promises', async () => {
-  const memfs = await import('memfs');
-  return memfs.fs.promises;
-});
-
 beforeEach(() => vol.reset());
+
+const testFs = createTestFs();
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -59,10 +57,8 @@ describe('DependencyGraphBuilder', () => {
         makeFileInfo('/project/src/a.ts'),
         makeFileInfo('/project/src/b.ts'),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, []);
-
-      // Nodes are normalized (without extension)
       expect(graph.nodes.size).toBe(2);
     });
 
@@ -79,7 +75,7 @@ describe('DependencyGraphBuilder', () => {
         makeParseResult('/project/src/a.ts', ['./b']),
         makeParseResult('/project/src/b.ts', []),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, parseResults);
       expect(graph.edges).toHaveLength(1);
     });
@@ -88,7 +84,7 @@ describe('DependencyGraphBuilder', () => {
       vol.fromJSON({ '/project/src/a.ts': `import { foo } from 'lodash';` });
       const files = [makeFileInfo('/project/src/a.ts')];
       const parseResults = [makeParseResult('/project/src/a.ts', ['lodash'])];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, parseResults);
       expect(graph.edges).toHaveLength(0);
     });
@@ -98,12 +94,11 @@ describe('DependencyGraphBuilder', () => {
         '/project/src/a.ts': '',
         '/project/src/outside.ts': '',
       });
-      // Only 'a.ts' is in the files list; 'outside.ts' exists on disk but not tracked
       const files = [makeFileInfo('/project/src/a.ts')];
       const parseResults = [
         makeParseResult('/project/src/a.ts', ['./outside']),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, parseResults);
       expect(graph.edges).toHaveLength(0);
     });
@@ -119,7 +114,7 @@ describe('DependencyGraphBuilder', () => {
         makeFileInfo('/project/src/a.ts'),
         makeFileInfo('/project/src/b.ts'),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, []);
       expect(graph.nodes.has('/project/src/a')).toBe(true);
       expect(graph.nodes.has('/project/src/b')).toBe(true);
@@ -128,16 +123,14 @@ describe('DependencyGraphBuilder', () => {
     it('populates normalizedToOriginalPath map', async () => {
       vol.fromJSON({ '/project/src/a.ts': '' });
       const files = [makeFileInfo('/project/src/a.ts')];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, []);
       expect(graph.normalizedToOriginalPath?.get('/project/src/a')).toBe(
         '/project/src/a.ts',
       );
     });
 
-    it('prevents false positive cycles from extension vs no-extension imports', async () => {
-      // a.ts imports b (no extension) and b.ts imports a.ts (with extension)
-      // After normalization both should resolve to the same nodes
+    it('edges use normalized paths', async () => {
       vol.fromJSON({
         '/project/src/a.ts': '',
         '/project/src/b.ts': '',
@@ -150,9 +143,8 @@ describe('DependencyGraphBuilder', () => {
         makeParseResult('/project/src/a.ts', ['./b']),
         makeParseResult('/project/src/b.ts', ['./a']),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, parseResults);
-      // Both edges use normalized paths
       expect(graph.edges[0].from).toBe('/project/src/a');
       expect(graph.edges[0].to).toBe('/project/src/b');
     });
@@ -172,7 +164,7 @@ describe('DependencyGraphBuilder', () => {
         makeParseResult('/project/src/a.ts', ['./b']),
         makeParseResult('/project/src/b.ts', []),
       ];
-      const builder = new DependencyGraphBuilder(config, tsconfig);
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
       const graph = await builder.buildGraph(files, parseResults);
       expect(
         graph.adjacencyList.get('/project/src/a')?.has('/project/src/b'),

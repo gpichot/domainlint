@@ -1,15 +1,13 @@
 import { vol } from 'memfs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { createTestFs } from '../test-utils/setup.js';
 import type { ResolvedTsConfig } from '../tsconfig/types.js';
 import { ModuleResolver } from './module-resolver.js';
 
-vi.mock('node:fs/promises', async () => {
-  const memfs = await import('memfs');
-  return memfs.fs.promises;
-});
-
 beforeEach(() => vol.reset());
+
+const testFs = createTestFs();
 
 const baseConfig: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -29,7 +27,7 @@ const baseTsconfig: ResolvedTsConfig = {
 describe('ModuleResolver', () => {
   describe('external package detection', () => {
     it('marks npm packages as external', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         'lodash',
         '/project/src/a.ts',
@@ -39,7 +37,7 @@ describe('ModuleResolver', () => {
     });
 
     it('marks node: built-ins as external', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         'node:fs',
         '/project/src/a.ts',
@@ -48,7 +46,7 @@ describe('ModuleResolver', () => {
     });
 
     it('marks bare node built-in names as external', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       for (const builtin of ['fs', 'path', 'os', 'crypto']) {
         const result = await resolver.resolveImport(
           builtin,
@@ -59,7 +57,7 @@ describe('ModuleResolver', () => {
     });
 
     it('preserves the original specifier in the result', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport('react', '/project/src/a.ts');
       expect(result.originalSpecifier).toBe('react');
     });
@@ -68,7 +66,7 @@ describe('ModuleResolver', () => {
   describe('relative path resolution', () => {
     it('resolves a relative import with explicit extension', async () => {
       vol.fromJSON({ '/project/src/b.ts': 'export const b = 1;' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         './b.ts',
         '/project/src/a.ts',
@@ -79,7 +77,7 @@ describe('ModuleResolver', () => {
 
     it('resolves a relative import by trying configured extensions', async () => {
       vol.fromJSON({ '/project/src/b.ts': 'export const b = 1;' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport('./b', '/project/src/a.ts');
       expect(result.resolvedPath).toBe('/project/src/b.ts');
     });
@@ -88,7 +86,7 @@ describe('ModuleResolver', () => {
       vol.fromJSON({
         '/project/src/Component.tsx': 'export const C = () => null;',
       });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         './Component',
         '/project/src/a.ts',
@@ -98,7 +96,7 @@ describe('ModuleResolver', () => {
 
     it('resolves a directory import to its barrel file', async () => {
       vol.fromJSON({ '/project/src/utils/index.ts': 'export const u = 1;' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         './utils',
         '/project/src/a.ts',
@@ -108,7 +106,7 @@ describe('ModuleResolver', () => {
 
     it('resolves a parent directory import', async () => {
       vol.fromJSON({ '/project/src/shared.ts': 'export const s = 1;' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         '../../shared',
         '/project/src/features/auth/service.ts',
@@ -117,7 +115,7 @@ describe('ModuleResolver', () => {
     });
 
     it('returns null resolvedPath when file does not exist', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result = await resolver.resolveImport(
         './missing',
         '/project/src/a.ts',
@@ -134,7 +132,7 @@ describe('ModuleResolver', () => {
         baseUrl: 'src',
         paths: { '@shared/*': ['shared/*'] },
       };
-      const resolver = new ModuleResolver(baseConfig, tsconfig);
+      const resolver = new ModuleResolver(baseConfig, tsconfig, testFs);
       const result = await resolver.resolveImport(
         '@shared/utils',
         '/project/src/a.ts',
@@ -149,7 +147,7 @@ describe('ModuleResolver', () => {
         baseUrl: 'src',
         paths: { '@missing/*': ['missing/*'] },
       };
-      const resolver = new ModuleResolver(baseConfig, tsconfig);
+      const resolver = new ModuleResolver(baseConfig, tsconfig, testFs);
       const result = await resolver.resolveImport(
         '@missing/foo',
         '/project/src/a.ts',
@@ -159,16 +157,16 @@ describe('ModuleResolver', () => {
   });
 
   describe('caching', () => {
-    it('returns the same result for the same specifier + fromFile pair', async () => {
+    it('returns the same result object for the same specifier + fromFile pair', async () => {
       vol.fromJSON({ '/project/src/b.ts': '' });
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result1 = await resolver.resolveImport('./b', '/project/src/a.ts');
       const result2 = await resolver.resolveImport('./b', '/project/src/a.ts');
-      expect(result1).toBe(result2); // same object reference due to caching
+      expect(result1).toBe(result2);
     });
 
     it('caches external packages', async () => {
-      const resolver = new ModuleResolver(baseConfig, baseTsconfig);
+      const resolver = new ModuleResolver(baseConfig, baseTsconfig, testFs);
       const result1 = await resolver.resolveImport(
         'lodash',
         '/project/src/a.ts',

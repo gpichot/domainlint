@@ -1,24 +1,12 @@
 import { vol } from 'memfs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { createTestGlob } from '../test-utils/setup.js';
 import { discoverFiles, getBarrelPath, getFeature } from './file-discovery.js';
 
-vi.mock('node:fs/promises', async () => {
-  const memfs = await import('memfs');
-  return memfs.fs.promises;
-});
-
-vi.mock('glob', () => ({
-  glob: async (pattern: string, options: { cwd?: string } = {}) => {
-    const cwd = options.cwd || process.cwd();
-    const ext = pattern.replace('**/*', '');
-    return Object.keys(vol.toJSON())
-      .filter((f) => f.startsWith(cwd))
-      .filter((f) => f.endsWith(ext));
-  },
-}));
-
 beforeEach(() => vol.reset());
+
+const testGlob = createTestGlob();
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -37,17 +25,15 @@ describe('discoverFiles', () => {
       '/project/src/a.ts': '',
       '/project/src/b.ts': '',
     });
-    const files = await discoverFiles(config);
+    const files = await discoverFiles(config, testGlob);
     const paths = files.map((f) => f.path);
     expect(paths).toContain('/project/src/a.ts');
     expect(paths).toContain('/project/src/b.ts');
   });
 
   it('discovers .tsx files as well', async () => {
-    vol.fromJSON({
-      '/project/src/Component.tsx': '',
-    });
-    const files = await discoverFiles(config);
+    vol.fromJSON({ '/project/src/Component.tsx': '' });
+    const files = await discoverFiles(config, testGlob);
     expect(files.map((f) => f.path)).toContain('/project/src/Component.tsx');
   });
 
@@ -56,10 +42,10 @@ describe('discoverFiles', () => {
       '/project/src/a.ts': '',
       '/project/src/node_modules/pkg/index.ts': '',
     });
-    const files = await discoverFiles({
-      ...config,
-      exclude: ['**/node_modules/**'],
-    });
+    const files = await discoverFiles(
+      { ...config, exclude: ['**/node_modules/**'] },
+      testGlob,
+    );
     const paths = files.map((f) => f.path);
     expect(paths).toContain('/project/src/a.ts');
     expect(paths).not.toContain('/project/src/node_modules/pkg/index.ts');
@@ -67,16 +53,14 @@ describe('discoverFiles', () => {
 
   it('sets feature to null for files outside featuresDir', async () => {
     vol.fromJSON({ '/project/src/shared/utils.ts': '' });
-    const files = await discoverFiles(config);
+    const files = await discoverFiles(config, testGlob);
     const utils = files.find((f) => f.path.endsWith('utils.ts'));
     expect(utils?.feature).toBeNull();
   });
 
   it('sets feature name for files inside featuresDir', async () => {
-    vol.fromJSON({
-      '/project/src/features/auth/service.ts': '',
-    });
-    const files = await discoverFiles(config);
+    vol.fromJSON({ '/project/src/features/auth/service.ts': '' });
+    const files = await discoverFiles(config, testGlob);
     const service = files.find((f) => f.path.endsWith('service.ts'));
     expect(service?.feature).toBe('auth');
   });
@@ -86,7 +70,7 @@ describe('discoverFiles', () => {
       '/project/src/features/auth/index.ts': '',
       '/project/src/features/auth/service.ts': '',
     });
-    const files = await discoverFiles(config);
+    const files = await discoverFiles(config, testGlob);
     const barrel = files.find((f) => f.path.endsWith('auth/index.ts'));
     const service = files.find((f) => f.path.endsWith('service.ts'));
     expect(barrel?.isBarrel).toBe(true);
@@ -95,14 +79,14 @@ describe('discoverFiles', () => {
 
   it('returns relativePath relative to rootDir', async () => {
     vol.fromJSON({ '/project/src/a.ts': '' });
-    const files = await discoverFiles(config);
+    const files = await discoverFiles(config, testGlob);
     const file = files.find((f) => f.path.endsWith('a.ts'));
     expect(file?.relativePath).toBe('src/a.ts');
   });
 
   it('deduplicates files found by multiple extension patterns', async () => {
     vol.fromJSON({ '/project/src/a.ts': '' });
-    const files = await discoverFiles(config);
+    const files = await discoverFiles(config, testGlob);
     const count = files.filter((f) => f.path.endsWith('a.ts')).length;
     expect(count).toBe(1);
   });
