@@ -1,6 +1,7 @@
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyGraph } from '../graph/types.js';
 import { createDefaultConfig } from '../test-utils/setup.js';
 import {
@@ -30,6 +31,13 @@ function createMockGraph(
     adjacencyList: new Map(),
     ...overrides,
   };
+}
+
+function createContext(
+  graph: DependencyGraph,
+  config: FeatureBoundariesConfig,
+): CustomRuleContext {
+  return { graph, query: new GraphQuery(graph, config), config };
 }
 
 describe('findRulesFile', () => {
@@ -129,7 +137,10 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules([rule], { graph, config });
+    const violations = await runCustomRules(
+      [rule],
+      createContext(graph, config),
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('CUSTOM_NO_IMPORT_B');
     expect(violations[0].file).toBe('/project/src/a.ts');
@@ -157,7 +168,10 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules([rule], { graph, config });
+    const violations = await runCustomRules(
+      [rule],
+      createContext(graph, config),
+    );
     expect(violations[0].code).toBe('CUSTOM_MY_RULE');
   });
 
@@ -180,7 +194,10 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules([rule], { graph, config });
+    const violations = await runCustomRules(
+      [rule],
+      createContext(graph, config),
+    );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ASYNC_VIOLATION');
   });
@@ -217,7 +234,10 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules([rule1, rule2], { graph, config });
+    const violations = await runCustomRules(
+      [rule1, rule2],
+      createContext(graph, config),
+    );
     expect(violations).toHaveLength(2);
     expect(violations[0].code).toBe('R1');
     expect(violations[1].code).toBe('R2');
@@ -234,7 +254,10 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules([rule], { graph, config });
+    const violations = await runCustomRules(
+      [rule],
+      createContext(graph, config),
+    );
     expect(violations).toHaveLength(0);
   });
 
@@ -249,7 +272,9 @@ describe('runCustomRules', () => {
       },
     };
 
-    await expect(runCustomRules([rule], { graph, config })).rejects.toThrow(
+    await expect(
+      runCustomRules([rule], createContext(graph, config)),
+    ).rejects.toThrow(
       'Custom rule "broken-rule" threw an error: Rule exploded',
     );
   });
@@ -282,10 +307,11 @@ describe('runCustomRules', () => {
       },
     };
 
-    await runCustomRules([rule], { graph, config });
+    await runCustomRules([rule], createContext(graph, config));
 
     expect(receivedContext).not.toBeNull();
     expect(receivedContext!.graph).toBe(graph);
+    expect(receivedContext!.query).toBeInstanceOf(GraphQuery);
     expect(receivedContext!.config).toBe(config);
     expect(receivedContext!.config.featuresDir).toBe('/project/src/domains');
   });

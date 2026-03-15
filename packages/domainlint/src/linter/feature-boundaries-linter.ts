@@ -2,6 +2,7 @@ import { filterViolationsByOverrides } from '../config/rule-overrides.js';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { discoverFiles } from '../files/file-discovery.js';
 import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
+import { GraphQuery } from '../graph/graph-query.js';
 import type { Violation } from '../graph/types.js';
 import { parseFile } from '../parser/swc-parser.js';
 import {
@@ -58,8 +59,10 @@ export class FeatureBoundariesLinter {
       // Run custom rules
       const customRules = await this.loadCustomRulesIfPresent();
       if (customRules.length > 0) {
+        const query = new GraphQuery(graph, this.config);
         const customViolations = await runCustomRules(customRules, {
           graph,
+          query,
           config: this.config,
         });
         violations.push(...customViolations);

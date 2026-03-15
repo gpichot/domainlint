@@ -2,10 +2,12 @@ import { access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import type { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyGraph, Violation } from '../graph/types.js';
 
 export interface CustomRuleContext {
   graph: DependencyGraph;
+  query: GraphQuery;
   config: FeatureBoundariesConfig;
 }
 
