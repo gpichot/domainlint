@@ -4,7 +4,31 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ---
 
-## 1. Tests — Core logic coverage
+## 1. Monorepo migration
+
+**Status:** not started
+**Scope:** repo restructuring, prerequisite for the docs package
+
+Move to a pnpm monorepo to host the documentation site as a separate package alongside the CLI.
+
+Proposed structure:
+```
+packages/
+  domainlint/       # current CLI (moved from root)
+  docs/             # documentation site (new)
+```
+
+Steps:
+- Add `pnpm-workspace.yaml` at root
+- Move current CLI source into `packages/domainlint/`
+- Update root `package.json` to workspace config (no longer the CLI package)
+- Verify `pnpm test:run` and `pnpm build` still work inside `packages/domainlint/`
+- Update CI workflows to run commands in the right package
+- Update `release-please` config (item 5) to target `packages/domainlint/`
+
+---
+
+## 2. Tests — Core logic coverage
 
 **Status:** critical gap
 **Scope:** unit tests for the modules that have none today
@@ -23,7 +47,7 @@ Follow conventions from `TESTING.md` (memfs, behavioral style, colocated files).
 
 ---
 
-## 2. Tests — Integration scenarios
+## 3. Tests — Integration scenarios
 
 **Status:** partially covered (7 scenarios)
 **Scope:** extend `src/linter/integration.test.ts`
@@ -41,7 +65,7 @@ Missing scenarios:
 
 ---
 
-## 3. Tests — Coverage reporting in CI
+## 4. Tests — Coverage reporting in CI
 
 **Status:** script exists (`pnpm test:coverage`), not wired into CI
 **Scope:** `.github/workflows/test.yml`
@@ -52,7 +76,7 @@ Missing scenarios:
 
 ---
 
-## 4. Release — release-please
+## 5. Release — release-please
 
 **Status:** currently manual version bumps + ad-hoc GitHub Actions
 **Scope:** replace `onPushToMain.yml` release logic
@@ -67,7 +91,7 @@ Conventional commit format to enforce: `feat:`, `fix:`, `chore:`, `docs:`, `refa
 
 ---
 
-## 5. Custom rules support
+## 6. Custom rules support
 
 **Status:** not implemented
 **Scope:** new feature, non-trivial
@@ -94,7 +118,7 @@ Design notes:
 
 ---
 
-## 6. Documentation
+## 7. Documentation
 
 **Status:** README + SPEC exist, gaps elsewhere
 **Scope:** several independent doc files
@@ -106,7 +130,7 @@ Design notes:
 
 ---
 
-## 7. Config validation
+## 8. Config validation
 
 **Status:** no validation on config values
 **Scope:** `src/config/config-loader.ts`
@@ -118,7 +142,7 @@ Design notes:
 
 ---
 
-## 8. tsconfig `extends` chain
+## 9. tsconfig `extends` chain
 
 **Status:** partial, relies on `tsc --showConfig` with fallback
 **Scope:** `src/tsconfig/tsconfig-loader.ts`
