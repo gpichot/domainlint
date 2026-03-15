@@ -78,6 +78,17 @@ See `TESTING.md` for conventions (colocation, memfs, behavioral style).
 
 See `SPEC.md` for the full formal specification.
 
+## Pull requests
+
+Use conventional commits for PR names. Format: `<type>(<scope>): <description>`
+
+Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `ci`
+
+Examples:
+- `feat(rules): add import depth limit rule`
+- `fix(resolver): handle symlinked node_modules`
+- `docs(readme): update configuration options`
+
 ## Roadmap
 
 At the start of every task, read `ROADMAP.md` to understand the current state of the project.
