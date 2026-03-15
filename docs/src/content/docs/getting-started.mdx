@@ -1,0 +1,118 @@
+---
+title: Getting Started
+description: Install domainlint and run your first lint.
+---
+
+import { Tabs, TabItem, Steps, Code } from "@astrojs/starlight/components";
+
+## Installation
+
+<Tabs>
+  <TabItem label="npm">
+    ```sh
+    npm install --save-dev domainlint
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add -D domainlint
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add -D domainlint
+    ```
+  </TabItem>
+</Tabs>
+
+Or install globally:
+
+```sh
+npm install -g domainlint
+```
+
+## Run your first lint
+
+From the root of your project:
+
+```sh
+domainlint lint
+```
+
+This will analyze `src/` and report any violations.
+
+## Configuration
+
+Create a `domainlint.json` at your project root to customize behavior:
+
+```json
+{
+  "srcDir": "src",
+  "featuresDir": "src/features",
+  "barrelFiles": ["index.ts"],
+  "extensions": [".ts", ".tsx"],
+  "tsconfigPath": "./tsconfig.json",
+  "includeDynamicImports": false
+}
+```
+
+All fields are optional — the defaults work for a standard `src/features/` layout.
+
+## CLI flags
+
+```sh
+domainlint lint [path]
+
+FLAGS
+  -c, --config=<path>             Path to config file
+  -v, --verbose                   Verbose output
+      --src-dir=<value>           Source directory (default: src)
+      --features-dir=<value>      Features directory (default: src/features)
+      --tsconfig-path=<value>     Path to tsconfig.json
+      --include-dynamic-imports   Include dynamic imports in analysis
+      --feature=<value>           Filter violations by feature name
+      --shortest-cycles           Show only the shortest cycles
+      --max-cycle-length=<value>  Hide cycles longer than this (default: 50)
+      --no-color                  Disable colored output
+```
+
+## Understanding violations
+
+### `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
+
+A file outside a feature (or in a different feature) imported an internal module directly instead of going through the barrel.
+
+```
+src/pages/home.tsx:5:1 ARCH_NO_CROSS_FEATURE_DEEP_IMPORT
+  Importing src/features/billing/ui/Button.tsx directly.
+  Expected: src/features/billing/index.ts
+```
+
+**Fix:** import from the feature's `index.ts` instead.
+
+### `ARCH_IMPORT_CYCLE`
+
+A circular dependency was detected in the module graph.
+
+```
+src/features/auth/session.ts ARCH_IMPORT_CYCLE
+  Cycle: auth/session.ts → auth/user.ts → auth/session.ts
+```
+
+**Fix:** break the cycle by extracting shared state to a third module or restructuring dependencies.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | No violations |
+| `1`  | Violations found |
+| `2`  | Internal error (e.g. unreadable tsconfig) |
+
+## Add to CI
+
+```yaml
+# .github/workflows/ci.yml
+- name: Lint architecture
+  run: domainlint lint
+```

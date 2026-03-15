@@ -14,7 +14,10 @@
     "test:run": "pnpm --filter domainlint test:run",
     "test:coverage": "pnpm --filter domainlint test:coverage",
     "lint": "pnpm --filter domainlint lint",
-    "lint:fix": "pnpm --filter domainlint lint:fix"
+    "lint:fix": "pnpm --filter domainlint lint:fix",
+    "docs:dev": "pnpm --filter domainlint-docs dev",
+    "docs:build": "pnpm --filter domainlint-docs build",
+    "docs:preview": "pnpm --filter domainlint-docs preview"
   },
   "lint-staged": {
     "*.{js,ts,json}": [
