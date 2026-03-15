@@ -1,0 +1,46 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "netlify.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "netlify.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install
+
+      - run: pnpm --filter domainlint-docs build
+
+      - name: Deploy to Netlify (production)
+        if: github.event_name == 'push'
+        run: npx netlify-cli deploy --dir=docs/dist --prod --message="${{ github.sha }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
