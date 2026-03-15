@@ -22,6 +22,12 @@ export default defineConfig({
           ],
         },
         {
+          label: "Reference",
+          items: [
+            { label: "Rules & Schema", slug: "rules" },
+          ],
+        },
+        {
           label: "About",
           items: [
             { label: "Philosophy & Vision", slug: "philosophy" },
