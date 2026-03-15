@@ -1,11 +1,9 @@
 import { access, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'jsonc-parser';
-import type {
-  ConfigFile,
-  ConfigOverrides,
-  FeatureBoundariesConfig,
-} from './types.js';
+import { ZodError } from 'zod';
+import type { ConfigOverrides, FeatureBoundariesConfig } from './types.js';
+import { configFileSchema } from './types.js';
 
 const DEFAULT_CONFIG: FeatureBoundariesConfig = {
   rootDir: '.',
@@ -25,7 +23,7 @@ export async function loadConfig(
   overrides: ConfigOverrides = {},
 ): Promise<FeatureBoundariesConfig> {
   const rootDir = resolve(projectPath);
-  let fileConfig: ConfigFile = {};
+  let rawFileConfig: unknown = {};
 
   // Try to load config file
   if (configFilePath) {
@@ -34,7 +32,7 @@ export async function loadConfig(
         resolve(rootDir, configFilePath),
         'utf-8',
       );
-      fileConfig = parse(configContent) as ConfigFile;
+      rawFileConfig = parse(configContent);
     } catch (error) {
       throw new Error(
         `Failed to load config file ${configFilePath}: ${error instanceof Error ? error.message : String(error)}`,
@@ -47,12 +45,26 @@ export async function loadConfig(
       try {
         const configPath = join(rootDir, configFile);
         const configContent = await readFile(configPath, 'utf-8');
-        fileConfig = parse(configContent) as ConfigFile;
+        rawFileConfig = parse(configContent);
         break;
       } catch {
         // Continue to next config file
       }
     }
+  }
+
+  // Validate config file shape with zod
+  let fileConfig: ReturnType<typeof configFileSchema.parse>;
+  try {
+    fileConfig = configFileSchema.parse(rawFileConfig);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const messages = error.issues
+        .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
+        .join('\n');
+      throw new Error(`Invalid config:\n${messages}`);
+    }
+    throw error;
   }
 
   // Merge configurations with priority: overrides > fileConfig > defaults
@@ -76,24 +88,6 @@ export async function loadConfig(
       DEFAULT_CONFIG.includeDynamicImports,
     overrides: fileConfig.overrides ?? DEFAULT_CONFIG.overrides,
   };
-
-  // Validate barrelFiles entries are non-empty strings
-  for (const entry of config.barrelFiles) {
-    if (typeof entry !== 'string' || entry.trim() === '') {
-      throw new Error(
-        `Invalid config: "barrelFiles" entries must be non-empty strings (got ${JSON.stringify(entry)})`,
-      );
-    }
-  }
-
-  // Validate extensions start with '.'
-  for (const ext of config.extensions) {
-    if (typeof ext !== 'string' || !ext.startsWith('.')) {
-      throw new Error(
-        `Invalid config: "extensions" entries must start with '.' (got ${JSON.stringify(ext)})`,
-      );
-    }
-  }
 
   // Resolve relative paths
   config.srcDir = resolve(rootDir, config.srcDir);
