@@ -596,6 +596,27 @@ describe('Integration Tests', () => {
       expect(boundaryViolations).toHaveLength(0);
     });
 
+    it('should not produce false cycles when both a.ts and a.tsx exist', async () => {
+      createMockFileSystem({
+        '/project/tsconfig.json': JSON.stringify({
+          compilerOptions: { baseUrl: '.' },
+        }),
+        '/project/src/a.ts': `export const a = 1;`,
+        '/project/src/a.tsx': `import { a } from './a';
+export function AComponent() { return a; }`,
+        '/project/src/b.ts': `import { a } from './a';`,
+      });
+
+      const config = createDefaultConfig();
+      const linter = new FeatureBoundariesLinter(config);
+      const result = await linter.lint();
+
+      const cycleViolations = result.violations.filter(
+        (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      );
+      expect(cycleViolations).toHaveLength(0);
+    });
+
     it('should not report a cycle for a non-cyclic directed path', async () => {
       createMockFileSystem({
         '/project/tsconfig.json': JSON.stringify({
