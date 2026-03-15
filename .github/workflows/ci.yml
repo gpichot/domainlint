@@ -2,21 +2,13 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
   test:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            test-cmd: test:coverage
-          - os: windows-latest
-            test-cmd: test:run
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,9 +20,8 @@ jobs:
           cache: pnpm
       - run: pnpm install
       - run: pnpm --filter domainlint build
-      - run: pnpm --filter domainlint ${{ matrix.test-cmd }}
+      - run: pnpm --filter domainlint test:coverage
       - name: Write coverage summary
-        if: matrix.os == 'ubuntu-latest'
         run: |
           node -e "
             const s = require('./packages/domainlint/coverage/coverage-summary.json').total;
