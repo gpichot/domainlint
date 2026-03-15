@@ -24,6 +24,8 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,6 +38,4 @@ jobs:
           cache: pnpm
       - run: pnpm install
       - run: pnpm --filter domainlint build
-      - run: pnpm --filter domainlint publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: pnpm --filter domainlint publish --no-git-checks --provenance
