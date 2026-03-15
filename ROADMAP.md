@@ -20,7 +20,7 @@ packages/
 
 ## 2. Tests — Core logic coverage
 
-**Status:** critical gap
+**Status:** done
 **Scope:** unit tests for the modules that have none today
 
 The core business logic is currently only exercised indirectly through integration tests.

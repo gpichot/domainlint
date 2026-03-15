@@ -91,24 +91,17 @@ describe('LintOrchestrator', () => {
         violations: [
           {
             code: 'ARCH_IMPORT_CYCLE',
-            file: '/test/file.ts',
+            file: '/project/src/features/auth/user.ts',
             line: 1,
             col: 1,
-            message: 'Cycle detected',
+            message:
+              'Import cycle detected: /project/src/features/auth/user.ts -> /project/src/features/auth/service.ts -> /project/src/features/auth/user.ts',
           },
         ],
         analysisTimeMs: 100,
         fileCount: 5,
         hasViolations: true,
-        allFeatures: ['auth', 'billing'],
-        featureStats: [
-          {
-            feature: 'auth',
-            fileCount: 3,
-            linesOfCode: 100,
-            dependencies: [],
-          },
-        ],
+        allFeatures: ['auth'],
       };
 
       const mockConfig = {
@@ -122,35 +115,16 @@ describe('LintOrchestrator', () => {
         includeDynamicImports: false,
       };
 
-      // Mock the ColoredReporter methods
-      const mockFormatViolation = vi
-        .fn()
-        .mockReturnValue('Formatted violation');
-      const mockFormatSummary = vi.fn().mockReturnValue('Summary');
-      const mockFormatDomainSummary = vi.fn().mockReturnValue('Domain summary');
-      const mockFormatCycleAnalysis = vi.fn().mockReturnValue('Cycle analysis');
-
-      // We need to mock the ColoredReporter import
-      vi.doMock('../reporter/colored-reporter.js', () => ({
-        ColoredReporter: vi.fn().mockImplementation(() => ({
-          formatViolation: mockFormatViolation,
-          formatSummary: mockFormatSummary,
-          formatDomainSummary: mockFormatDomainSummary,
-          formatCycleAnalysis: mockFormatCycleAnalysis,
-        })),
-      }));
-
       const result = orchestrator.formatResults(mockResult, mockConfig);
 
-      expect(result).toEqual({
-        violationOutput: ['Formatted violation'],
-        summaryOutput: 'Summary',
-        domainSummaryOutput: 'Domain summary',
-        cycleAnalysisOutput: 'Cycle analysis',
-      });
+      expect(result.violationOutput).toHaveLength(1);
+      expect(result.violationOutput[0]).toContain('ARCH_IMPORT_CYCLE');
+      expect(result.summaryOutput).toContain('1 import cycle');
+      expect(result.domainSummaryOutput).toContain('Feature Status:');
+      expect(result.cycleAnalysisOutput).toContain('Cycle Analysis');
     });
 
-    it('should handle feature-specific summary context', () => {
+    it('should include feature name in summary when filtering by feature', () => {
       const mockResult = {
         violations: [],
         analysisTimeMs: 100,
@@ -169,17 +143,6 @@ describe('LintOrchestrator', () => {
         includeDynamicImports: false,
       };
 
-      const mockFormatSummary = vi.fn().mockReturnValue('Feature summary');
-
-      vi.doMock('../reporter/colored-reporter.js', () => ({
-        ColoredReporter: vi.fn().mockImplementation(() => ({
-          formatViolation: vi.fn(),
-          formatSummary: mockFormatSummary,
-          formatDomainSummary: vi.fn().mockReturnValue(null),
-          formatCycleAnalysis: vi.fn().mockReturnValue(null),
-        })),
-      }));
-
       const result = orchestrator.formatResults(
         mockResult,
         mockConfig,
@@ -187,11 +150,7 @@ describe('LintOrchestrator', () => {
         { feature: 'auth' },
       );
 
-      expect(mockFormatSummary).toHaveBeenCalledWith(
-        mockResult.violations,
-        'feature "auth"',
-      );
-      expect(result.summaryOutput).toBe('Feature summary');
+      expect(result.summaryOutput).toContain('feature "auth"');
     });
   });
 });

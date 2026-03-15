@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { parseSync } from '@swc/core';
 import type {
   CallExpression,
@@ -8,13 +7,15 @@ import type {
   Program,
 } from '@swc/types';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { type FileSystem, nodeFileSystem } from '../fs.js';
 import type { ImportInfo, ParseResult } from './types.js';
 
 export async function parseFile(
   filePath: string,
   config: FeatureBoundariesConfig,
+  fs: FileSystem = nodeFileSystem,
 ): Promise<ParseResult> {
-  const content = await readFile(filePath, 'utf-8');
+  const content = await fs.readFile(filePath, 'utf-8');
   const imports: ImportInfo[] = [];
 
   try {

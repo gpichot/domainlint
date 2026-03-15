@@ -1,0 +1,152 @@
+import { describe, expect, it } from 'vitest';
+import type { DependencyEdge, DependencyGraph } from '../graph/types.js';
+import { detectCycles } from './cycle-detector.js';
+
+function makeGraph(
+  edges: [string, string][],
+  normalizedToOriginalPath?: Map<string, string>,
+): DependencyGraph {
+  const nodes = new Set<string>();
+  const adjacencyList = new Map<string, Set<string>>();
+  const graphEdges: DependencyEdge[] = [];
+
+  for (const [from, to] of edges) {
+    nodes.add(from);
+    nodes.add(to);
+    if (!adjacencyList.has(from)) adjacencyList.set(from, new Set());
+    adjacencyList.get(from)!.add(to);
+    graphEdges.push({
+      from,
+      to,
+      importInfo: {
+        specifier: to,
+        line: 1,
+        col: 1,
+        isDynamic: false,
+        isTypeOnly: false,
+      },
+    });
+  }
+
+  for (const node of nodes) {
+    if (!adjacencyList.has(node)) adjacencyList.set(node, new Set());
+  }
+
+  return { nodes, edges: graphEdges, adjacencyList, normalizedToOriginalPath };
+}
+
+describe('detectCycles', () => {
+  it('returns no violations for an empty graph', () => {
+    const graph: DependencyGraph = {
+      nodes: new Set(),
+      edges: [],
+      adjacencyList: new Map(),
+    };
+    expect(detectCycles(graph)).toHaveLength(0);
+  });
+
+  it('returns no violations for a linear graph', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'c'],
+    ]);
+    expect(detectCycles(graph)).toHaveLength(0);
+  });
+
+  it('returns no violations for a DAG with shared nodes', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['a', 'c'],
+      ['b', 'd'],
+      ['c', 'd'],
+    ]);
+    expect(detectCycles(graph)).toHaveLength(0);
+  });
+
+  it('detects a self-loop', () => {
+    const graph = makeGraph([['a', 'a']]);
+    const violations = detectCycles(graph);
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].file).toBe('a');
+    expect(violations[0].message).toMatch(/import cycle/i);
+  });
+
+  it('detects a simple 2-node cycle', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'a'],
+    ]);
+    const violations = detectCycles(graph);
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].message).toContain('a');
+    expect(violations[0].message).toContain('b');
+  });
+
+  it('detects a 3-node cycle', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'c'],
+      ['c', 'a'],
+    ]);
+    const violations = detectCycles(graph);
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].message).toContain('a');
+    expect(violations[0].message).toContain('b');
+    expect(violations[0].message).toContain('c');
+  });
+
+  it('detects two independent cycles', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'a'],
+      ['c', 'd'],
+      ['d', 'c'],
+    ]);
+    const violations = detectCycles(graph);
+    expect(violations).toHaveLength(2);
+    expect(violations.every((v) => v.code === 'ARCH_IMPORT_CYCLE')).toBe(true);
+  });
+
+  it('does not report the same cycle start twice', () => {
+    // a -> b -> a is one cycle; b is also part of the same cycle
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'a'],
+    ]);
+    const violations = detectCycles(graph);
+    // Only one violation per unique cycle start
+    const files = violations.map((v) => v.file);
+    expect(new Set(files).size).toBe(files.length);
+  });
+
+  it('includes line information from the first edge of the cycle', () => {
+    const graph = makeGraph([
+      ['a', 'b'],
+      ['b', 'a'],
+    ]);
+    const [violation] = detectCycles(graph);
+    expect(typeof violation.line).toBe('number');
+    expect(typeof violation.col).toBe('number');
+  });
+
+  it('uses original paths from normalizedToOriginalPath map when available', () => {
+    const normalizedToOriginalPath = new Map([
+      ['a', '/project/src/a.ts'],
+      ['b', '/project/src/b.ts'],
+    ]);
+    const graph = makeGraph(
+      [
+        ['a', 'b'],
+        ['b', 'a'],
+      ],
+      normalizedToOriginalPath,
+    );
+    const [violation] = detectCycles(graph);
+    expect(violation.file).toBe('/project/src/a.ts');
+    expect(violation.message).toContain('/project/src/a.ts');
+    expect(violation.message).toContain('/project/src/b.ts');
+  });
+});

@@ -1,5 +1,5 @@
 import { relative, resolve } from 'node:path';
-import { glob } from 'glob';
+import { glob as defaultGlob } from 'glob';
 import { minimatch } from 'minimatch';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 
@@ -10,8 +10,14 @@ export interface FileInfo {
   isBarrel: boolean;
 }
 
+export type GlobFunction = (
+  pattern: string,
+  options: { cwd: string; absolute: boolean; nodir: boolean },
+) => Promise<string[]>;
+
 export async function discoverFiles(
   config: FeatureBoundariesConfig,
+  glob: GlobFunction = defaultGlob,
 ): Promise<FileInfo[]> {
   const { srcDir, extensions, exclude } = config;
 

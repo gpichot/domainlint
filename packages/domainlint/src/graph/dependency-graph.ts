@@ -1,6 +1,7 @@
 import { extname } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
+import { type FileSystem, nodeFileSystem } from '../fs.js';
 import type { ParseResult } from '../parser/types.js';
 import type { ResolvedImport } from '../resolution/module-resolver.js';
 import { ModuleResolver } from '../resolution/module-resolver.js';
@@ -13,8 +14,9 @@ export class DependencyGraphBuilder {
   constructor(
     private config: FeatureBoundariesConfig,
     tsconfig: ResolvedTsConfig,
+    fs: FileSystem = nodeFileSystem,
   ) {
-    this.resolver = new ModuleResolver(config, tsconfig);
+    this.resolver = new ModuleResolver(config, tsconfig, fs);
   }
 
   /**

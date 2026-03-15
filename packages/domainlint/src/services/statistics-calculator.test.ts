@@ -1,16 +1,19 @@
+import { vol } from 'memfs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import type { LintResult } from '../linter/feature-boundaries-linter.js';
-import { createMockFileSystem } from '../test-utils/setup.js';
+import { createTestFs } from '../test-utils/setup.js';
 import { StatisticsCalculator } from './statistics-calculator.js';
 
+beforeEach(() => vol.reset());
+
+const testFs = createTestFs();
+
 describe('StatisticsCalculator', () => {
-  let calculator: StatisticsCalculator;
   let mockConfig: FeatureBoundariesConfig;
 
   beforeEach(() => {
-    calculator = new StatisticsCalculator();
     mockConfig = {
       rootDir: '/project',
       srcDir: '/project/src',
@@ -25,12 +28,9 @@ describe('StatisticsCalculator', () => {
 
   describe('calculateFeatureStats', () => {
     it('should calculate basic feature statistics', async () => {
-      const mockFiles = await createMockFileSystem({
+      vol.fromJSON({
         '/project/src/features/auth/user.ts': 'export interface User {}',
-        '/project/src/features/auth/service.ts': `
-          import { User } from './user';
-          export class AuthService {}
-        `,
+        '/project/src/features/auth/service.ts': `import { User } from './user';\nexport class AuthService {}`,
         '/project/src/features/billing/invoice.ts': 'export class Invoice {}',
       });
 
@@ -82,6 +82,7 @@ describe('StatisticsCalculator', () => {
         },
       };
 
+      const calculator = new StatisticsCalculator({}, testFs);
       const stats = await calculator.calculateFeatureStats(
         allFiles,
         mockConfig,
@@ -149,6 +150,7 @@ describe('StatisticsCalculator', () => {
         },
       };
 
+      const calculator = new StatisticsCalculator({}, testFs);
       const stats = await calculator.calculateFeatureStats(
         allFiles,
         mockConfig,
@@ -174,7 +176,7 @@ describe('StatisticsCalculator', () => {
         fileCount: 1,
         analysisTimeMs: 100,
         dependencyGraph: {
-          nodes: new Set(['/project/src/features/auth/user']), // normalized (no .ts)
+          nodes: new Set(['/project/src/features/auth/user']),
           edges: [],
           adjacencyList: new Map(),
           normalizedToOriginalPath: new Map([
@@ -186,6 +188,7 @@ describe('StatisticsCalculator', () => {
         },
       };
 
+      const calculator = new StatisticsCalculator({}, testFs);
       const stats = await calculator.calculateFeatureStats(
         allFiles,
         mockConfig,
@@ -197,10 +200,6 @@ describe('StatisticsCalculator', () => {
     });
 
     it('should skip line counting when includeLineCount is false', async () => {
-      const calculatorNoLines = new StatisticsCalculator({
-        includeLineCount: false,
-      });
-
       const allFiles: FileInfo[] = [
         {
           path: '/project/src/features/auth/user.ts',
@@ -221,7 +220,11 @@ describe('StatisticsCalculator', () => {
         },
       };
 
-      const stats = await calculatorNoLines.calculateFeatureStats(
+      const calculator = new StatisticsCalculator(
+        { includeLineCount: false },
+        testFs,
+      );
+      const stats = await calculator.calculateFeatureStats(
         allFiles,
         mockConfig,
         mockLintResult,
@@ -233,6 +236,7 @@ describe('StatisticsCalculator', () => {
 
   describe('discoverAllFeatures', () => {
     it('should discover unique features from files', async () => {
+      const calculator = new StatisticsCalculator({}, testFs);
       const allFiles: FileInfo[] = [
         {
           path: '/project/src/features/auth/user.ts',
@@ -264,11 +268,11 @@ describe('StatisticsCalculator', () => {
         allFiles,
         mockConfig,
       );
-
       expect(features).toEqual(['auth', 'billing']);
     });
 
     it('should return empty array when no features found', async () => {
+      const calculator = new StatisticsCalculator({}, testFs);
       const allFiles: FileInfo[] = [
         {
           path: '/project/src/lib/utils.ts',
@@ -282,7 +286,6 @@ describe('StatisticsCalculator', () => {
         allFiles,
         mockConfig,
       );
-
       expect(features).toEqual([]);
     });
   });

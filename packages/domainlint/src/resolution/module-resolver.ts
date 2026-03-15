@@ -1,6 +1,6 @@
-import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
+import { type FileSystem, nodeFileSystem } from '../fs.js';
 import { resolvePathMapping } from '../tsconfig/tsconfig-loader.js';
 import type { ResolvedTsConfig } from '../tsconfig/types.js';
 
@@ -17,6 +17,7 @@ export class ModuleResolver {
   constructor(
     private config: FeatureBoundariesConfig,
     private tsconfig: ResolvedTsConfig,
+    private fs: FileSystem = nodeFileSystem,
   ) {}
 
   async resolveImport(
@@ -214,7 +215,7 @@ export class ModuleResolver {
     }
 
     try {
-      const stats = await stat(path);
+      const stats = await this.fs.stat(path);
       const exists = stats.isFile();
       this.fileExistsCache.set(path, exists);
       return exists;
