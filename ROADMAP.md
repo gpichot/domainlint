@@ -144,6 +144,15 @@ Design notes:
 
 ---
 
+## 10. Rename `lint` command to `check`
+
+**Status:** done
+**Scope:** `packages/domainlint/src/commands/`
+
+Renamed the `lint` CLI command to `check` to avoid the redundant `domainlint lint` invocation. Updated all documentation references accordingly.
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)

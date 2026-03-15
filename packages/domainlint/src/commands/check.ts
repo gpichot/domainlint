@@ -2,17 +2,17 @@ import { Args, Command, Flags } from '@oclif/core';
 import { loadConfig } from '../config/config-loader.js';
 import { LintOrchestrator } from '../services/lint-orchestrator.js';
 
-export default class Lint extends Command {
+export default class Check extends Command {
   private orchestrator = new LintOrchestrator();
 
   static override args = {
     path: Args.string({
-      description: 'Path to the project to lint',
+      description: 'Path to the project to check',
       default: '.',
     }),
   };
 
-  static override description = 'Lint feature boundaries and import cycles';
+  static override description = 'Check feature boundaries and import cycles';
 
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
@@ -54,7 +54,7 @@ export default class Lint extends Command {
   };
 
   public async run(): Promise<void> {
-    const { args, flags } = await this.parse(Lint);
+    const { args, flags } = await this.parse(Check);
 
     try {
       // Execute linting using orchestrator

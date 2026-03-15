@@ -31,12 +31,12 @@ Or install globally:
 npm install -g domainlint
 ```
 
-## Run your first lint
+## Run your first check
 
 From the root of your project:
 
 ```sh
-domainlint lint
+domainlint check
 ```
 
 This will analyze `src/` and report any violations.
@@ -61,7 +61,7 @@ All fields are optional — the defaults work for a standard `src/features/` lay
 ## CLI flags
 
 ```sh
-domainlint lint [path]
+domainlint check [path]
 
 FLAGS
   -c, --config=<path>             Path to config file
@@ -114,5 +114,5 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 ```yaml
 # .github/workflows/ci.yml
 - name: Lint architecture
-  run: domainlint lint
+  run: domainlint check
 ```

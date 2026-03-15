@@ -21,7 +21,7 @@ Two core rules:
 
 ```
 src/
-  commands/       # CLI commands: lint.ts, debug.ts
+  commands/       # CLI commands: check.ts, debug.ts
   config/         # Config loading and types
   files/          # File discovery and feature ownership
   graph/          # Dependency graph structures
@@ -37,7 +37,7 @@ src/
 ## CLI commands
 
 ```bash
-domainlint lint [path]        # Main command — reports violations
+domainlint check [path]       # Main command — reports violations
 domainlint debug <file>       # Debug imports/violations for a single file
 ```
 
@@ -88,6 +88,10 @@ Examples:
 - `feat(rules): add import depth limit rule`
 - `fix(resolver): handle symlinked node_modules`
 - `docs(readme): update configuration options`
+
+## Docs
+
+The `docs/` directory contains an Astro/Starlight site. When changing CLI commands, flags, or user-facing behaviour, update the relevant pages under `docs/src/content/docs/` as well.
 
 ## Roadmap
 

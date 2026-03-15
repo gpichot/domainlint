@@ -43,8 +43,44 @@ USAGE
 # Commands
 
 <!-- commands -->
+* [`domainlint check [PATH]`](#domainlint-check-path)
 * [`domainlint help [COMMAND]`](#domainlint-help-command)
-* [`domainlint lint [PATH]`](#domainlint-lint-path)
+
+## `domainlint check [PATH]`
+
+Check feature boundaries and import cycles
+
+```
+USAGE
+  $ domainlint check [PATH] [-c <value>] [--src-dir <value>] [--features-dir <value>] [--tsconfig-path
+    <value>] [--include-dynamic-imports] [--no-color] [-v] [--feature <value>] [--shortest-cycles] [--max-cycle-length
+    <value>]
+
+ARGUMENTS
+  [PATH]  [default: .] Path to the project to check
+
+FLAGS
+  -c, --config=<value>            Path to config file
+  -v, --verbose                   Verbose output
+      --feature=<value>           Filter violations by feature name
+      --features-dir=<value>      Features directory (default: src/features)
+      --include-dynamic-imports   Include dynamic imports in analysis
+      --max-cycle-length=<value>  [default: 50] Hide cycles longer than this length
+      --no-color                  Disable colored output
+      --shortest-cycles           Show only the shortest cycles (easier to fix)
+      --src-dir=<value>           Source directory (default: src)
+      --tsconfig-path=<value>     Path to tsconfig.json (default: ./tsconfig.json)
+
+DESCRIPTION
+  Check feature boundaries and import cycles
+
+EXAMPLES
+  $ domainlint check
+
+  $ domainlint check ./my-project
+```
+
+_See code: [src/commands/check.ts](https://github.com/gpichot/domainlint/blob/v0.1.1/src/commands/check.ts)_
 
 ## `domainlint help [COMMAND]`
 
@@ -65,79 +101,23 @@ DESCRIPTION
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.2.36/src/commands/help.ts)_
-
-## `domainlint lint [PATH]`
-
-Lint feature boundaries and import cycles
-
-```
-USAGE
-  $ domainlint lint [PATH] [-c <value>] [--src-dir <value>] [--features-dir <value>] [--tsconfig-path
-    <value>] [--include-dynamic-imports] [--no-color] [-v] [--feature <value>] [--shortest-cycles] [--max-cycle-length
-    <value>]
-
-ARGUMENTS
-  [PATH]  [default: .] Path to the project to lint
-
-FLAGS
-  -c, --config=<value>            Path to config file
-  -v, --verbose                   Verbose output
-      --feature=<value>           Filter violations by feature name
-      --features-dir=<value>      Features directory (default: src/features)
-      --include-dynamic-imports   Include dynamic imports in analysis
-      --max-cycle-length=<value>  [default: 50] Hide cycles longer than this length
-      --no-color                  Disable colored output
-      --shortest-cycles           Show only the shortest cycles (easier to fix)
-      --src-dir=<value>           Source directory (default: src)
-      --tsconfig-path=<value>     Path to tsconfig.json (default: ./tsconfig.json)
-
-DESCRIPTION
-  Lint feature boundaries and import cycles
-
-EXAMPLES
-  $ domainlint lint
-
-  $ domainlint lint ./my-project
-```
-
-_See code: [src/commands/lint.ts](https://github.com/gpichot/domainlint/blob/v0.1.1/src/commands/lint.ts)_
 <!-- commandsstop -->
 
+- [`domainlint check [PATH]`](#domainlint-check-path)
 - [`domainlint help [COMMAND]`](#domainlint-help-command)
-- [`domainlint lint [PATH]`](#domainlint-lint-path)
 
-## `domainlint help [COMMAND]`
+## `domainlint check [PATH]`
 
-Display help for domainlint.
-
-```
-USAGE
-  $ domainlint help [COMMAND...] [-n]
-
-ARGUMENTS
-  [COMMAND...]  Command to show help for.
-
-FLAGS
-  -n, --nested-commands  Include all nested commands in the output.
-
-DESCRIPTION
-  Display help for domainlint.
-```
-
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.2.36/src/commands/help.ts)_
-
-## `domainlint lint [PATH]`
-
-Lint feature boundaries and import cycles
+Check feature boundaries and import cycles
 
 ```
 USAGE
-  $ domainlint lint [PATH] [-c <value>] [--src-dir <value>] [--features-dir <value>] [--tsconfig-path
+  $ domainlint check [PATH] [-c <value>] [--src-dir <value>] [--features-dir <value>] [--tsconfig-path
     <value>] [--include-dynamic-imports] [--no-color] [-v] [--feature <value>] [--shortest-cycles] [--max-cycle-length
     <value>]
 
 ARGUMENTS
-  [PATH]  [default: .] Path to the project to lint
+  [PATH]  [default: .] Path to the project to check
 
 FLAGS
   -c, --config=<value>            Path to config file
@@ -152,12 +132,12 @@ FLAGS
       --tsconfig-path=<value>     Path to tsconfig.json (default: ./tsconfig.json)
 
 DESCRIPTION
-  Lint feature boundaries and import cycles
+  Check feature boundaries and import cycles
 
 EXAMPLES
-  $ domainlint lint
+  $ domainlint check
 
-  $ domainlint lint ./my-project
+  $ domainlint check ./my-project
 ```
 
-_See code: [src/commands/lint.ts](https://github.com/gpichot/domainlint/blob/v0.1.0/src/commands/lint.ts)_
+_See code: [src/commands/check.ts](https://github.com/gpichot/domainlint/blob/v0.1.0/src/commands/check.ts)_
