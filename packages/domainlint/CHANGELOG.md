@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.3.1...domainlint-v0.4.0) (2026-03-15)
+
+
+### Features
+
+* handle duplicate .ts/.tsx files in dependency graph ([#30](https://github.com/gpichot/domainlint/issues/30)) ([a50f461](https://github.com/gpichot/domainlint/commit/a50f4618f577864f7aa3c049477117354b559479))
+
 ## [0.3.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.3.0...domainlint-v0.3.1) (2026-03-15)
 
 
