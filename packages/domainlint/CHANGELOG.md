@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.4.0...domainlint-v0.4.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* false positive cycles for colliding .ts/.tsx files ([#34](https://github.com/gpichot/domainlint/issues/34)) ([e5cd4b5](https://github.com/gpichot/domainlint/commit/e5cd4b5aaa7d0eaed5d363febdd196d385fa4d4e))
+
 ## [0.4.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.3.1...domainlint-v0.4.0) (2026-03-15)
 
 
