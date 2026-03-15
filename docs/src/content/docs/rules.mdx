@@ -239,7 +239,7 @@ Invalid configuration will cause domainlint to exit with code `2`.
 
 ## Custom rules
 
-You can extend domainlint with your own rules by creating a `domainlint.rules.ts` (or `.js`) file at the project root. Each custom rule receives the full import graph and configuration, and returns violations.
+You can extend domainlint with your own rules by creating a `domainlint.rules.ts` (or `.js`) file at the project root. Each custom rule receives the import graph, a query helper, and an `emitViolation` callback to report violations.
 
 ### Setup
 
@@ -250,13 +250,16 @@ import type { CustomRule } from "domainlint";
 
 const noUtilsImport: CustomRule = {
   name: "no-utils-import",
-  check({ query }) {
-    return query
-      .edgesBetween("src/features/**", "src/lib/utils/**")
-      .violations(
-        "CUSTOM_NO_UTILS_IMPORT",
-        "Importing from utils/ is not allowed. Use a feature barrel instead.",
-      );
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesTo("src/lib/utils/**").edges) {
+      emitViolation({
+        code: "CUSTOM_NO_UTILS_IMPORT",
+        file: edge.from,
+        line: edge.importInfo.line,
+        col: edge.importInfo.col,
+        message: "Importing from utils/ is not allowed. Use a feature barrel instead.",
+      });
+    }
   },
 };
 
@@ -270,21 +273,22 @@ Each rule must have:
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | `string` | Unique rule identifier. |
-| `check` | `(context) => Result[] \| Promise<Result[]>` | Function that inspects the graph and returns violations. |
+| `check` | `(context) => void \| Promise<void>` | Function that inspects the graph and calls `emitViolation` for each violation. |
 
 The `context` object contains:
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `emitViolation` | `(result) => void` | Callback to report a violation. |
 | `query` | `GraphQuery` | High-level query API for the import graph (see below). |
 | `graph` | `DependencyGraph` | The raw import graph with nodes, edges, and adjacency list. |
 | `config` | `FeatureBoundariesConfig` | The resolved domainlint configuration. |
 
-Each result must include:
+Each violation passed to `emitViolation` must include:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `code` | `string` | Violation code (e.g. `CUSTOM_NO_UTILS_IMPORT`). Auto-generated from rule name if empty. |
+| `code` | `string?` | Violation code (e.g. `CUSTOM_NO_UTILS_IMPORT`). Auto-generated from rule name if omitted. |
 | `file` | `string` | Absolute path to the file with the violation. |
 | `line` | `number` | 1-based line number. |
 | `col` | `number` | 1-based column number. |
@@ -348,46 +352,54 @@ import type { CustomRule } from "domainlint";
 // Ban features from importing internal lib
 const noInternalLib: CustomRule = {
   name: "no-internal-lib",
-  check({ query }) {
-    return query
-      .edgesBetween("src/features/**", "src/lib/internal/**")
-      .violations("NO_INTERNAL_LIB", "Features must not import internal lib");
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesBetween("src/features/**", "src/lib/internal/**").edges) {
+      emitViolation({
+        code: "NO_INTERNAL_LIB",
+        file: edge.from,
+        line: edge.importInfo.line,
+        col: edge.importInfo.col,
+        message: "Features must not import internal lib",
+      });
+    }
   },
 };
 
 // Flag files with too many imports
 const maxFanOut: CustomRule = {
   name: "max-fan-out",
-  check({ query }) {
+  check({ query, emitViolation }) {
     const MAX = 15;
-    return query
-      .filesMatching("src/**/*.ts")
-      .filter((file) => query.fanOut(file) > MAX)
-      .map((file) => ({
-        code: "TOO_MANY_IMPORTS",
-        file,
-        line: 1,
-        col: 0,
-        message: `File has ${query.fanOut(file)} imports (max ${MAX})`,
-      }));
+    for (const file of query.filesMatching("src/**/*.ts")) {
+      const count = query.fanOut(file);
+      if (count > MAX) {
+        emitViolation({
+          code: "TOO_MANY_IMPORTS",
+          file,
+          line: 1,
+          col: 0,
+          message: `File has ${count} imports (max ${MAX})`,
+        });
+      }
+    }
   },
 };
 
 // Enforce layered architecture
 const noUpwardImports: CustomRule = {
   name: "no-upward-imports",
-  check({ query }) {
-    return query
-      .edgesFrom("src/domain/**")
-      .edges.filter((e) => query.featureOf(e.to) === null)
-      .filter((e) => e.to.includes("/infrastructure/"))
-      .map((e) => ({
-        code: "NO_UPWARD_IMPORT",
-        file: e.from,
-        line: e.importInfo.line,
-        col: e.importInfo.col,
-        message: "Domain layer must not import from infrastructure",
-      }));
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesFrom("src/domain/**").edges) {
+      if (edge.to.includes("/infrastructure/")) {
+        emitViolation({
+          code: "NO_UPWARD_IMPORT",
+          file: edge.from,
+          line: edge.importInfo.line,
+          col: edge.importInfo.col,
+          message: "Domain layer must not import from infrastructure",
+        });
+      }
+    }
   },
 };
 

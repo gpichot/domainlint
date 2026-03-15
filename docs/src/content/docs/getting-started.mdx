@@ -119,10 +119,15 @@ import type { CustomRule } from "domainlint";
 export const rules: CustomRule[] = [
   {
     name: "no-utils-import",
-    check({ query }) {
-      return query
-        .edgesTo("src/utils/**")
-        .violations("CUSTOM_NO_UTILS", "Direct utils/ imports are not allowed");
+    check({ query, emitViolation }) {
+      for (const edge of query.edgesTo("src/utils/**").edges) {
+        emitViolation({
+          file: edge.from,
+          line: edge.importInfo.line,
+          col: edge.importInfo.col,
+          message: "Direct utils/ imports are not allowed",
+        });
+      }
     },
   },
 ];

@@ -5,25 +5,26 @@ import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyGraph, Violation } from '../graph/types.js';
 
-export interface CustomRuleContext {
-  graph: DependencyGraph;
-  query: GraphQuery;
-  config: FeatureBoundariesConfig;
-}
-
 export interface CustomRuleResult {
-  code: string;
+  code?: string;
   file: string;
   line: number;
   col: number;
   message: string;
 }
 
+export type EmitViolation = (result: CustomRuleResult) => void;
+
+export interface CustomRuleContext {
+  graph: DependencyGraph;
+  query: GraphQuery;
+  config: FeatureBoundariesConfig;
+  emitViolation: EmitViolation;
+}
+
 export interface CustomRule {
   name: string;
-  check(
-    context: CustomRuleContext,
-  ): CustomRuleResult[] | Promise<CustomRuleResult[]>;
+  check(context: CustomRuleContext): void | Promise<void>;
 }
 
 export interface CustomRulesModule {
@@ -104,24 +105,25 @@ export async function loadCustomRules(
 
 export async function runCustomRules(
   rules: CustomRule[],
-  context: CustomRuleContext,
+  context: Omit<CustomRuleContext, 'emitViolation'>,
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
 
   for (const rule of rules) {
+    const defaultCode = `CUSTOM_${rule.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+
+    const emitViolation: EmitViolation = (result) => {
+      violations.push({
+        code: result.code || defaultCode,
+        file: result.file,
+        line: result.line,
+        col: result.col,
+        message: result.message,
+      });
+    };
+
     try {
-      const results = await rule.check(context);
-      for (const result of results) {
-        violations.push({
-          code:
-            result.code ||
-            `CUSTOM_${rule.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`,
-          file: result.file,
-          line: result.line,
-          col: result.col,
-          message: result.message,
-        });
-      }
+      await rule.check({ ...context, emitViolation });
     } catch (error) {
       throw new Error(
         `Custom rule "${rule.name}" threw an error: ${error instanceof Error ? error.message : String(error)}`,

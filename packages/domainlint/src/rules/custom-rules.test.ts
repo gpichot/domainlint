@@ -36,7 +36,7 @@ function createMockGraph(
 function createContext(
   graph: DependencyGraph,
   config: FeatureBoundariesConfig,
-): CustomRuleContext {
+) {
   return { graph, query: new GraphQuery(graph, config), config };
 }
 
@@ -103,7 +103,7 @@ describe('findRulesFile', () => {
 });
 
 describe('runCustomRules', () => {
-  it('should run a custom rule and collect violations', async () => {
+  it('should collect violations emitted by a custom rule', async () => {
     const graph = createMockGraph({
       nodes: new Set(['/project/src/a.ts', '/project/src/b.ts']),
       edges: [
@@ -124,16 +124,18 @@ describe('runCustomRules', () => {
 
     const rule: CustomRule = {
       name: 'no-import-b',
-      check(ctx: CustomRuleContext) {
-        return ctx.graph.edges
-          .filter((e) => e.to.includes('/b.ts'))
-          .map((e) => ({
-            code: 'CUSTOM_NO_IMPORT_B',
-            file: e.from,
-            line: e.importInfo.line,
-            col: e.importInfo.col,
-            message: `Do not import b.ts`,
-          }));
+      check({ graph, emitViolation }) {
+        for (const edge of graph.edges) {
+          if (edge.to.includes('/b.ts')) {
+            emitViolation({
+              code: 'CUSTOM_NO_IMPORT_B',
+              file: edge.from,
+              line: edge.importInfo.line,
+              col: edge.importInfo.col,
+              message: 'Do not import b.ts',
+            });
+          }
+        }
       },
     };
 
@@ -155,16 +157,13 @@ describe('runCustomRules', () => {
 
     const rule: CustomRule = {
       name: 'my-rule',
-      check() {
-        return [
-          {
-            code: '',
-            file: '/project/src/a.ts',
-            line: 1,
-            col: 0,
-            message: 'test',
-          },
-        ];
+      check({ emitViolation }) {
+        emitViolation({
+          file: '/project/src/a.ts',
+          line: 1,
+          col: 0,
+          message: 'test',
+        });
       },
     };
 
@@ -181,16 +180,14 @@ describe('runCustomRules', () => {
 
     const rule: CustomRule = {
       name: 'async-rule',
-      async check() {
-        return [
-          {
-            code: 'ASYNC_VIOLATION',
-            file: '/project/src/a.ts',
-            line: 1,
-            col: 0,
-            message: 'async violation',
-          },
-        ];
+      async check({ emitViolation }) {
+        emitViolation({
+          code: 'ASYNC_VIOLATION',
+          file: '/project/src/a.ts',
+          line: 1,
+          col: 0,
+          message: 'async violation',
+        });
       },
     };
 
@@ -223,14 +220,26 @@ describe('runCustomRules', () => {
 
     const rule1: CustomRule = {
       name: 'rule-1',
-      check() {
-        return [{ code: 'R1', file: '/a.ts', line: 1, col: 0, message: 'r1' }];
+      check({ emitViolation }) {
+        emitViolation({
+          code: 'R1',
+          file: '/a.ts',
+          line: 1,
+          col: 0,
+          message: 'r1',
+        });
       },
     };
     const rule2: CustomRule = {
       name: 'rule-2',
-      check() {
-        return [{ code: 'R2', file: '/b.ts', line: 2, col: 0, message: 'r2' }];
+      check({ emitViolation }) {
+        emitViolation({
+          code: 'R2',
+          file: '/b.ts',
+          line: 2,
+          col: 0,
+          message: 'r2',
+        });
       },
     };
 
@@ -243,14 +252,14 @@ describe('runCustomRules', () => {
     expect(violations[1].code).toBe('R2');
   });
 
-  it('should return empty array when rule returns no violations', async () => {
+  it('should return empty array when rule emits no violations', async () => {
     const graph = createMockGraph();
     const config = createDefaultConfig();
 
     const rule: CustomRule = {
       name: 'clean-rule',
       check() {
-        return [];
+        // no violations emitted
       },
     };
 
@@ -279,7 +288,7 @@ describe('runCustomRules', () => {
     );
   });
 
-  it('should provide graph and config to custom rule', async () => {
+  it('should provide graph, query, config, and emitViolation to custom rule', async () => {
     const graph = createMockGraph({
       nodes: new Set(['/project/src/a.ts', '/project/src/b.ts']),
       edges: [
@@ -303,7 +312,6 @@ describe('runCustomRules', () => {
       name: 'spy-rule',
       check(ctx) {
         receivedContext = ctx;
-        return [];
       },
     };
 
@@ -314,5 +322,52 @@ describe('runCustomRules', () => {
     expect(receivedContext!.query).toBeInstanceOf(GraphQuery);
     expect(receivedContext!.config).toBe(config);
     expect(receivedContext!.config.featuresDir).toBe('/project/src/domains');
+    expect(typeof receivedContext!.emitViolation).toBe('function');
+  });
+
+  it('should work with emitViolation and query together', async () => {
+    const graph = createMockGraph({
+      nodes: new Set(['/project/src/a.ts', '/project/src/b.ts']),
+      edges: [
+        {
+          from: '/project/src/a.ts',
+          to: '/project/src/b.ts',
+          importInfo: {
+            specifier: './b',
+            line: 3,
+            col: 0,
+            isDynamic: false,
+            isTypeOnly: false,
+          },
+        },
+      ],
+      adjacencyList: new Map([
+        ['/project/src/a.ts', new Set(['/project/src/b.ts'])],
+      ]),
+    });
+    const config = createDefaultConfig();
+
+    const rule: CustomRule = {
+      name: 'no-b-imports',
+      check({ query, emitViolation }) {
+        for (const edge of query.edgesTo('src/b.ts').edges) {
+          emitViolation({
+            code: 'NO_B',
+            file: edge.from,
+            line: edge.importInfo.line,
+            col: edge.importInfo.col,
+            message: 'Do not import b.ts',
+          });
+        }
+      },
+    };
+
+    const violations = await runCustomRules(
+      [rule],
+      createContext(graph, config),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe('NO_B');
+    expect(violations[0].line).toBe(3);
   });
 });

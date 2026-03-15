@@ -16,4 +16,5 @@ export type {
   CustomRule,
   CustomRuleContext,
   CustomRuleResult,
+  EmitViolation,
 } from './rules/custom-rules.js';
