@@ -1,11 +1,9 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'jsonc-parser';
-import type {
-  ConfigFile,
-  ConfigOverrides,
-  FeatureBoundariesConfig,
-} from './types.js';
+import { ZodError } from 'zod';
+import type { ConfigOverrides, FeatureBoundariesConfig } from './types.js';
+import { configFileSchema } from './types.js';
 
 const DEFAULT_CONFIG: FeatureBoundariesConfig = {
   rootDir: '.',
@@ -25,7 +23,7 @@ export async function loadConfig(
   overrides: ConfigOverrides = {},
 ): Promise<FeatureBoundariesConfig> {
   const rootDir = resolve(projectPath);
-  let fileConfig: ConfigFile = {};
+  let rawFileConfig: unknown = {};
 
   // Try to load config file
   if (configFilePath) {
@@ -34,7 +32,7 @@ export async function loadConfig(
         resolve(rootDir, configFilePath),
         'utf-8',
       );
-      fileConfig = parse(configContent) as ConfigFile;
+      rawFileConfig = parse(configContent);
     } catch (error) {
       throw new Error(
         `Failed to load config file ${configFilePath}: ${error instanceof Error ? error.message : String(error)}`,
@@ -47,12 +45,26 @@ export async function loadConfig(
       try {
         const configPath = join(rootDir, configFile);
         const configContent = await readFile(configPath, 'utf-8');
-        fileConfig = parse(configContent) as ConfigFile;
+        rawFileConfig = parse(configContent);
         break;
       } catch {
         // Continue to next config file
       }
     }
+  }
+
+  // Validate config file shape with zod
+  let fileConfig: ReturnType<typeof configFileSchema.parse>;
+  try {
+    fileConfig = configFileSchema.parse(rawFileConfig);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const messages = error.issues
+        .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
+        .join('\n');
+      throw new Error(`Invalid config:\n${messages}`);
+    }
+    throw error;
   }
 
   // Merge configurations with priority: overrides > fileConfig > defaults
@@ -81,6 +93,24 @@ export async function loadConfig(
   config.srcDir = resolve(rootDir, config.srcDir);
   config.featuresDir = resolve(rootDir, config.featuresDir);
   config.tsconfigPath = resolve(rootDir, config.tsconfigPath);
+
+  // Validate that srcDir exists
+  try {
+    await access(config.srcDir);
+  } catch {
+    throw new Error(
+      `Invalid config: "srcDir" does not exist: ${config.srcDir}`,
+    );
+  }
+
+  // Validate that featuresDir exists
+  try {
+    await access(config.featuresDir);
+  } catch {
+    throw new Error(
+      `Invalid config: "featuresDir" does not exist: ${config.featuresDir}`,
+    );
+  }
 
   return config;
 }

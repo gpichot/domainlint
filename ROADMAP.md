@@ -123,7 +123,7 @@ Design notes:
 
 ## 8. Config validation
 
-**Status:** no validation on config values
+**Status:** done
 **Scope:** `src/config/config-loader.ts`
 
 - Validate that `srcDir` and `featuresDir` exist
