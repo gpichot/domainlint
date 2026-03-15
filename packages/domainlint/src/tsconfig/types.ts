@@ -6,7 +6,7 @@ export interface TsConfigCompilerOptions {
 }
 
 export interface TsConfig {
-  extends?: string;
+  extends?: string | string[];
   compilerOptions?: TsConfigCompilerOptions;
 }
 
