@@ -13,9 +13,10 @@ jobs:
         with:
           node-version: latest
       - run: pnpm install
-      - run: pnpm run build
-      - run: pnpm run prepack
+      - run: pnpm --filter domainlint build
+      - run: pnpm --filter domainlint prepack
       - uses: JS-DevTools/npm-publish@19c28f1ef146469e409470805ea4279d47c3d35c
         with:
           token: ${{ secrets.NPM_TOKEN }}
-      - run: pnpm run postpack
+          package: packages/domainlint/package.json
+      - run: pnpm --filter domainlint postpack
