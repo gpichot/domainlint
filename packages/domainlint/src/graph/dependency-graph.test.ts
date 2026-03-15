@@ -150,6 +150,66 @@ describe('DependencyGraphBuilder', () => {
     });
   });
 
+  describe('extension collision handling', () => {
+    it('keeps full paths when .ts and .tsx files share the same base name', async () => {
+      vol.fromJSON({
+        '/project/src/ScoreGauge.ts': '',
+        '/project/src/ScoreGauge.tsx': '',
+      });
+      const files = [
+        makeFileInfo('/project/src/ScoreGauge.ts'),
+        makeFileInfo('/project/src/ScoreGauge.tsx'),
+      ];
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
+      const graph = await builder.buildGraph(files, []);
+      expect(graph.nodes.size).toBe(2);
+      expect(graph.nodes.has('/project/src/ScoreGauge.ts')).toBe(true);
+      expect(graph.nodes.has('/project/src/ScoreGauge.tsx')).toBe(true);
+    });
+
+    it('does not produce a false self-cycle when .tsx imports from same-name .ts', async () => {
+      vol.fromJSON({
+        '/project/src/ScoreGauge.ts': 'export const data = 1;',
+        '/project/src/ScoreGauge.tsx': '',
+      });
+      const files = [
+        makeFileInfo('/project/src/ScoreGauge.ts'),
+        makeFileInfo('/project/src/ScoreGauge.tsx'),
+      ];
+      const parseResults = [
+        makeParseResult('/project/src/ScoreGauge.tsx', ['./ScoreGauge']),
+        makeParseResult('/project/src/ScoreGauge.ts', []),
+      ];
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
+      const graph = await builder.buildGraph(files, parseResults);
+
+      // Edge should go from .tsx to .ts, not create a self-loop
+      expect(graph.edges).toHaveLength(1);
+      expect(graph.edges[0].from).toBe('/project/src/ScoreGauge.tsx');
+      expect(graph.edges[0].to).toBe('/project/src/ScoreGauge.ts');
+    });
+
+    it('still normalizes non-colliding files', async () => {
+      vol.fromJSON({
+        '/project/src/a.ts': '',
+        '/project/src/ScoreGauge.ts': '',
+        '/project/src/ScoreGauge.tsx': '',
+      });
+      const files = [
+        makeFileInfo('/project/src/a.ts'),
+        makeFileInfo('/project/src/ScoreGauge.ts'),
+        makeFileInfo('/project/src/ScoreGauge.tsx'),
+      ];
+      const builder = new DependencyGraphBuilder(config, tsconfig, testFs);
+      const graph = await builder.buildGraph(files, []);
+      // a.ts has no collision, should be normalized
+      expect(graph.nodes.has('/project/src/a')).toBe(true);
+      // ScoreGauge files collide, should keep full paths
+      expect(graph.nodes.has('/project/src/ScoreGauge.ts')).toBe(true);
+      expect(graph.nodes.has('/project/src/ScoreGauge.tsx')).toBe(true);
+    });
+  });
+
   describe('adjacency list', () => {
     it('updates adjacency list for each edge', async () => {
       vol.fromJSON({
