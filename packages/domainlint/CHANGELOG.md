@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.3.0...domainlint-v0.3.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* **publish:** add README.md to fix oclif readme in prepack ([#25](https://github.com/gpichot/domainlint/issues/25)) ([516f41b](https://github.com/gpichot/domainlint/commit/516f41bd72d031db923cae4ebf0c1b713e3df471))
+
 ## [0.3.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.2.0...domainlint-v0.3.0) (2026-03-15)
 
 
