@@ -35,6 +35,16 @@ export class DependencyGraphBuilder {
     return filePath;
   }
 
+  /**
+   * Determine the node key for a file path. Files that collide after
+   * extension stripping (e.g. Foo.ts and Foo.tsx) keep their full
+   * original path to avoid being merged into a single graph node.
+   */
+  private getNodeKey(filePath: string, collisions: Set<string>): string {
+    const normalized = this.normalizeModulePath(filePath);
+    return collisions.has(normalized) ? filePath : normalized;
+  }
+
   async buildGraph(
     files: FileInfo[],
     parseResults: ParseResult[],
@@ -43,21 +53,37 @@ export class DependencyGraphBuilder {
     const edges: DependencyEdge[] = [];
     const adjacencyList = new Map<string, Set<string>>();
 
-    // Track mapping from normalized paths to original paths
+    // Track mapping from node keys to original paths
     const normalizedToOriginal = new Map<string, string>();
 
-    // Add all files as nodes (using normalized paths)
+    // Detect collisions: multiple files that normalize to the same path
+    const normalizedCount = new Map<string, number>();
     for (const file of files) {
-      const normalizedPath = this.normalizeModulePath(file.path);
-      nodes.add(normalizedPath);
-      adjacencyList.set(normalizedPath, new Set());
-      normalizedToOriginal.set(normalizedPath, file.path);
+      const normalized = this.normalizeModulePath(file.path);
+      normalizedCount.set(
+        normalized,
+        (normalizedCount.get(normalized) || 0) + 1,
+      );
+    }
+    const collisions = new Set<string>();
+    for (const [normalized, count] of normalizedCount) {
+      if (count > 1) {
+        collisions.add(normalized);
+      }
+    }
+
+    // Add all files as nodes
+    for (const file of files) {
+      const nodeKey = this.getNodeKey(file.path, collisions);
+      nodes.add(nodeKey);
+      adjacencyList.set(nodeKey, new Set());
+      normalizedToOriginal.set(nodeKey, file.path);
     }
 
     // Process each file's imports
     for (const parseResult of parseResults) {
       const fromFile = parseResult.filePath;
-      const normalizedFromFile = this.normalizeModulePath(fromFile);
+      const fromKey = this.getNodeKey(fromFile, collisions);
 
       for (const importInfo of parseResult.imports) {
         const resolved = await this.resolver.resolveImport(
@@ -67,23 +93,21 @@ export class DependencyGraphBuilder {
 
         // Only include edges to local files
         if (!resolved.isExternal && resolved.resolvedPath) {
-          const normalizedResolvedPath = this.normalizeModulePath(
-            resolved.resolvedPath,
-          );
+          const toKey = this.getNodeKey(resolved.resolvedPath, collisions);
 
-          if (nodes.has(normalizedResolvedPath)) {
+          if (nodes.has(toKey)) {
             const edge: DependencyEdge = {
-              from: normalizedFromFile,
-              to: normalizedResolvedPath,
+              from: fromKey,
+              to: toKey,
               importInfo,
             };
 
             edges.push(edge);
 
             // Update adjacency list
-            const fromAdjacency = adjacencyList.get(normalizedFromFile);
+            const fromAdjacency = adjacencyList.get(fromKey);
             if (fromAdjacency) {
-              fromAdjacency.add(normalizedResolvedPath);
+              fromAdjacency.add(toKey);
             }
           }
         }
