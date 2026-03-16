@@ -30,28 +30,16 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ## 3. Custom rules support
 
-**Status:** not implemented
-**Scope:** new feature, non-trivial
+**Status:** done
+**Scope:** `src/rules/custom-rules.ts`, `src/linter/feature-boundaries-linter.ts`
 
-Allow users to define additional import restriction rules in `domainlint.json`:
+Users can create a `domainlint.rules.ts` (or `.js`) file at the project root that exports custom rules. Each rule receives the full `DependencyGraph` and `FeatureBoundariesConfig` and returns violations.
 
-```json
-{
-  "rules": [
-    {
-      "from": "src/features/**",
-      "deny": ["src/lib/**", "src/utils/**"],
-      "message": "Features must not import from shared lib directly"
-    }
-  ]
-}
-```
-
-Design notes:
-- Rules are path-glob pairs (`from` + `deny`)
-- Evaluated after resolution, same as R2
-- New violation code: `ARCH_CUSTOM_RULE`
-- Documented in `SPEC.md` as R4+
+- Programmatic API: rules implement `CustomRule` interface (`name` + `check` function)
+- Auto-discovered from `domainlint.rules.ts` / `domainlint.rules.js`, or configured via `rulesFile` in `domainlint.json`
+- Types exported from `domainlint` package: `CustomRule`, `CustomRuleContext`, `CustomRuleResult`, `DependencyGraph`
+- Violations from custom rules are reported alongside built-in violations
+- Documented in `docs/src/content/docs/rules.mdx` and `getting-started.mdx`
 
 ---
 

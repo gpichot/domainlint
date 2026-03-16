@@ -109,6 +109,30 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 | `1`  | Violations found |
 | `2`  | Internal error (e.g. unreadable tsconfig) |
 
+## Custom rules
+
+Create a `domainlint.rules.ts` file at the project root to add custom rules that run against the import graph. See [Rules & Configuration](/rules/#custom-rules) for the full API.
+
+```ts
+import type { CustomRule } from "domainlint";
+
+export const rules: CustomRule[] = [
+  {
+    name: "no-utils-import",
+    check({ query, emitViolation }) {
+      for (const edge of query.edgesTo("src/utils/**").edges) {
+        emitViolation({
+          file: edge.from,
+          line: edge.importInfo.line,
+          col: edge.importInfo.col,
+          message: "Direct utils/ imports are not allowed",
+        });
+      }
+    },
+  },
+];
+```
+
 ## Monorepo / Workspace support
 
 domainlint automatically detects **npm**, **pnpm**, and **yarn** workspaces. When run from a workspace root, it lints each package independently.
