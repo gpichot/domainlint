@@ -15,7 +15,20 @@ Items ordered by priority. Each section is designed to be handled independently 
 
 ---
 
-## 2. Custom rules support
+## 2. Workspace support (npm, pnpm, yarn)
+
+**Status:** done
+**Scope:** `src/workspace/`
+
+- Auto-detects workspaces from `pnpm-workspace.yaml` or `package.json` `"workspaces"` field
+- Lints each package independently with its own config/tsconfig
+- Packages without a `srcDir` are automatically skipped
+- Aggregates results with per-package summary output
+- Supports npm, pnpm, and yarn (classic and modern) workspace formats
+
+---
+
+## 3. Custom rules support
 
 **Status:** done
 **Scope:** `src/rules/custom-rules.ts`, `src/linter/feature-boundaries-linter.ts`

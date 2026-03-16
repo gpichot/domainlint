@@ -18,3 +18,13 @@ export type {
   CustomRuleResult,
   EmitViolation,
 } from './rules/custom-rules.js';
+export type {
+  WorkspaceInfo,
+  WorkspacePackage,
+} from './workspace/workspace-detector.js';
+export { detectWorkspace } from './workspace/workspace-detector.js';
+export type {
+  WorkspaceLintResult,
+  WorkspacePackageResult,
+} from './workspace/workspace-runner.js';
+export { runWorkspaceLint } from './workspace/workspace-runner.js';
