@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.5.0...domainlint-v0.6.0) (2026-03-16)
+
+
+### Features
+
+* **rules:** add custom rules system via domainlint.rules.ts ([#39](https://github.com/gpichot/domainlint/issues/39)) ([5ee1045](https://github.com/gpichot/domainlint/commit/5ee1045f0ec1015990bb8b91fbad1ea819720973))
+* **workspace:** add npm, pnpm and yarn workspace support ([#37](https://github.com/gpichot/domainlint/issues/37)) ([cfb190a](https://github.com/gpichot/domainlint/commit/cfb190a7be98c9bf3dcf0b7b46ea7884b5752444))
+
 ## [0.5.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.4.1...domainlint-v0.5.0) (2026-03-15)
 
 
