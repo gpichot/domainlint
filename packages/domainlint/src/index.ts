@@ -6,3 +6,13 @@ export type { Violation } from './graph/types.js';
 export { FeatureBoundariesLinter } from './linter/feature-boundaries-linter.js';
 export type { ReporterOptions } from './reporter/colored-reporter.js';
 export { ColoredReporter } from './reporter/colored-reporter.js';
+export type {
+  WorkspaceInfo,
+  WorkspacePackage,
+} from './workspace/workspace-detector.js';
+export { detectWorkspace } from './workspace/workspace-detector.js';
+export type {
+  WorkspaceLintResult,
+  WorkspacePackageResult,
+} from './workspace/workspace-runner.js';
+export { runWorkspaceLint } from './workspace/workspace-runner.js';

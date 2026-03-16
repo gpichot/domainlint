@@ -1,6 +1,10 @@
+import { relative } from 'node:path';
 import { Args, Command, Flags } from '@oclif/core';
+import chalk from 'chalk';
 import { loadConfig } from '../config/config-loader.js';
+import { ColoredReporter } from '../reporter/colored-reporter.js';
 import { LintOrchestrator } from '../services/lint-orchestrator.js';
+import type { WorkspaceLintResult } from '../workspace/workspace-runner.js';
 
 export default class Check extends Command {
   private orchestrator = new LintOrchestrator();
@@ -79,7 +83,20 @@ export default class Check extends Command {
         includeFeatureStats: !flags.feature,
       });
 
-      // Display analysis information
+      // Workspace mode — display per-package results
+      if (result.workspaceResult) {
+        this.displayWorkspaceResults(result.workspaceResult, {
+          colors: !flags['no-color'],
+          verbose: flags.verbose,
+        });
+
+        if (result.hasViolations) {
+          this.exit(1);
+        }
+        return;
+      }
+
+      // Single-project mode (existing behavior)
       this.log(
         `Analyzed ${result.fileCount} files in ${result.analysisTimeMs}ms`,
       );
@@ -134,6 +151,112 @@ export default class Check extends Command {
         `Internal error: ${error instanceof Error ? error.message : String(error)}`,
         { exit: 2 },
       );
+    }
+  }
+
+  private displayWorkspaceResults(
+    workspaceResult: WorkspaceLintResult,
+    options: { colors: boolean; verbose: boolean },
+  ): void {
+    const useColor = options.colors;
+    const reporter = new ColoredReporter({ colors: useColor });
+
+    const title = useColor
+      ? chalk.bold(`Workspace (${workspaceResult.type})`)
+      : `Workspace (${workspaceResult.type})`;
+    this.log(title);
+    this.log('');
+
+    for (const pkgResult of workspaceResult.packageResults) {
+      const relPath = relative(workspaceResult.root, pkgResult.path);
+      const pkgHeader = useColor
+        ? chalk.bold.cyan(`${pkgResult.name}`)
+        : pkgResult.name;
+      const pkgPath = useColor ? chalk.dim(` (${relPath})`) : ` (${relPath})`;
+
+      if (pkgResult.skipped) {
+        const skipMsg = useColor
+          ? chalk.dim(` - skipped: ${pkgResult.skipReason}`)
+          : ` - skipped: ${pkgResult.skipReason}`;
+        this.log(`  ${pkgHeader}${pkgPath}${skipMsg}`);
+        continue;
+      }
+
+      const violationCount = pkgResult.result.violations.length;
+      const fileCount = pkgResult.result.fileCount;
+      const timeMs = pkgResult.result.analysisTimeMs;
+
+      let statusIcon: string;
+      if (violationCount === 0) {
+        statusIcon = useColor ? chalk.green('✓') : '✓';
+      } else {
+        statusIcon = useColor ? chalk.red('✗') : '✗';
+      }
+
+      const stats = useColor
+        ? chalk.dim(` ${fileCount} files, ${timeMs}ms`)
+        : ` ${fileCount} files, ${timeMs}ms`;
+
+      this.log(`  ${statusIcon} ${pkgHeader}${pkgPath}${stats}`);
+
+      // Show violations for this package
+      if (violationCount > 0) {
+        const violationSummary = useColor
+          ? chalk.red(
+              `    ${violationCount} violation${violationCount > 1 ? 's' : ''}`,
+            )
+          : `    ${violationCount} violation${violationCount > 1 ? 's' : ''}`;
+        this.log(violationSummary);
+
+        if (options.verbose) {
+          for (const violation of pkgResult.result.violations) {
+            const formatted = reporter.formatViolation(
+              violation,
+              pkgResult.path,
+            );
+            // Indent each line of the formatted violation
+            for (const line of formatted.split('\n')) {
+              this.log(`      ${line}`);
+            }
+          }
+        }
+      }
+    }
+
+    this.log('');
+
+    // Total summary
+    const totalViolations = workspaceResult.packageResults
+      .filter((r) => !r.skipped)
+      .reduce((sum, r) => sum + r.result.violations.length, 0);
+    const analyzedPackages = workspaceResult.packageResults.filter(
+      (r) => !r.skipped,
+    ).length;
+    const skippedPackages = workspaceResult.packageResults.filter(
+      (r) => r.skipped,
+    ).length;
+
+    this.log(
+      `Analyzed ${workspaceResult.totalFileCount} files across ${analyzedPackages} package${analyzedPackages > 1 ? 's' : ''} in ${workspaceResult.totalTimeMs}ms`,
+    );
+    if (skippedPackages > 0) {
+      this.log(
+        `${skippedPackages} package${skippedPackages > 1 ? 's' : ''} skipped (no src directory)`,
+      );
+    }
+
+    if (totalViolations === 0) {
+      const msg = useColor
+        ? chalk.green('✓ No violations found')
+        : '✓ No violations found';
+      this.log(msg);
+    } else {
+      const msg = useColor
+        ? chalk.red(
+            `✗ ${totalViolations} total violation${totalViolations > 1 ? 's' : ''} found`,
+          )
+        : `✗ ${totalViolations} total violation${totalViolations > 1 ? 's' : ''} found`;
+      this.log(msg);
     }
   }
 }
