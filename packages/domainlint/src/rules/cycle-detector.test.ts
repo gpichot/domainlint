@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { DependencyEdge, DependencyGraph } from '../graph/types.js';
-import { detectCycles } from './cycle-detector.js';
+import { GraphQuery } from '../graph/graph-query.js';
+import type {
+  DependencyEdge,
+  DependencyGraph,
+  Violation,
+} from '../graph/types.js';
+import { createDefaultConfig } from '../test-utils/setup.js';
+import { runCustomRules } from './custom-rules.js';
+import { cycleRule } from './cycle-detector.js';
 
 function makeGraph(
   edges: [string, string][],
@@ -35,62 +42,72 @@ function makeGraph(
   return { nodes, edges: graphEdges, adjacencyList, normalizedToOriginalPath };
 }
 
-describe('detectCycles', () => {
-  it('returns no violations for an empty graph', () => {
+async function detectCycles(graph: DependencyGraph): Promise<Violation[]> {
+  const config = createDefaultConfig();
+  const query = new GraphQuery(graph, config);
+  return runCustomRules([cycleRule], { graph, query, config });
+}
+
+describe('cycleRule', () => {
+  it('has the expected rule name', () => {
+    expect(cycleRule.name).toBe('import-cycles');
+  });
+
+  it('returns no violations for an empty graph', async () => {
     const graph: DependencyGraph = {
       nodes: new Set(),
       edges: [],
       adjacencyList: new Map(),
     };
-    expect(detectCycles(graph)).toHaveLength(0);
+    expect(await detectCycles(graph)).toHaveLength(0);
   });
 
-  it('returns no violations for a linear graph', () => {
+  it('returns no violations for a linear graph', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'c'],
     ]);
-    expect(detectCycles(graph)).toHaveLength(0);
+    expect(await detectCycles(graph)).toHaveLength(0);
   });
 
-  it('returns no violations for a DAG with shared nodes', () => {
+  it('returns no violations for a DAG with shared nodes', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['a', 'c'],
       ['b', 'd'],
       ['c', 'd'],
     ]);
-    expect(detectCycles(graph)).toHaveLength(0);
+    expect(await detectCycles(graph)).toHaveLength(0);
   });
 
-  it('detects a self-loop', () => {
+  it('detects a self-loop', async () => {
     const graph = makeGraph([['a', 'a']]);
-    const violations = detectCycles(graph);
+    const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
     expect(violations[0].file).toBe('a');
     expect(violations[0].message).toMatch(/import cycle/i);
   });
 
-  it('detects a simple 2-node cycle', () => {
+  it('detects a simple 2-node cycle', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'a'],
     ]);
-    const violations = detectCycles(graph);
+    const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
     expect(violations[0].message).toContain('a');
     expect(violations[0].message).toContain('b');
   });
 
-  it('detects a 3-node cycle', () => {
+  it('detects a 3-node cycle', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'c'],
       ['c', 'a'],
     ]);
-    const violations = detectCycles(graph);
+    const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
     expect(violations[0].message).toContain('a');
@@ -98,41 +115,39 @@ describe('detectCycles', () => {
     expect(violations[0].message).toContain('c');
   });
 
-  it('detects two independent cycles', () => {
+  it('detects two independent cycles', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'a'],
       ['c', 'd'],
       ['d', 'c'],
     ]);
-    const violations = detectCycles(graph);
+    const violations = await detectCycles(graph);
     expect(violations).toHaveLength(2);
     expect(violations.every((v) => v.code === 'ARCH_IMPORT_CYCLE')).toBe(true);
   });
 
-  it('does not report the same cycle start twice', () => {
-    // a -> b -> a is one cycle; b is also part of the same cycle
+  it('does not report the same cycle start twice', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'a'],
     ]);
-    const violations = detectCycles(graph);
-    // Only one violation per unique cycle start
+    const violations = await detectCycles(graph);
     const files = violations.map((v) => v.file);
     expect(new Set(files).size).toBe(files.length);
   });
 
-  it('includes line information from the first edge of the cycle', () => {
+  it('includes line information from the first edge of the cycle', async () => {
     const graph = makeGraph([
       ['a', 'b'],
       ['b', 'a'],
     ]);
-    const [violation] = detectCycles(graph);
+    const [violation] = await detectCycles(graph);
     expect(typeof violation.line).toBe('number');
     expect(typeof violation.col).toBe('number');
   });
 
-  it('uses original paths from normalizedToOriginalPath map when available', () => {
+  it('uses original paths from normalizedToOriginalPath map when available', async () => {
     const normalizedToOriginalPath = new Map([
       ['a', '/project/src/a.ts'],
       ['b', '/project/src/b.ts'],
@@ -144,7 +159,7 @@ describe('detectCycles', () => {
       ],
       normalizedToOriginalPath,
     );
-    const [violation] = detectCycles(graph);
+    const [violation] = await detectCycles(graph);
     expect(violation.file).toBe('/project/src/a.ts');
     expect(violation.message).toContain('/project/src/a.ts');
     expect(violation.message).toContain('/project/src/b.ts');

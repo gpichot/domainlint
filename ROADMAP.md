@@ -43,7 +43,20 @@ Users can create a `domainlint.rules.ts` (or `.js`) file at the project root tha
 
 ---
 
-## 4. Fix line/column positions and file extension resolution
+## 4. Refactor built-in rules to CustomRule interface
+
+**Status:** in progress
+**Scope:** `src/rules/cycle-detector.ts`, `src/linter/feature-boundaries-linter.ts`
+
+Built-in rules are being refactored to implement the same `CustomRule` interface used by user-defined rules. This unifies rule execution through `runCustomRules`.
+
+- Cycle detection rule (`cycleRule`) now implements `CustomRule` with `name` + `check(context)` using `emitViolation`
+- Linter runs `cycleRule` through `runCustomRules` alongside user-defined custom rules
+- Feature boundary validator is next (not yet migrated)
+
+---
+
+## 5. Fix line/column positions and file extension resolution
 
 **Status:** done
 **Scope:** `src/parser/swc-parser.ts`, `src/graph/graph-query.ts`
