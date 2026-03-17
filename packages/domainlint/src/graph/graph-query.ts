@@ -27,13 +27,16 @@ function matchesGlob(
   return minimatch(rel, pattern);
 }
 
-function createEdgeQueryResult(edges: DependencyEdge[]): EdgeQueryResult {
+function createEdgeQueryResult(
+  edges: DependencyEdge[],
+  normalizedToOriginalPath?: Map<string, string>,
+): EdgeQueryResult {
   return {
     edges,
     violations(code, message) {
       return edges.map((edge) => ({
         code,
-        file: edge.from,
+        file: normalizedToOriginalPath?.get(edge.from) ?? edge.from,
         line: edge.importInfo.line,
         col: edge.importInfo.col,
         message: typeof message === 'function' ? message(edge) : message,
@@ -56,14 +59,14 @@ export class GraphQuery {
     const filtered = this.graph.edges.filter((e) =>
       matchesGlob(e.from, glob, this.config.rootDir),
     );
-    return createEdgeQueryResult(filtered);
+    return createEdgeQueryResult(filtered, this.graph.normalizedToOriginalPath);
   }
 
   edgesTo(glob: string): EdgeQueryResult {
     const filtered = this.graph.edges.filter((e) =>
       matchesGlob(e.to, glob, this.config.rootDir),
     );
-    return createEdgeQueryResult(filtered);
+    return createEdgeQueryResult(filtered, this.graph.normalizedToOriginalPath);
   }
 
   edgesBetween(fromGlob: string, toGlob: string): EdgeQueryResult {
@@ -72,15 +75,16 @@ export class GraphQuery {
         matchesGlob(e.from, fromGlob, this.config.rootDir) &&
         matchesGlob(e.to, toGlob, this.config.rootDir),
     );
-    return createEdgeQueryResult(filtered);
+    return createEdgeQueryResult(filtered, this.graph.normalizedToOriginalPath);
   }
 
   // --- Node querying ---
 
   filesMatching(glob: string): string[] {
-    return [...this.graph.nodes].filter((n) =>
-      matchesGlob(n, glob, this.config.rootDir),
-    );
+    const map = this.graph.normalizedToOriginalPath;
+    return [...this.graph.nodes]
+      .filter((n) => matchesGlob(n, glob, this.config.rootDir))
+      .map((n) => map?.get(n) ?? n);
   }
 
   featureOf(file: string): string | null {
@@ -88,11 +92,17 @@ export class GraphQuery {
   }
 
   importsOf(file: string): string[] {
-    return [...(this.graph.adjacencyList.get(file) ?? [])];
+    const map = this.graph.normalizedToOriginalPath;
+    return [...(this.graph.adjacencyList.get(file) ?? [])].map(
+      (n) => map?.get(n) ?? n,
+    );
   }
 
   importersOf(file: string): string[] {
-    return [...(this.getReverseAdjacencyList().get(file) ?? [])];
+    const map = this.graph.normalizedToOriginalPath;
+    return [...(this.getReverseAdjacencyList().get(file) ?? [])].map(
+      (n) => map?.get(n) ?? n,
+    );
   }
 
   // --- Transitive analysis ---

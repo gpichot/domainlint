@@ -22,7 +22,10 @@ function edge(
   };
 }
 
-function createGraph(edges: DependencyEdge[]): DependencyGraph {
+function createGraph(
+  edges: DependencyEdge[],
+  normalizedToOriginalPath?: Map<string, string>,
+): DependencyGraph {
   const nodes = new Set<string>();
   const adjacencyList = new Map<string, Set<string>>();
   for (const e of edges) {
@@ -31,7 +34,7 @@ function createGraph(edges: DependencyEdge[]): DependencyGraph {
     if (!adjacencyList.has(e.from)) adjacencyList.set(e.from, new Set());
     adjacencyList.get(e.from)!.add(e.to);
   }
-  return { nodes, edges, adjacencyList };
+  return { nodes, edges, adjacencyList, normalizedToOriginalPath };
 }
 
 /*
@@ -288,6 +291,62 @@ describe('GraphQuery', () => {
       expect(q.fanIn('/project/src/lib/utils.ts')).toBe(2);
       expect(q.fanIn('/project/src/features/auth/index.ts')).toBe(1);
       expect(q.fanIn('/project/src/app.ts')).toBe(0);
+    });
+  });
+
+  describe('normalizedToOriginalPath support', () => {
+    it('violations should use original paths with extensions', () => {
+      const normalizedEdges = [
+        edge('/project/src/features/auth/service', '/project/src/lib/utils'),
+      ];
+      const map = new Map([
+        [
+          '/project/src/features/auth/service',
+          '/project/src/features/auth/service.ts',
+        ],
+        ['/project/src/lib/utils', '/project/src/lib/utils.ts'],
+      ]);
+      const graph = createGraph(normalizedEdges, map);
+      const q = new GraphQuery(graph, config);
+      const violations = q
+        .edgesFrom('src/features/**')
+        .violations('TEST', 'test message');
+      expect(violations).toHaveLength(1);
+      expect(violations[0].file).toBe('/project/src/features/auth/service.ts');
+    });
+
+    it('filesMatching should return original paths with extensions', () => {
+      const normalizedEdges = [
+        edge('/project/src/features/auth/service', '/project/src/lib/utils'),
+      ];
+      const map = new Map([
+        [
+          '/project/src/features/auth/service',
+          '/project/src/features/auth/service.ts',
+        ],
+        ['/project/src/lib/utils', '/project/src/lib/utils.ts'],
+      ]);
+      const graph = createGraph(normalizedEdges, map);
+      const q = new GraphQuery(graph, config);
+      const files = q.filesMatching('src/features/**');
+      expect(files).toEqual(['/project/src/features/auth/service.ts']);
+    });
+
+    it('importsOf should return original paths with extensions', () => {
+      const normalizedEdges = [
+        edge('/project/src/features/auth/service', '/project/src/lib/utils'),
+      ];
+      const map = new Map([
+        [
+          '/project/src/features/auth/service',
+          '/project/src/features/auth/service.ts',
+        ],
+        ['/project/src/lib/utils', '/project/src/lib/utils.ts'],
+      ]);
+      const graph = createGraph(normalizedEdges, map);
+      const q = new GraphQuery(graph, config);
+      const imports = q.importsOf('/project/src/features/auth/service');
+      expect(imports).toEqual(['/project/src/lib/utils.ts']);
     });
   });
 });
