@@ -12,7 +12,7 @@ import {
   runCustomRules,
 } from '../rules/custom-rules.js';
 import { cycleRule } from '../rules/cycle-detector.js';
-import { validateFeatureBoundaries } from '../rules/feature-boundary-validator.js';
+import { featureBoundaryRule } from '../rules/feature-boundary-validator.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
 export interface LintResult {
@@ -49,16 +49,9 @@ export class FeatureBoundariesLinter {
       const query = new GraphQuery(graph, this.config);
       const ruleContext = { graph, query, config: this.config };
 
-      const builtInRules: CustomRule[] = [cycleRule];
+      const builtInRules: CustomRule[] = [cycleRule, featureBoundaryRule];
       const builtInViolations = await runCustomRules(builtInRules, ruleContext);
       violations.push(...builtInViolations);
-
-      const boundaryViolations = validateFeatureBoundaries(
-        graph,
-        files,
-        this.config,
-      );
-      violations.push(...boundaryViolations);
 
       // Run user-defined custom rules
       const customRules = await this.loadCustomRulesIfPresent();
