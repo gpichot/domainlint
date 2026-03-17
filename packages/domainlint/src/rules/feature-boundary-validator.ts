@@ -1,7 +1,7 @@
 import { relative, resolve } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { getBarrelPath, getFeature } from '../files/file-discovery.js';
-import type { CustomRule } from './custom-rules.js';
+import type { Rule } from './rules.js';
 
 function isBarrelFile(
   filePath: string,
@@ -13,7 +13,7 @@ function isBarrelFile(
   return config.barrelFiles.includes(relativePath);
 }
 
-export const featureBoundaryRule: CustomRule = {
+export const featureBoundaryRule: Rule = {
   name: 'cross-feature-imports',
   check({ graph, config, emitViolation }) {
     for (const edge of graph.edges) {

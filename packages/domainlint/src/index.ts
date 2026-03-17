@@ -11,13 +11,13 @@ export type {
 export { FeatureBoundariesLinter } from './linter/feature-boundaries-linter.js';
 export type { ReporterOptions } from './reporter/colored-reporter.js';
 export { ColoredReporter } from './reporter/colored-reporter.js';
-// Custom rules API
+// Rules API
 export type {
-  CustomRule,
-  CustomRuleContext,
-  CustomRuleResult,
   EmitViolation,
-} from './rules/custom-rules.js';
+  Rule,
+  RuleContext,
+  RuleResult,
+} from './rules/rules.js';
 export type {
   WorkspaceInfo,
   WorkspacePackage,

@@ -5,14 +5,14 @@ import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
 import { GraphQuery } from '../graph/graph-query.js';
 import type { Violation } from '../graph/types.js';
 import { parseFile } from '../parser/swc-parser.js';
-import {
-  type CustomRule,
-  findRulesFile,
-  loadCustomRules,
-  runCustomRules,
-} from '../rules/custom-rules.js';
 import { cycleRule } from '../rules/cycle-detector.js';
 import { featureBoundaryRule } from '../rules/feature-boundary-validator.js';
+import {
+  findRulesFile,
+  loadRules,
+  type Rule,
+  runRules,
+} from '../rules/rules.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
 export interface LintResult {
@@ -45,19 +45,19 @@ export class FeatureBoundariesLinter {
       const graphBuilder = new DependencyGraphBuilder(this.config, tsconfig);
       const graph = await graphBuilder.buildGraph(files, parseResults);
 
-      // Run built-in rules using the custom rule interface
+      // Run built-in rules
       const query = new GraphQuery(graph, this.config);
       const ruleContext = { graph, query, config: this.config };
 
-      const builtInRules: CustomRule[] = [cycleRule, featureBoundaryRule];
-      const builtInViolations = await runCustomRules(builtInRules, ruleContext);
+      const builtInRules: Rule[] = [cycleRule, featureBoundaryRule];
+      const builtInViolations = await runRules(builtInRules, ruleContext);
       violations.push(...builtInViolations);
 
-      // Run user-defined custom rules
-      const customRules = await this.loadCustomRulesIfPresent();
-      if (customRules.length > 0) {
-        const customViolations = await runCustomRules(customRules, ruleContext);
-        violations.push(...customViolations);
+      // Run user-defined rules
+      const userRules = await this.loadRulesIfPresent();
+      if (userRules.length > 0) {
+        const userViolations = await runRules(userRules, ruleContext);
+        violations.push(...userViolations);
       }
 
       // Apply rule overrides
@@ -80,7 +80,7 @@ export class FeatureBoundariesLinter {
     }
   }
 
-  private async loadCustomRulesIfPresent(): Promise<CustomRule[]> {
+  private async loadRulesIfPresent(): Promise<Rule[]> {
     const rulesFilePath = await findRulesFile(
       this.config.rootDir,
       this.config.rulesFile,
@@ -88,6 +88,6 @@ export class FeatureBoundariesLinter {
     if (!rulesFilePath) {
       return [];
     }
-    return loadCustomRules(rulesFilePath);
+    return loadRules(rulesFilePath);
   }
 }

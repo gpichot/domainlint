@@ -5,7 +5,7 @@ import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyGraph, Violation } from '../graph/types.js';
 
-export interface CustomRuleResult {
+export interface RuleResult {
   code?: string;
   file: string;
   line: number;
@@ -13,22 +13,22 @@ export interface CustomRuleResult {
   message: string;
 }
 
-export type EmitViolation = (result: CustomRuleResult) => void;
+export type EmitViolation = (result: RuleResult) => void;
 
-export interface CustomRuleContext {
+export interface RuleContext {
   graph: DependencyGraph;
   query: GraphQuery;
   config: FeatureBoundariesConfig;
   emitViolation: EmitViolation;
 }
 
-export interface CustomRule {
+export interface Rule {
   name: string;
-  check(context: CustomRuleContext): void | Promise<void>;
+  check(context: RuleContext): void | Promise<void>;
 }
 
-export interface CustomRulesModule {
-  rules: CustomRule[];
+export interface RulesModule {
+  rules: Rule[];
 }
 
 const DEFAULT_RULES_FILES = ['domainlint.rules.ts', 'domainlint.rules.js'];
@@ -43,7 +43,7 @@ export async function findRulesFile(
       await access(fullPath);
       return fullPath;
     } catch {
-      throw new Error(`Custom rules file not found: ${fullPath}`);
+      throw new Error(`Rules file not found: ${fullPath}`);
     }
   }
 
@@ -60,9 +60,7 @@ export async function findRulesFile(
   return null;
 }
 
-export async function loadCustomRules(
-  rulesFilePath: string,
-): Promise<CustomRule[]> {
+export async function loadRules(rulesFilePath: string): Promise<Rule[]> {
   const fileUrl = pathToFileURL(rulesFilePath).href;
 
   let mod: unknown;
@@ -70,42 +68,36 @@ export async function loadCustomRules(
     mod = await import(fileUrl);
   } catch (error) {
     throw new Error(
-      `Failed to load custom rules from ${rulesFilePath}: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to load rules from ${rulesFilePath}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
   const module = mod as Record<string, unknown>;
 
   if (!module.rules || !Array.isArray(module.rules)) {
-    throw new Error(
-      `Custom rules file ${rulesFilePath} must export a "rules" array`,
-    );
+    throw new Error(`Rules file ${rulesFilePath} must export a "rules" array`);
   }
 
   const rules = module.rules as unknown[];
   for (let i = 0; i < rules.length; i++) {
     const rule = rules[i] as Record<string, unknown>;
     if (!rule || typeof rule !== 'object') {
-      throw new Error(`Custom rule at index ${i} must be an object`);
+      throw new Error(`Rule at index ${i} must be an object`);
     }
     if (typeof rule.name !== 'string' || rule.name.length === 0) {
-      throw new Error(
-        `Custom rule at index ${i} must have a non-empty "name" string`,
-      );
+      throw new Error(`Rule at index ${i} must have a non-empty "name" string`);
     }
     if (typeof rule.check !== 'function') {
-      throw new Error(
-        `Custom rule "${rule.name}" must have a "check" function`,
-      );
+      throw new Error(`Rule "${rule.name}" must have a "check" function`);
     }
   }
 
-  return module.rules as CustomRule[];
+  return module.rules as Rule[];
 }
 
-export async function runCustomRules(
-  rules: CustomRule[],
-  context: Omit<CustomRuleContext, 'emitViolation'>,
+export async function runRules(
+  rules: Rule[],
+  context: Omit<RuleContext, 'emitViolation'>,
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
 
@@ -126,7 +118,7 @@ export async function runCustomRules(
       await rule.check({ ...context, emitViolation });
     } catch (error) {
       throw new Error(
-        `Custom rule "${rule.name}" threw an error: ${error instanceof Error ? error.message : String(error)}`,
+        `Rule "${rule.name}" threw an error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

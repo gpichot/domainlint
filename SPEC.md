@@ -171,8 +171,8 @@ Allow users to define project-specific import restrictions beyond the built-in r
 ### Requirements
 - The linter MUST look for a `domainlint.rules.ts` or `domainlint.rules.js` file at the project root.
 - Alternatively, the config MAY specify a `rulesFile` path pointing to a custom rules file.
-- The rules file MUST export a `rules` array of `CustomRule` objects.
-- Each `CustomRule` MUST have a `name` (string) and a `check` function.
+- The rules file MUST export a `rules` array of `Rule` objects.
+- Each `Rule` MUST have a `name` (string) and a `check` function.
 - The `check` function receives a context object with:
   - `graph`: the full `DependencyGraph` (nodes, edges, adjacencyList)
   - `config`: the resolved `FeatureBoundariesConfig`

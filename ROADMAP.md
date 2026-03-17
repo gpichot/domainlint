@@ -31,28 +31,28 @@ Items ordered by priority. Each section is designed to be handled independently 
 ## 3. Custom rules support
 
 **Status:** done
-**Scope:** `src/rules/custom-rules.ts`, `src/linter/feature-boundaries-linter.ts`
+**Scope:** `src/rules/rules.ts`, `src/linter/feature-boundaries-linter.ts`
 
 Users can create a `domainlint.rules.ts` (or `.js`) file at the project root that exports custom rules. Each rule receives the full `DependencyGraph` and `FeatureBoundariesConfig` and returns violations.
 
-- Programmatic API: rules implement `CustomRule` interface (`name` + `check` function)
+- Programmatic API: rules implement `Rule` interface (`name` + `check` function)
 - Auto-discovered from `domainlint.rules.ts` / `domainlint.rules.js`, or configured via `rulesFile` in `domainlint.json`
-- Types exported from `domainlint` package: `CustomRule`, `CustomRuleContext`, `CustomRuleResult`, `DependencyGraph`
+- Types exported from `domainlint` package: `Rule`, `RuleContext`, `RuleResult`, `DependencyGraph`
 - Violations from custom rules are reported alongside built-in violations
 - Documented in `docs/src/content/docs/rules.mdx` and `getting-started.mdx`
 
 ---
 
-## 4. Refactor built-in rules to CustomRule interface
+## 4. Refactor built-in rules to Rule interface
 
 **Status:** done
 **Scope:** `src/rules/cycle-detector.ts`, `src/rules/feature-boundary-validator.ts`, `src/linter/feature-boundaries-linter.ts`
 
-Built-in rules are refactored to implement the same `CustomRule` interface used by user-defined rules. This unifies rule execution through `runCustomRules`.
+Built-in rules are refactored to implement the same `Rule` interface used by user-defined rules. This unifies rule execution through `runRules`.
 
-- Cycle detection rule (`cycleRule`) implements `CustomRule` with `name` + `check(context)` using `emitViolation`
-- Feature boundary validator (`featureBoundaryRule`) implements `CustomRule`, deriving feature/barrel info from graph and config
-- Linter runs both built-in rules through `runCustomRules` alongside user-defined custom rules
+- Cycle detection rule (`cycleRule`) implements `Rule` with `name` + `check(context)` using `emitViolation`
+- Feature boundary validator (`featureBoundaryRule`) implements `Rule`, deriving feature/barrel info from graph and config
+- Linter runs both built-in rules through `runRules` alongside user-defined custom rules
 
 ---
 

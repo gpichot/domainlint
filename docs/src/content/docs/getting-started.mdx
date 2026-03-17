@@ -114,9 +114,9 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 Create a `domainlint.rules.ts` file at the project root to add custom rules that run against the import graph. See [Rules & Configuration](/rules/#custom-rules) for the full API.
 
 ```ts
-import type { CustomRule } from "domainlint";
+import type { Rule } from "domainlint";
 
-export const rules: CustomRule[] = [
+export const rules: Rule[] = [
   {
     name: "no-utils-import",
     check({ query, emitViolation }) {
