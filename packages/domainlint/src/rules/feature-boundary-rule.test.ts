@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
+import { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyEdge, DependencyGraph } from '../graph/types.js';
-import { validateFeatureBoundaries } from './feature-boundary-validator.js';
+import { runCustomRules } from './custom-rules.js';
+import { featureBoundaryRule } from './feature-boundary-rule.js';
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -56,8 +58,17 @@ function makeGraph(edges: DependencyEdge[]): DependencyGraph {
   return { nodes, edges, adjacencyList };
 }
 
-describe('validateFeatureBoundaries', () => {
-  it('returns no violations for imports within the same feature', () => {
+async function runBoundaryRule(
+  graph: DependencyGraph,
+  files: FileInfo[],
+  cfg: FeatureBoundariesConfig = config,
+) {
+  const query = new GraphQuery(graph, cfg, files);
+  return runCustomRules([featureBoundaryRule], { graph, query, config: cfg });
+}
+
+describe('featureBoundaryRule', () => {
+  it('returns no violations for imports within the same feature', async () => {
     const files = [
       makeFileInfo('/project/src/features/auth/service.ts', 'auth'),
       makeFileInfo('/project/src/features/auth/utils.ts', 'auth'),
@@ -68,15 +79,11 @@ describe('validateFeatureBoundaries', () => {
         '/project/src/features/auth/utils.ts',
       ),
     ];
-    const violations = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
+    const violations = await runBoundaryRule(makeGraph(edges), files);
     expect(violations).toHaveLength(0);
   });
 
-  it('returns no violations when importing from another feature barrel', () => {
+  it('returns no violations when importing from another feature barrel', async () => {
     const files = [
       makeFileInfo('/project/src/features/billing/invoice.ts', 'billing'),
       makeFileInfo('/project/src/features/auth/index.ts', 'auth', true),
@@ -88,15 +95,11 @@ describe('validateFeatureBoundaries', () => {
         '../auth/index',
       ),
     ];
-    const violations = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
+    const violations = await runBoundaryRule(makeGraph(edges), files);
     expect(violations).toHaveLength(0);
   });
 
-  it('reports ARCH_NO_CROSS_FEATURE_DEEP_IMPORT for cross-feature non-barrel import', () => {
+  it('reports ARCH_NO_CROSS_FEATURE_DEEP_IMPORT for cross-feature non-barrel import', async () => {
     const files = [
       makeFileInfo('/project/src/features/billing/invoice.ts', 'billing'),
       makeFileInfo('/project/src/features/auth/service.ts', 'auth'),
@@ -108,18 +111,14 @@ describe('validateFeatureBoundaries', () => {
         '../auth/service',
       ),
     ];
-    const violations = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
+    const violations = await runBoundaryRule(makeGraph(edges), files);
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ARCH_NO_CROSS_FEATURE_DEEP_IMPORT');
     expect(violations[0].file).toBe('/project/src/features/billing/invoice.ts');
     expect(violations[0].message).toContain('../auth/service');
   });
 
-  it('includes the expected barrel path in the violation message', () => {
+  it('includes the expected barrel path in the violation message', async () => {
     const files = [
       makeFileInfo('/project/src/features/billing/invoice.ts', 'billing'),
       makeFileInfo('/project/src/features/auth/service.ts', 'auth'),
@@ -131,15 +130,11 @@ describe('validateFeatureBoundaries', () => {
         '../auth/service',
       ),
     ];
-    const [violation] = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
-    expect(violation.message).toContain('index.ts');
+    const violations = await runBoundaryRule(makeGraph(edges), files);
+    expect(violations[0].message).toContain('index.ts');
   });
 
-  it('reports ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN for feature importing outside features dir', () => {
+  it('reports ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN for feature importing outside features dir', async () => {
     const files = [
       makeFileInfo('/project/src/features/auth/service.ts', 'auth'),
       makeFileInfo('/project/src/shared/utils.ts', null),
@@ -151,16 +146,12 @@ describe('validateFeatureBoundaries', () => {
         '../../shared/utils',
       ),
     ];
-    const violations = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
+    const violations = await runBoundaryRule(makeGraph(edges), files);
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN');
   });
 
-  it('returns no violations for non-feature files importing anything', () => {
+  it('returns no violations for non-feature files importing anything', async () => {
     const files = [
       makeFileInfo('/project/src/shared/utils.ts', null),
       makeFileInfo('/project/src/shared/helpers.ts', null),
@@ -171,15 +162,11 @@ describe('validateFeatureBoundaries', () => {
         '/project/src/shared/helpers.ts',
       ),
     ];
-    const violations = validateFeatureBoundaries(
-      makeGraph(edges),
-      files,
-      config,
-    );
+    const violations = await runBoundaryRule(makeGraph(edges), files);
     expect(violations).toHaveLength(0);
   });
 
-  it('handles multiple barrel file types', () => {
+  it('handles multiple barrel file types', async () => {
     const configWithMultipleBarrels: FeatureBoundariesConfig = {
       ...config,
       barrelFiles: ['index.ts', 'index.tsx'],
@@ -195,7 +182,7 @@ describe('validateFeatureBoundaries', () => {
         '../auth/index',
       ),
     ];
-    const violations = validateFeatureBoundaries(
+    const violations = await runBoundaryRule(
       makeGraph(edges),
       files,
       configWithMultipleBarrels,
@@ -203,7 +190,7 @@ describe('validateFeatureBoundaries', () => {
     expect(violations).toHaveLength(0);
   });
 
-  it('uses originalPath from normalizedToOriginalPath when available', () => {
+  it('uses originalPath from normalizedToOriginalPath when available', async () => {
     const normalizedFrom = '/project/src/features/billing/invoice';
     const normalizedTo = '/project/src/features/auth/service';
     const originalFrom = '/project/src/features/billing/invoice.ts';
@@ -225,16 +212,15 @@ describe('validateFeatureBoundaries', () => {
       normalizedToOriginalPath,
     };
 
-    const violations = validateFeatureBoundaries(graph, files, config);
+    const violations = await runBoundaryRule(graph, files);
     expect(violations).toHaveLength(1);
     expect(violations[0].file).toBe(originalFrom);
   });
 
-  it('returns no violations for an empty graph', () => {
-    const violations = validateFeatureBoundaries(
+  it('returns no violations for an empty graph', async () => {
+    const violations = await runBoundaryRule(
       { nodes: new Set(), edges: [], adjacencyList: new Map() },
       [],
-      config,
     );
     expect(violations).toHaveLength(0);
   });

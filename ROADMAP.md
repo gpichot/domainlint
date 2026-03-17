@@ -43,6 +43,18 @@ Users can create a `domainlint.rules.ts` (or `.js`) file at the project root tha
 
 ---
 
+## 4. Refactor feature boundaries rule to use custom rules system
+
+**Status:** done
+**Scope:** `src/rules/feature-boundary-rule.ts`, `src/graph/graph-query.ts`, `src/linter/feature-boundaries-linter.ts`
+
+- The feature boundaries rule (R2) now implements the `CustomRule` interface, using the same `check(context)` + `emitViolation` pattern as user-defined custom rules
+- `GraphQuery` enriched with file info: `fileInfo()`, `isBarrel()`, `barrelPathFor()`, `originalPath()` methods
+- Built-in and custom rules are collected into a single array and run through `runCustomRules()`
+- Old `validateFeatureBoundaries()` function removed in favor of `featureBoundaryRule` object
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)
