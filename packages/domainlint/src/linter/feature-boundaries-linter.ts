@@ -11,7 +11,7 @@ import {
   loadCustomRules,
   runCustomRules,
 } from '../rules/custom-rules.js';
-import { detectCycles } from '../rules/cycle-detector.js';
+import { cycleRule } from '../rules/cycle-detector.js';
 import { validateFeatureBoundaries } from '../rules/feature-boundary-validator.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
@@ -45,9 +45,13 @@ export class FeatureBoundariesLinter {
       const graphBuilder = new DependencyGraphBuilder(this.config, tsconfig);
       const graph = await graphBuilder.buildGraph(files, parseResults);
 
-      // Run built-in rules
-      const cycleViolations = detectCycles(graph);
-      violations.push(...cycleViolations);
+      // Run built-in rules using the custom rule interface
+      const query = new GraphQuery(graph, this.config);
+      const ruleContext = { graph, query, config: this.config };
+
+      const builtInRules: CustomRule[] = [cycleRule];
+      const builtInViolations = await runCustomRules(builtInRules, ruleContext);
+      violations.push(...builtInViolations);
 
       const boundaryViolations = validateFeatureBoundaries(
         graph,
@@ -56,15 +60,10 @@ export class FeatureBoundariesLinter {
       );
       violations.push(...boundaryViolations);
 
-      // Run custom rules
+      // Run user-defined custom rules
       const customRules = await this.loadCustomRulesIfPresent();
       if (customRules.length > 0) {
-        const query = new GraphQuery(graph, this.config);
-        const customViolations = await runCustomRules(customRules, {
-          graph,
-          query,
-          config: this.config,
-        });
+        const customViolations = await runCustomRules(customRules, ruleContext);
         violations.push(...customViolations);
       }
 
