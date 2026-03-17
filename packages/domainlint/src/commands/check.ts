@@ -223,12 +223,34 @@ export default class Check extends Command {
       }
     }
 
+    // Package boundary violations
+    const pkgBoundaryViolations =
+      workspaceResult.packageBoundaryViolations ?? [];
+    if (pkgBoundaryViolations.length > 0) {
+      this.log('');
+      const pkgTitle = useColor
+        ? chalk.bold.red('Package boundary violations')
+        : 'Package boundary violations';
+      this.log(`  ${pkgTitle}`);
+      for (const violation of pkgBoundaryViolations) {
+        const formatted = reporter.formatViolation(
+          violation,
+          workspaceResult.root,
+        );
+        for (const line of formatted.split('\n')) {
+          this.log(`    ${line}`);
+        }
+      }
+    }
+
     this.log('');
 
     // Total summary
-    const totalViolations = workspaceResult.packageResults
-      .filter((r) => !r.skipped)
-      .reduce((sum, r) => sum + r.result.violations.length, 0);
+    const totalViolations =
+      workspaceResult.packageResults
+        .filter((r) => !r.skipped)
+        .reduce((sum, r) => sum + r.result.violations.length, 0) +
+      pkgBoundaryViolations.length;
     const analyzedPackages = workspaceResult.packageResults.filter(
       (r) => !r.skipped,
     ).length;

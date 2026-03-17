@@ -83,6 +83,21 @@ Built-in rules are refactored to implement the same `Rule` interface used by use
 
 ---
 
+## 7. Monorepo package import rules
+
+**Status:** done
+**Scope:** `src/config/types.ts`, `src/rules/package-boundary-validator.ts`, `src/workspace/workspace-runner.ts`
+
+- Configure `packageRules` in the workspace root `domainlint.json` to restrict cross-package imports
+- Rules use glob patterns on package paths (relative to workspace root)
+- Example: `{ "from": "packages/core", "deny": ["packages/feature-*"] }` prevents core from importing feature packages
+- Supports glob patterns in both `from` and `deny` fields
+- Handles exact and subpath imports (e.g., `@myorg/feature-auth/utils`)
+- Violation code: `ARCH_NO_PACKAGE_IMPORT`
+- Runs automatically in workspace mode after individual package linting
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)

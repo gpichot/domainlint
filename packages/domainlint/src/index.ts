@@ -1,7 +1,7 @@
 export { run } from '@oclif/core';
 export { loadConfig } from './config/config-loader.js';
 // Re-export main types for external usage
-export type { FeatureBoundariesConfig } from './config/types.js';
+export type { FeatureBoundariesConfig, PackageRule } from './config/types.js';
 export { GraphQuery } from './graph/graph-query.js';
 export type {
   DependencyEdge,

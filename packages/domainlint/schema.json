@@ -99,6 +99,28 @@
         }
       },
       "additionalProperties": false
+    },
+    "packageRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deny": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": ["from", "deny"],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false
