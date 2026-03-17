@@ -246,9 +246,9 @@ You can extend domainlint with your own rules by creating a `domainlint.rules.ts
 Create `domainlint.rules.ts` in your project root:
 
 ```ts
-import type { CustomRule } from "domainlint";
+import type { Rule } from "domainlint";
 
-const noUtilsImport: CustomRule = {
+const noUtilsImport: Rule = {
   name: "no-utils-import",
   check({ query, emitViolation }) {
     for (const edge of query.edgesTo("src/lib/utils/**").edges) {
@@ -263,7 +263,7 @@ const noUtilsImport: CustomRule = {
   },
 };
 
-export const rules: CustomRule[] = [noUtilsImport];
+export const rules: Rule[] = [noUtilsImport];
 ```
 
 ### Custom rule interface
@@ -347,10 +347,10 @@ Each `EdgeQueryResult` has:
 ### Examples
 
 ```ts
-import type { CustomRule } from "domainlint";
+import type { Rule } from "domainlint";
 
 // Ban features from importing internal lib
-const noInternalLib: CustomRule = {
+const noInternalLib: Rule = {
   name: "no-internal-lib",
   check({ query, emitViolation }) {
     for (const edge of query.edgesBetween("src/features/**", "src/lib/internal/**").edges) {
@@ -366,7 +366,7 @@ const noInternalLib: CustomRule = {
 };
 
 // Flag files with too many imports
-const maxFanOut: CustomRule = {
+const maxFanOut: Rule = {
   name: "max-fan-out",
   check({ query, emitViolation }) {
     const MAX = 15;
@@ -386,7 +386,7 @@ const maxFanOut: CustomRule = {
 };
 
 // Enforce layered architecture
-const noUpwardImports: CustomRule = {
+const noUpwardImports: Rule = {
   name: "no-upward-imports",
   check({ query, emitViolation }) {
     for (const edge of query.edgesFrom("src/domain/**").edges) {
@@ -403,7 +403,7 @@ const noUpwardImports: CustomRule = {
   },
 };
 
-export const rules: CustomRule[] = [noInternalLib, maxFanOut, noUpwardImports];
+export const rules: Rule[] = [noInternalLib, maxFanOut, noUpwardImports];
 ```
 
 ### Raw graph structure

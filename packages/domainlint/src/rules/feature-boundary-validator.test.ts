@@ -6,8 +6,8 @@ import type {
   DependencyGraph,
   Violation,
 } from '../graph/types.js';
-import { runCustomRules } from './custom-rules.js';
 import { featureBoundaryRule } from './feature-boundary-validator.js';
+import { runRules } from './rules.js';
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -56,7 +56,7 @@ async function checkBoundaries(
   overrideConfig = config,
 ): Promise<Violation[]> {
   const query = new GraphQuery(graph, overrideConfig);
-  return runCustomRules([featureBoundaryRule], {
+  return runRules([featureBoundaryRule], {
     graph,
     query,
     config: overrideConfig,

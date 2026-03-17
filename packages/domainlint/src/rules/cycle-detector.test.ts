@@ -6,8 +6,8 @@ import type {
   Violation,
 } from '../graph/types.js';
 import { createDefaultConfig } from '../test-utils/setup.js';
-import { runCustomRules } from './custom-rules.js';
 import { cycleRule } from './cycle-detector.js';
+import { runRules } from './rules.js';
 
 function makeGraph(
   edges: [string, string][],
@@ -45,7 +45,7 @@ function makeGraph(
 async function detectCycles(graph: DependencyGraph): Promise<Violation[]> {
   const config = createDefaultConfig();
   const query = new GraphQuery(graph, config);
-  return runCustomRules([cycleRule], { graph, query, config });
+  return runRules([cycleRule], { graph, query, config });
 }
 
 describe('cycleRule', () => {

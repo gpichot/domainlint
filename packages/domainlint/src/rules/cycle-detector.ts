@@ -1,7 +1,7 @@
 import type { DependencyGraph } from '../graph/types.js';
-import type { CustomRule } from './custom-rules.js';
+import type { Rule } from './rules.js';
 
-export const cycleRule: CustomRule = {
+export const cycleRule: Rule = {
   name: 'import-cycles',
   check({ graph, emitViolation }) {
     const globalVisited = new Set<string>();

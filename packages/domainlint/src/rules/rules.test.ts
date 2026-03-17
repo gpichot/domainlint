@@ -5,12 +5,12 @@ import { GraphQuery } from '../graph/graph-query.js';
 import type { DependencyGraph } from '../graph/types.js';
 import { createDefaultConfig } from '../test-utils/setup.js';
 import {
-  type CustomRule,
-  type CustomRuleContext,
   findRulesFile,
-  loadCustomRules,
-  runCustomRules,
-} from './custom-rules.js';
+  loadRules,
+  type Rule,
+  type RuleContext,
+  runRules,
+} from './rules.js';
 
 vi.mock('node:fs/promises', async () => {
   const memfs = await import('memfs');
@@ -97,13 +97,13 @@ describe('findRulesFile', () => {
     });
 
     await expect(findRulesFile('/project', 'missing-rules.ts')).rejects.toThrow(
-      'Custom rules file not found',
+      'Rules file not found',
     );
   });
 });
 
-describe('runCustomRules', () => {
-  it('should collect violations emitted by a custom rule', async () => {
+describe('runRules', () => {
+  it('should collect violations emitted by a rule', async () => {
     const graph = createMockGraph({
       nodes: new Set(['/project/src/a.ts', '/project/src/b.ts']),
       edges: [
@@ -122,7 +122,7 @@ describe('runCustomRules', () => {
     });
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'no-import-b',
       check({ graph, emitViolation }) {
         for (const edge of graph.edges) {
@@ -139,10 +139,7 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules(
-      [rule],
-      createContext(graph, config),
-    );
+    const violations = await runRules([rule], createContext(graph, config));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('CUSTOM_NO_IMPORT_B');
     expect(violations[0].file).toBe('/project/src/a.ts');
@@ -155,7 +152,7 @@ describe('runCustomRules', () => {
     });
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'my-rule',
       check({ emitViolation }) {
         emitViolation({
@@ -167,18 +164,15 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules(
-      [rule],
-      createContext(graph, config),
-    );
+    const violations = await runRules([rule], createContext(graph, config));
     expect(violations[0].code).toBe('CUSTOM_MY_RULE');
   });
 
-  it('should handle async custom rules', async () => {
+  it('should handle async rules', async () => {
     const graph = createMockGraph();
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'async-rule',
       async check({ emitViolation }) {
         emitViolation({
@@ -191,10 +185,7 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules(
-      [rule],
-      createContext(graph, config),
-    );
+    const violations = await runRules([rule], createContext(graph, config));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('ASYNC_VIOLATION');
   });
@@ -218,7 +209,7 @@ describe('runCustomRules', () => {
     });
     const config = createDefaultConfig();
 
-    const rule1: CustomRule = {
+    const rule1: Rule = {
       name: 'rule-1',
       check({ emitViolation }) {
         emitViolation({
@@ -230,7 +221,7 @@ describe('runCustomRules', () => {
         });
       },
     };
-    const rule2: CustomRule = {
+    const rule2: Rule = {
       name: 'rule-2',
       check({ emitViolation }) {
         emitViolation({
@@ -243,7 +234,7 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules(
+    const violations = await runRules(
       [rule1, rule2],
       createContext(graph, config),
     );
@@ -256,25 +247,22 @@ describe('runCustomRules', () => {
     const graph = createMockGraph();
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'clean-rule',
       check() {
         // no violations emitted
       },
     };
 
-    const violations = await runCustomRules(
-      [rule],
-      createContext(graph, config),
-    );
+    const violations = await runRules([rule], createContext(graph, config));
     expect(violations).toHaveLength(0);
   });
 
-  it('should throw when a custom rule throws', async () => {
+  it('should throw when a rule throws', async () => {
     const graph = createMockGraph();
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'broken-rule',
       check() {
         throw new Error('Rule exploded');
@@ -282,13 +270,11 @@ describe('runCustomRules', () => {
     };
 
     await expect(
-      runCustomRules([rule], createContext(graph, config)),
-    ).rejects.toThrow(
-      'Custom rule "broken-rule" threw an error: Rule exploded',
-    );
+      runRules([rule], createContext(graph, config)),
+    ).rejects.toThrow('Rule "broken-rule" threw an error: Rule exploded');
   });
 
-  it('should provide graph, query, config, and emitViolation to custom rule', async () => {
+  it('should provide graph, query, config, and emitViolation to rule', async () => {
     const graph = createMockGraph({
       nodes: new Set(['/project/src/a.ts', '/project/src/b.ts']),
       edges: [
@@ -307,15 +293,15 @@ describe('runCustomRules', () => {
     });
     const config = createDefaultConfig({ featuresDir: '/project/src/domains' });
 
-    let receivedContext: CustomRuleContext | null = null;
-    const rule: CustomRule = {
+    let receivedContext: RuleContext | null = null;
+    const rule: Rule = {
       name: 'spy-rule',
       check(ctx) {
         receivedContext = ctx;
       },
     };
 
-    await runCustomRules([rule], createContext(graph, config));
+    await runRules([rule], createContext(graph, config));
 
     expect(receivedContext).not.toBeNull();
     expect(receivedContext!.graph).toBe(graph);
@@ -347,7 +333,7 @@ describe('runCustomRules', () => {
     });
     const config = createDefaultConfig();
 
-    const rule: CustomRule = {
+    const rule: Rule = {
       name: 'no-b-imports',
       check({ query, emitViolation }) {
         for (const edge of query.edgesTo('src/b.ts').edges) {
@@ -362,10 +348,7 @@ describe('runCustomRules', () => {
       },
     };
 
-    const violations = await runCustomRules(
-      [rule],
-      createContext(graph, config),
-    );
+    const violations = await runRules([rule], createContext(graph, config));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe('NO_B');
     expect(violations[0].line).toBe(3);
