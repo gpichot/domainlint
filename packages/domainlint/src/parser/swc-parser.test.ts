@@ -147,6 +147,66 @@ describe('parseFile', () => {
     });
   });
 
+  describe('line and column positions', () => {
+    it('reports correct line and column for a single import', async () => {
+      vol.fromJSON({ '/project/src/a.ts': `import { foo } from './foo';` });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
+      expect(result.imports[0].line).toBe(1);
+      expect(result.imports[0].col).toBe(1);
+    });
+
+    it('reports correct line for imports on different lines', async () => {
+      vol.fromJSON({
+        '/project/src/a.ts': [
+          `import { foo } from './foo';`,
+          `import { bar } from './bar';`,
+          ``,
+          `import { baz } from './baz';`,
+        ].join('\n'),
+      });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
+      expect(result.imports[0].line).toBe(1);
+      expect(result.imports[1].line).toBe(2);
+      expect(result.imports[2].line).toBe(4);
+    });
+
+    it('reports correct column for indented imports', async () => {
+      vol.fromJSON({
+        '/project/src/a.ts': `  import { foo } from './foo';`,
+      });
+      const result = await parseFile('/project/src/a.ts', config, testFs);
+      expect(result.imports[0].line).toBe(1);
+      expect(result.imports[0].col).toBe(3);
+    });
+
+    it('reports correct positions for re-exports', async () => {
+      vol.fromJSON({
+        '/project/src/index.ts': [
+          `export * from './a';`,
+          `export { foo } from './b';`,
+        ].join('\n'),
+      });
+      const result = await parseFile('/project/src/index.ts', config, testFs);
+      expect(result.imports[0].line).toBe(1);
+      expect(result.imports[1].line).toBe(2);
+    });
+
+    it('reports correct positions for dynamic imports', async () => {
+      vol.fromJSON({
+        '/project/src/a.ts': [
+          `const x = 1;`,
+          `const m = import('./module');`,
+        ].join('\n'),
+      });
+      const result = await parseFile(
+        '/project/src/a.ts',
+        configWithDynamicImports,
+        testFs,
+      );
+      expect(result.imports[0].line).toBe(2);
+    });
+  });
+
   describe('result structure', () => {
     it('returns the correct filePath in the result', async () => {
       vol.fromJSON({ '/project/src/a.ts': `export const x = 1;` });

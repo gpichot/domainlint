@@ -56,6 +56,18 @@ Built-in rules are being refactored to implement the same `CustomRule` interface
 
 ---
 
+## 5. Fix line/column positions and file extension resolution
+
+**Status:** done
+**Scope:** `src/parser/swc-parser.ts`, `src/graph/graph-query.ts`
+
+- SWC parser now correctly computes line/column from byte offsets (previously always reported 1:1)
+- Handles SWC's cumulative 1-based byte positions across parseSync calls
+- GraphQuery API now returns original file paths with extensions via `normalizedToOriginalPath`
+- Custom rules using `query.edgesFrom(...).violations(...)`, `filesMatching()`, `importsOf()`, and `importersOf()` now get paths with real filesystem extensions
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)
