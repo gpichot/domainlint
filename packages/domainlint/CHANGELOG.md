@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.6.0...domainlint-v0.6.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* **parser:** compute correct line/column from SWC byte offsets and resolve file extensions ([#42](https://github.com/gpichot/domainlint/issues/42)) ([7600ece](https://github.com/gpichot/domainlint/commit/7600ece79659ef2bb90842ea709fcd3eab5dc229))
+
 ## [0.6.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.5.0...domainlint-v0.6.0) (2026-03-16)
 
 
