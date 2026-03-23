@@ -16,6 +16,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: "Getting Started", slug: "getting-started" },
+        { label: "Feature Structure", slug: "feature-structure" },
         { label: "Configuration", slug: "configuration" },
         { label: "CLI Reference", slug: "cli" },
         { label: "Rules", slug: "rules" },
