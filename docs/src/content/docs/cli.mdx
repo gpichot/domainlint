@@ -1,0 +1,48 @@
+---
+title: CLI Reference
+description: All domainlint CLI commands and flags.
+---
+
+## Commands
+
+### `domainlint check [path]`
+
+Main command — analyzes your codebase and reports violations.
+
+```sh
+domainlint check           # Analyze current directory
+domainlint check ./app     # Analyze a specific path
+```
+
+### `domainlint debug <file>`
+
+Debug imports and violations for a single file. Useful for understanding why a file triggers a violation.
+
+```sh
+domainlint debug src/features/billing/ui/Form.tsx
+```
+
+## Flags
+
+All flags apply to the `check` command.
+
+| Flag | Description |
+|------|-------------|
+| `-c, --config=<path>` | Path to config file |
+| `-v, --verbose` | Verbose output |
+| `--src-dir=<value>` | Source directory (default: `src`) |
+| `--features-dir=<value>` | Features directory (default: `src/features`) |
+| `--tsconfig-path=<value>` | Path to `tsconfig.json` |
+| `--include-dynamic-imports` | Include dynamic imports in analysis |
+| `--feature=<value>` | Filter violations by feature name |
+| `--shortest-cycles` | Show only the shortest cycles |
+| `--max-cycle-length=<value>` | Hide cycles longer than this (default: 50) |
+| `--no-color` | Disable colored output |
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | No violations |
+| `1`  | Violations found |
+| `2`  | Internal error (e.g. unreadable tsconfig) |

@@ -1,0 +1,131 @@
+---
+title: Custom Rules
+description: Extend domainlint with your own rules.
+---
+
+You can extend domainlint with your own rules by creating a `domainlint.rules.ts` (or `.js`) file at the project root. Each custom rule receives the import graph, a query helper, and an `emitViolation` callback to report violations.
+
+## Setup
+
+Create `domainlint.rules.ts` in your project root:
+
+```ts
+import type { Rule } from "domainlint";
+
+const noUtilsImport: Rule = {
+  name: "no-utils-import",
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesTo("src/lib/utils/**").edges) {
+      emitViolation({
+        code: "CUSTOM_NO_UTILS_IMPORT",
+        file: edge.from,
+        line: edge.importInfo.line,
+        col: edge.importInfo.col,
+        message: "Importing from utils/ is not allowed. Use a feature barrel instead.",
+      });
+    }
+  },
+};
+
+export const rules: Rule[] = [noUtilsImport];
+```
+
+## Rule interface
+
+Each rule must have:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `string` | Unique rule identifier. |
+| `check` | `(context) => void \| Promise<void>` | Function that inspects the graph and calls `emitViolation` for each violation. |
+
+The `context` object contains:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `emitViolation` | `(result) => void` | Callback to report a violation. |
+| `query` | `GraphQuery` | High-level query API for the import graph (see [GraphQuery API](/graphquery-api/)). |
+| `graph` | `DependencyGraph` | The raw import graph with nodes, edges, and adjacency list. |
+| `config` | `FeatureBoundariesConfig` | The resolved domainlint configuration. |
+
+Each violation passed to `emitViolation` must include:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `code` | `string?` | Violation code (e.g. `CUSTOM_NO_UTILS_IMPORT`). Auto-generated from rule name if omitted. |
+| `file` | `string` | Absolute path to the file with the violation. |
+| `line` | `number` | 1-based line number. |
+| `col` | `number` | 1-based column number. |
+| `message` | `string` | Human-readable explanation. |
+
+## Configuration
+
+By default, domainlint looks for `domainlint.rules.ts` or `domainlint.rules.js` in the project root. To use a different path:
+
+```json
+{
+  "rulesFile": "config/my-rules.ts"
+}
+```
+
+## Examples
+
+```ts
+import type { Rule } from "domainlint";
+
+// Ban features from importing internal lib
+const noInternalLib: Rule = {
+  name: "no-internal-lib",
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesBetween("src/features/**", "src/lib/internal/**").edges) {
+      emitViolation({
+        code: "NO_INTERNAL_LIB",
+        file: edge.from,
+        line: edge.importInfo.line,
+        col: edge.importInfo.col,
+        message: "Features must not import internal lib",
+      });
+    }
+  },
+};
+
+// Flag files with too many imports
+const maxFanOut: Rule = {
+  name: "max-fan-out",
+  check({ query, emitViolation }) {
+    const MAX = 15;
+    for (const file of query.filesMatching("src/**/*.ts")) {
+      const count = query.fanOut(file);
+      if (count > MAX) {
+        emitViolation({
+          code: "TOO_MANY_IMPORTS",
+          file,
+          line: 1,
+          col: 0,
+          message: `File has ${count} imports (max ${MAX})`,
+        });
+      }
+    }
+  },
+};
+
+// Enforce layered architecture
+const noUpwardImports: Rule = {
+  name: "no-upward-imports",
+  check({ query, emitViolation }) {
+    for (const edge of query.edgesFrom("src/domain/**").edges) {
+      if (edge.to.includes("/infrastructure/")) {
+        emitViolation({
+          code: "NO_UPWARD_IMPORT",
+          file: edge.from,
+          line: edge.importInfo.line,
+          col: edge.importInfo.col,
+          message: "Domain layer must not import from infrastructure",
+        });
+      }
+    }
+  },
+};
+
+export const rules: Rule[] = [noInternalLib, maxFanOut, noUpwardImports];
+```

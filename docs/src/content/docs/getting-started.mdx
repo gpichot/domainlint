@@ -3,7 +3,7 @@ title: Getting Started
 description: Install domainlint and run your first lint.
 ---
 
-import { Tabs, TabItem, Steps, Code } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 ## Installation
 
@@ -41,41 +41,6 @@ domainlint check
 
 This will analyze `src/` and report any violations.
 
-## Configuration
-
-Create a `domainlint.json` at your project root to customize behavior:
-
-```json
-{
-  "srcDir": "src",
-  "featuresDir": "src/features",
-  "barrelFiles": ["index.ts"],
-  "extensions": [".ts", ".tsx"],
-  "tsconfigPath": "./tsconfig.json",
-  "includeDynamicImports": false
-}
-```
-
-All fields are optional — the defaults work for a standard `src/features/` layout.
-
-## CLI flags
-
-```sh
-domainlint check [path]
-
-FLAGS
-  -c, --config=<path>             Path to config file
-  -v, --verbose                   Verbose output
-      --src-dir=<value>           Source directory (default: src)
-      --features-dir=<value>      Features directory (default: src/features)
-      --tsconfig-path=<value>     Path to tsconfig.json
-      --include-dynamic-imports   Include dynamic imports in analysis
-      --feature=<value>           Filter violations by feature name
-      --shortest-cycles           Show only the shortest cycles
-      --max-cycle-length=<value>  Hide cycles longer than this (default: 50)
-      --no-color                  Disable colored output
-```
-
 ## Understanding violations
 
 ### `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
@@ -109,67 +74,10 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 | `1`  | Violations found |
 | `2`  | Internal error (e.g. unreadable tsconfig) |
 
-## Custom rules
+## Next steps
 
-Create a `domainlint.rules.ts` file at the project root to add custom rules that run against the import graph. See [Rules & Configuration](/rules/#custom-rules) for the full API.
-
-```ts
-import type { Rule } from "domainlint";
-
-export const rules: Rule[] = [
-  {
-    name: "no-utils-import",
-    check({ query, emitViolation }) {
-      for (const edge of query.edgesTo("src/utils/**").edges) {
-        emitViolation({
-          file: edge.from,
-          line: edge.importInfo.line,
-          col: edge.importInfo.col,
-          message: "Direct utils/ imports are not allowed",
-        });
-      }
-    },
-  },
-];
-```
-
-## Monorepo / Workspace support
-
-domainlint automatically detects **npm**, **pnpm**, and **yarn** workspaces. When run from a workspace root, it lints each package independently.
-
-```sh
-# From the monorepo root — lints all packages
-domainlint check
-```
-
-Detection sources (checked in order):
-1. `pnpm-workspace.yaml` — reads the `packages:` list
-2. `package.json` `"workspaces"` field — supports both npm and yarn formats
-
-Packages without a `src/` directory (or whatever `srcDir` is configured to) are automatically skipped.
-
-Each package uses its own `domainlint.json` and `tsconfig.json` if present, falling back to defaults.
-
-**Output in workspace mode:**
-
-```
-Workspace (pnpm)
-
-  ✓ @my/core (packages/core) 42 files, 150ms
-  ✗ @my/ui (packages/ui) 28 files, 90ms
-    3 violations
-  - @my/docs (docs) - skipped: No src/features directory found
-
-Analyzed 70 files across 2 packages in 240ms
-✗ 3 total violations found
-```
-
-Use `--verbose` to see individual violations per package.
-
-## Add to CI
-
-```yaml
-# .github/workflows/ci.yml
-- name: Lint architecture
-  run: domainlint check
-```
+- [Feature Structure](/feature-structure/) — how domainlint identifies features and barrels
+- [Configuration](/configuration/) — customize paths, extensions, and rule severity
+- [CLI Reference](/cli/) — all available flags
+- [Rules](/rules/) — learn about the built-in rules in detail
+- [CI Integration](/ci/) — add domainlint to your pipeline

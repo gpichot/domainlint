@@ -1,0 +1,131 @@
+---
+title: Feature Structure
+description: How domainlint identifies features, barrels, and boundaries in your codebase.
+---
+
+domainlint expects your codebase to follow a **feature-based directory layout**. This page explains the conventions it uses to identify features and enforce boundaries.
+
+## Expected layout
+
+```
+src/
+  features/
+    auth/
+      index.ts          ← barrel (public API)
+      session.ts         ← internal
+      user.ts            ← internal
+    billing/
+      index.ts          ← barrel (public API)
+      domain/
+        invoice.ts       ← internal
+      ui/
+        Button.tsx       ← internal
+  pages/
+    home.tsx             ← outside any feature
+  utils/
+    format.ts            ← outside any feature
+```
+
+The key directories are:
+
+- **`srcDir`** (default: `src`) — the root of your source code
+- **`featuresDir`** (default: `src/features`) — the directory that contains feature modules
+
+## What counts as a feature
+
+A **feature** is any direct child directory of `featuresDir`. In the default layout, that means each folder under `src/features/` is a feature:
+
+```
+src/features/auth/       → feature "auth"
+src/features/billing/    → feature "billing"
+src/features/settings/   → feature "settings"
+```
+
+Nested directories inside a feature are **not** separate features — they are internals of the parent feature:
+
+```
+src/features/billing/domain/     → part of "billing", not a feature
+src/features/billing/ui/         → part of "billing", not a feature
+```
+
+## Feature ownership
+
+Every file in the project is either **inside a feature** or **outside all features**.
+
+domainlint determines ownership with a simple rule:
+
+> `featureOf(filePath)` returns `"<name>"` if the file matches `<featuresDir>/<name>/**`, otherwise `null`.
+
+Examples:
+
+| File | Feature |
+|------|---------|
+| `src/features/auth/session.ts` | `auth` |
+| `src/features/billing/ui/Button.tsx` | `billing` |
+| `src/pages/home.tsx` | `null` (no feature) |
+| `src/utils/format.ts` | `null` (no feature) |
+
+## Barrel files (public API)
+
+Each feature exposes a **barrel file** as its public API. By default, this is `index.ts` at the feature root:
+
+```
+src/features/billing/index.ts    ← barrel for "billing"
+```
+
+The barrel is the only file that code outside the feature is allowed to import. Everything else inside the feature is considered an **internal module**.
+
+You can configure additional barrel filenames:
+
+```json
+{
+  "barrelFiles": ["index.ts", "index.tsx"]
+}
+```
+
+## Boundary rules
+
+With features and barrels defined, domainlint enforces two simple rules:
+
+### Cross-feature imports must use the barrel
+
+If file `A` is outside feature `Y` (or in a different feature), and `A` imports something from feature `Y`, it **must** import from the barrel — not from an internal module.
+
+```ts
+// ✅ Allowed — imports through the barrel
+import { Invoice } from "../features/billing";
+
+// ❌ Forbidden — bypasses the barrel
+import { Invoice } from "../features/billing/domain/invoice";
+```
+
+This ensures features can refactor their internals without breaking callers.
+
+### Same-feature imports are unrestricted
+
+Files within the same feature can import each other freely. domainlint does not enforce internal layering:
+
+```ts
+// ✅ Allowed — same feature ("billing")
+// from src/features/billing/ui/Form.tsx
+import { validate } from "../domain/invoice";
+```
+
+### Files outside features
+
+Files that don't belong to any feature (e.g. `src/pages/home.tsx`) are treated as having `featureOf = null`. They must still use barrels when importing from any feature, but they have no barrel of their own.
+
+## Customizing the layout
+
+If your project uses a different structure, configure it in `domainlint.json`:
+
+```json
+{
+  "srcDir": "app",
+  "featuresDir": "app/modules"
+}
+```
+
+This would treat `app/modules/auth/`, `app/modules/billing/`, etc. as features.
+
+See [Configuration](/configuration/) for all available options.
