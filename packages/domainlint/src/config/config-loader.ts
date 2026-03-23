@@ -90,6 +90,17 @@ export async function loadConfig(
     overrides: fileConfig.overrides ?? DEFAULT_CONFIG.overrides,
   };
 
+  // Apply --detect-unused flag: enable unused-files and unused-exports rules
+  if (overrides.detectUnused) {
+    config.overrides = config.overrides ?? {};
+    config.overrides.global = config.overrides.global ?? {};
+    config.overrides.global.rules = config.overrides.global.rules ?? {};
+    config.overrides.global.rules['unused-files'] =
+      config.overrides.global.rules['unused-files'] ?? 'error';
+    config.overrides.global.rules['unused-exports'] =
+      config.overrides.global.rules['unused-exports'] ?? 'error';
+  }
+
   // Resolve relative paths
   config.srcDir = resolve(rootDir, config.srcDir);
   config.featuresDir = resolve(rootDir, config.featuresDir);

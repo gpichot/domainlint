@@ -136,6 +136,54 @@ describe('Rule Overrides', () => {
         level: 'off',
       });
     });
+
+    it('should default unused-files to off', () => {
+      const result = checkRuleOverride(
+        baseConfig,
+        'unused-files',
+        '/project/src/utils/helper.ts',
+      );
+      expect(result).toEqual({
+        shouldRun: false,
+        level: 'off',
+      });
+    });
+
+    it('should default unused-exports to off', () => {
+      const result = checkRuleOverride(
+        baseConfig,
+        'unused-exports',
+        '/project/src/utils/helper.ts',
+      );
+      expect(result).toEqual({
+        shouldRun: false,
+        level: 'off',
+      });
+    });
+
+    it('should enable unused rules when explicitly set to error', () => {
+      const config = {
+        ...baseConfig,
+        overrides: {
+          global: {
+            rules: {
+              'unused-files': 'error' as const,
+              'unused-exports': 'error' as const,
+            },
+          },
+        },
+      };
+
+      const result = checkRuleOverride(
+        config,
+        'unused-files',
+        '/project/src/utils/helper.ts',
+      );
+      expect(result).toEqual({
+        shouldRun: true,
+        level: 'error',
+      });
+    });
   });
 
   describe('filterViolationsByOverrides', () => {
@@ -200,6 +248,63 @@ describe('Rule Overrides', () => {
           level: 'warn',
         },
       ]);
+    });
+
+    it('should filter out unused-file violations by default (off)', () => {
+      const violations: Violation[] = [
+        {
+          code: 'ARCH_UNUSED_FILE',
+          file: '/project/src/utils/helper.ts',
+          line: 1,
+          col: 1,
+          message: 'Unused file',
+        },
+      ];
+
+      const result = filterViolationsByOverrides(violations, baseConfig);
+      expect(result).toEqual([]);
+    });
+
+    it('should filter out unused-export violations by default (off)', () => {
+      const violations: Violation[] = [
+        {
+          code: 'ARCH_UNUSED_EXPORT',
+          file: '/project/src/utils/helper.ts',
+          line: 1,
+          col: 1,
+          message: 'Unused export',
+        },
+      ];
+
+      const result = filterViolationsByOverrides(violations, baseConfig);
+      expect(result).toEqual([]);
+    });
+
+    it('should keep unused violations when explicitly enabled', () => {
+      const config = {
+        ...baseConfig,
+        overrides: {
+          global: {
+            rules: {
+              'unused-files': 'error' as const,
+            },
+          },
+        },
+      };
+
+      const violations: Violation[] = [
+        {
+          code: 'ARCH_UNUSED_FILE',
+          file: '/project/src/utils/helper.ts',
+          line: 1,
+          col: 1,
+          message: 'Unused file',
+        },
+      ];
+
+      const result = filterViolationsByOverrides(violations, config);
+      expect(result).toHaveLength(1);
+      expect(result[0].level).toBe('error');
     });
 
     it('should default to error level when no override is specified', () => {

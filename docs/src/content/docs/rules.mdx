@@ -83,11 +83,13 @@ Within a feature, files may import each other freely. domainlint does not enforc
 
 ## R4 — Unused files
 
-**Violation code:** `ARCH_UNUSED_FILE`
+**Violation code:** `ARCH_UNUSED_FILE` · **Default:** `off`
 
 Files that are not imported by any other file in the project are likely dead code. domainlint detects these by checking the dependency graph for nodes with no incoming edges.
 
 Barrel files (`index.ts` by default) are excluded since they serve as public API entry points and may be consumed externally.
+
+Enable via the `--detect-unused` CLI flag or by setting `"unused-files": "error"` in your config overrides.
 
 ```
 src/features/auth/old-handler.ts:1:1 ARCH_UNUSED_FILE
@@ -103,9 +105,11 @@ src/features/auth/old-handler.ts:1:1 ARCH_UNUSED_FILE
 
 ## R5 — Unused exports
 
-**Violation code:** `ARCH_UNUSED_EXPORT`
+**Violation code:** `ARCH_UNUSED_EXPORT` · **Default:** `off`
 
 Exported symbols (functions, classes, types, constants) that are never imported by any other file in the project add noise to the public API surface and may indicate dead code.
+
+Enable via the `--detect-unused` CLI flag or by setting `"unused-exports": "error"` in your config overrides.
 
 domainlint checks each file's exports against all import edges to find symbols that no one consumes. The following are excluded:
 - **Barrel files** — their exports are public API entry points.
@@ -182,12 +186,12 @@ Overrides let you change the severity of each rule — or disable it entirely �
 
 #### Rule names
 
-| Rule name | Maps to |
-|-----------|---------|
-| `import-cycles` | R1 — No import cycles |
-| `cross-feature-imports` | R2 — Cross-feature barrel imports |
-| `unused-files` | R4 — Unused files |
-| `unused-exports` | R5 — Unused exports |
+| Rule name | Maps to | Default |
+|-----------|---------|---------|
+| `import-cycles` | R1 — No import cycles | `error` |
+| `cross-feature-imports` | R2 — Cross-feature barrel imports | `error` |
+| `unused-files` | R4 — Unused files | `off` |
+| `unused-exports` | R5 — Unused exports | `off` |
 
 #### Severity levels
 

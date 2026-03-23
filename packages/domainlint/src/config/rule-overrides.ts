@@ -19,12 +19,19 @@ export interface RuleCheckResult {
   level: RuleLevel;
 }
 
+const DEFAULT_LEVELS: Record<RuleName, RuleLevel> = {
+  'import-cycles': 'error',
+  'cross-feature-imports': 'error',
+  'unused-files': 'off',
+  'unused-exports': 'off',
+};
+
 export function checkRuleOverride(
   config: FeatureBoundariesConfig,
   ruleName: RuleName,
   filePath: string,
 ): RuleCheckResult {
-  const defaultLevel: RuleLevel = 'error';
+  const defaultLevel: RuleLevel = DEFAULT_LEVELS[ruleName];
 
   // Normalize file path
   const normalizedPath = filePath.replace(/\\/g, '/');

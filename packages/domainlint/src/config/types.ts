@@ -69,4 +69,5 @@ export interface ConfigOverrides {
   featuresDir?: string;
   tsconfigPath?: string;
   includeDynamicImports?: boolean;
+  detectUnused?: boolean;
 }

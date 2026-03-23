@@ -55,6 +55,11 @@ export default class Check extends Command {
       description: 'Hide cycles longer than this length',
       default: 50,
     }),
+    'detect-unused': Flags.boolean({
+      description:
+        'Enable detection of unused files and unused exports (off by default)',
+      default: false,
+    }),
   };
 
   public async run(): Promise<void> {
@@ -70,6 +75,7 @@ export default class Check extends Command {
           featuresDir: flags['features-dir'],
           tsconfigPath: flags['tsconfig-path'],
           includeDynamicImports: flags['include-dynamic-imports'],
+          detectUnused: flags['detect-unused'],
         },
         filterOptions: {
           feature: flags.feature,
@@ -108,6 +114,7 @@ export default class Check extends Command {
         featuresDir: flags['features-dir'],
         tsconfigPath: flags['tsconfig-path'],
         includeDynamicImports: flags['include-dynamic-imports'],
+        detectUnused: flags['detect-unused'],
       });
 
       // Format and display results

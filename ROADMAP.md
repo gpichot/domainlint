@@ -78,7 +78,7 @@ Two new built-in rules detect dead code at the architecture level:
 - **`unused-files`** (`ARCH_UNUSED_FILE`): Detects files in the dependency graph that are not imported by any other file. Barrel files (e.g. `index.ts`) are excluded since they serve as public API entry points.
 - **`unused-exports`** (`ARCH_UNUSED_EXPORT`): Detects exported symbols (functions, classes, types, constants) that are never imported by any other file. Barrel files and files with wildcard re-exports are excluded. Namespace imports (`import * as`) mark all exports as used.
 
-Both rules are configurable via `overrides.global.rules` or `overrides.features.<name>.rules` in `domainlint.json` (values: `off`, `warn`, `error`).
+Both rules are **off by default** and can be enabled via the `--detect-unused` CLI flag or by setting them to `"error"` / `"warn"` in `overrides.global.rules` or `overrides.features.<name>.rules` in `domainlint.json`.
 
 Implementation details:
 - Parser enhanced to extract `ExportedSymbol[]` per file and `ImportedSymbol[]` per import edge
