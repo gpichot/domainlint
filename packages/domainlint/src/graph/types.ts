@@ -1,4 +1,5 @@
 import type { RuleLevel } from '../config/types.js';
+import type { ExportedSymbol, ImportedSymbol } from '../parser/types.js';
 
 export interface DependencyEdge {
   from: string;
@@ -9,6 +10,7 @@ export interface DependencyEdge {
     col: number;
     isDynamic: boolean;
     isTypeOnly: boolean;
+    importedNames?: ImportedSymbol[];
   };
 }
 
@@ -17,6 +19,7 @@ export interface DependencyGraph {
   edges: DependencyEdge[];
   adjacencyList: Map<string, Set<string>>;
   normalizedToOriginalPath?: Map<string, string>;
+  nodeExports?: Map<string, ExportedSymbol[]>;
 }
 
 export interface Violation {

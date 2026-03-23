@@ -68,6 +68,25 @@ Built-in rules are refactored to implement the same `Rule` interface used by use
 
 ---
 
+## 6. Detect unused symbols (files and exports)
+
+**Status:** done
+**Scope:** `src/parser/swc-parser.ts`, `src/parser/types.ts`, `src/graph/types.ts`, `src/graph/dependency-graph.ts`, `src/rules/unused-file-detector.ts`, `src/rules/unused-export-detector.ts`
+
+Two new built-in rules detect dead code at the architecture level:
+
+- **`unused-files`** (`ARCH_UNUSED_FILE`): Detects files in the dependency graph that are not imported by any other file. Barrel files (e.g. `index.ts`) are excluded since they serve as public API entry points.
+- **`unused-exports`** (`ARCH_UNUSED_EXPORT`): Detects exported symbols (functions, classes, types, constants) that are never imported by any other file. Barrel files and files with wildcard re-exports are excluded. Namespace imports (`import * as`) mark all exports as used.
+
+Both rules are configurable via `overrides.global.rules` or `overrides.features.<name>.rules` in `domainlint.json` (values: `off`, `warn`, `error`).
+
+Implementation details:
+- Parser enhanced to extract `ExportedSymbol[]` per file and `ImportedSymbol[]` per import edge
+- `DependencyGraph` extended with `nodeExports` map for per-node export tracking
+- `DependencyEdge.importInfo` extended with `importedNames` for symbol-level tracking
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)

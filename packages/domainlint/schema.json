@@ -56,6 +56,14 @@
                 "cross-feature-imports": {
                   "type": "string",
                   "enum": ["off", "warn", "error"]
+                },
+                "unused-files": {
+                  "type": "string",
+                  "enum": ["off", "warn", "error"]
+                },
+                "unused-exports": {
+                  "type": "string",
+                  "enum": ["off", "warn", "error"]
                 }
               },
               "additionalProperties": false
@@ -79,6 +87,14 @@
                     "enum": ["off", "warn", "error"]
                   },
                   "cross-feature-imports": {
+                    "type": "string",
+                    "enum": ["off", "warn", "error"]
+                  },
+                  "unused-files": {
+                    "type": "string",
+                    "enum": ["off", "warn", "error"]
+                  },
+                  "unused-exports": {
                     "type": "string",
                     "enum": ["off", "warn", "error"]
                   }

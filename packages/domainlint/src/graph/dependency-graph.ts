@@ -2,7 +2,7 @@ import { extname } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import { type FileSystem, nodeFileSystem } from '../fs.js';
-import type { ParseResult } from '../parser/types.js';
+import type { ExportedSymbol, ParseResult } from '../parser/types.js';
 import type { ResolvedImport } from '../resolution/module-resolver.js';
 import { ModuleResolver } from '../resolution/module-resolver.js';
 import type { ResolvedTsConfig } from '../tsconfig/types.js';
@@ -72,12 +72,26 @@ export class DependencyGraphBuilder {
       }
     }
 
+    // Build a lookup from file path to parse result for export data
+    const parseResultByPath = new Map<string, ParseResult>();
+    for (const parseResult of parseResults) {
+      parseResultByPath.set(parseResult.filePath, parseResult);
+    }
+
+    // Track per-node exports
+    const nodeExports = new Map<string, ExportedSymbol[]>();
+
     // Add all files as nodes
     for (const file of files) {
       const nodeKey = this.getNodeKey(file.path, collisions);
       nodes.add(nodeKey);
       adjacencyList.set(nodeKey, new Set());
       normalizedToOriginal.set(nodeKey, file.path);
+
+      const parsed = parseResultByPath.get(file.path);
+      if (parsed?.exports) {
+        nodeExports.set(nodeKey, parsed.exports);
+      }
     }
 
     // Process each file's imports
@@ -119,6 +133,7 @@ export class DependencyGraphBuilder {
       edges,
       adjacencyList,
       normalizedToOriginalPath: normalizedToOriginal,
+      nodeExports,
     };
   }
 }

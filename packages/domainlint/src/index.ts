@@ -9,6 +9,10 @@ export type {
   Violation,
 } from './graph/types.js';
 export { FeatureBoundariesLinter } from './linter/feature-boundaries-linter.js';
+export type {
+  ExportedSymbol,
+  ImportedSymbol,
+} from './parser/types.js';
 export type { ReporterOptions } from './reporter/colored-reporter.js';
 export { ColoredReporter } from './reporter/colored-reporter.js';
 // Rules API

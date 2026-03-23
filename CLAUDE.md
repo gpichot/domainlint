@@ -63,6 +63,8 @@ Config file: `domainlint.json` (or via CLI flags). Key options:
 
 - `ARCH_IMPORT_CYCLE` — circular dependency detected
 - `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT` — cross-feature import bypasses barrel
+- `ARCH_UNUSED_FILE` — file is not imported by any other file
+- `ARCH_UNUSED_EXPORT` — exported symbol is not imported by any other file
 
 ## Exit codes
 

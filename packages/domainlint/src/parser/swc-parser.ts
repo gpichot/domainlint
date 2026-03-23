@@ -1,14 +1,23 @@
 import { parseSync } from '@swc/core';
 import type {
   CallExpression,
+  Declaration,
   ExportAllDeclaration,
   ExportNamedDeclaration,
   ImportDeclaration,
+  ModuleExportName,
+  Pattern,
   Program,
+  VariableDeclarator,
 } from '@swc/types';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { type FileSystem, nodeFileSystem } from '../fs.js';
-import type { ImportInfo, ParseResult } from './types.js';
+import type {
+  ExportedSymbol,
+  ImportedSymbol,
+  ImportInfo,
+  ParseResult,
+} from './types.js';
 
 /**
  * Convert a byte offset from SWC's span into a 1-based line and column.
@@ -34,6 +43,38 @@ function offsetToLineCol(
   return { line, col };
 }
 
+function getModuleExportName(node: ModuleExportName): string {
+  return node.type === 'Identifier' ? node.value : node.value;
+}
+
+function extractBindingNames(pattern: Pattern): string[] {
+  switch (pattern.type) {
+    case 'Identifier':
+      return [pattern.value];
+    case 'ArrayPattern':
+      return pattern.elements.flatMap((el) =>
+        el ? extractBindingNames(el) : [],
+      );
+    case 'ObjectPattern':
+      return pattern.properties.flatMap((prop) => {
+        if (prop.type === 'RestElement') {
+          return extractBindingNames(prop.argument);
+        }
+        if (prop.type === 'KeyValuePatternProperty') {
+          return extractBindingNames(prop.value);
+        }
+        // AssignmentPatternProperty: { key } or { key = value }
+        return [prop.key.value];
+      });
+    case 'RestElement':
+      return extractBindingNames(pattern.argument);
+    case 'AssignmentPattern':
+      return extractBindingNames(pattern.left);
+    default:
+      return [];
+  }
+}
+
 export async function parseFile(
   filePath: string,
   config: FeatureBoundariesConfig,
@@ -41,6 +82,7 @@ export async function parseFile(
 ): Promise<ParseResult> {
   const content = await fs.readFile(filePath, 'utf-8');
   const imports: ImportInfo[] = [];
+  const exports: ExportedSymbol[] = [];
 
   try {
     const ast = parseSync(content, {
@@ -57,11 +99,19 @@ export async function parseFile(
     // ast.span covers [firstToken, lastToken), so we compute the file's
     // first-byte position as end - content.length.
     const baseOffset = ast.span.end - content.length;
-    extractImports(ast, imports, config, content, baseOffset);
+    extractImportsAndExports(
+      ast,
+      imports,
+      exports,
+      config,
+      content,
+      baseOffset,
+    );
 
     return {
       filePath,
       imports,
+      exports,
     };
   } catch (error) {
     throw new Error(
@@ -70,9 +120,10 @@ export async function parseFile(
   }
 }
 
-function extractImports(
+function extractImportsAndExports(
   ast: Program,
   imports: ImportInfo[],
+  exports: ExportedSymbol[],
   config: FeatureBoundariesConfig,
   content: string,
   baseOffset: number,
@@ -84,8 +135,43 @@ function extractImports(
         break;
 
       case 'ExportAllDeclaration':
+        handleExportAllDeclaration(item, imports, exports, content, baseOffset);
+        break;
+
       case 'ExportNamedDeclaration':
-        handleExportDeclaration(item, imports, content, baseOffset);
+        handleExportNamedDeclaration(
+          item,
+          imports,
+          exports,
+          content,
+          baseOffset,
+        );
+        break;
+
+      case 'ExportDefaultDeclaration':
+      case 'ExportDefaultExpression': {
+        const { line, col } = offsetToLineCol(
+          content,
+          item.span.start,
+          baseOffset,
+        );
+        exports.push({
+          name: 'default',
+          line,
+          col,
+          isTypeOnly: false,
+        });
+        break;
+      }
+
+      case 'ExportDeclaration':
+        handleExportDeclaration(
+          item.declaration,
+          exports,
+          content,
+          baseOffset,
+          item.span.start,
+        );
         break;
 
       case 'ExpressionStatement':
@@ -117,32 +203,216 @@ function handleImportDeclaration(
 ): void {
   if (node.source.type === 'StringLiteral') {
     const { line, col } = offsetToLineCol(content, node.span.start, baseOffset);
+    const importedNames: ImportedSymbol[] = [];
+
+    for (const specifier of node.specifiers) {
+      switch (specifier.type) {
+        case 'ImportDefaultSpecifier':
+          importedNames.push({ name: 'default', isNamespace: false });
+          break;
+        case 'ImportNamespaceSpecifier':
+          importedNames.push({ name: '*', isNamespace: true });
+          break;
+        case 'ImportSpecifier': {
+          const importedName = specifier.imported
+            ? getModuleExportName(specifier.imported)
+            : specifier.local.value;
+          importedNames.push({ name: importedName, isNamespace: false });
+          break;
+        }
+      }
+    }
+
     imports.push({
       specifier: node.source.value,
       line,
       col,
       isDynamic: false,
       isTypeOnly: node.typeOnly || false,
+      importedNames: importedNames.length > 0 ? importedNames : undefined,
     });
   }
 }
 
-function handleExportDeclaration(
-  node: ExportAllDeclaration | ExportNamedDeclaration,
+function handleExportAllDeclaration(
+  node: ExportAllDeclaration,
   imports: ImportInfo[],
+  exports: ExportedSymbol[],
   content: string,
   baseOffset: number,
 ): void {
+  const { line, col } = offsetToLineCol(content, node.span.start, baseOffset);
+  // `export * from 'source'` — re-exports everything
   if (node.source?.type === 'StringLiteral') {
-    const { line, col } = offsetToLineCol(content, node.span.start, baseOffset);
     imports.push({
       specifier: node.source.value,
       line,
       col,
       isDynamic: false,
-      isTypeOnly:
-        (node.type === 'ExportNamedDeclaration' && node.typeOnly) || false,
+      isTypeOnly: false,
+      importedNames: [{ name: '*', isNamespace: true }],
     });
+    // The file re-exports all symbols from the source — we mark this as a wildcard re-export
+    exports.push({
+      name: '*',
+      line,
+      col,
+      isTypeOnly: false,
+    });
+  }
+}
+
+function handleExportNamedDeclaration(
+  node: ExportNamedDeclaration,
+  imports: ImportInfo[],
+  exports: ExportedSymbol[],
+  content: string,
+  baseOffset: number,
+): void {
+  const { line, col } = offsetToLineCol(content, node.span.start, baseOffset);
+
+  if (node.source?.type === 'StringLiteral') {
+    // Re-export: `export { foo } from 'source'`
+    const importedNames: ImportedSymbol[] = [];
+    for (const specifier of node.specifiers) {
+      switch (specifier.type) {
+        case 'ExportSpecifier': {
+          const origName = getModuleExportName(specifier.orig);
+          const exportedName = specifier.exported
+            ? getModuleExportName(specifier.exported)
+            : origName;
+          importedNames.push({ name: origName, isNamespace: false });
+          exports.push({
+            name: exportedName,
+            line,
+            col,
+            isTypeOnly: node.typeOnly || specifier.isTypeOnly || false,
+          });
+          break;
+        }
+        case 'ExportNamespaceSpecifier': {
+          const exportedName = getModuleExportName(specifier.name);
+          importedNames.push({ name: '*', isNamespace: true });
+          exports.push({
+            name: exportedName,
+            line,
+            col,
+            isTypeOnly: node.typeOnly || false,
+          });
+          break;
+        }
+        case 'ExportDefaultSpecifier':
+          importedNames.push({ name: 'default', isNamespace: false });
+          exports.push({
+            name: specifier.exported.value,
+            line,
+            col,
+            isTypeOnly: node.typeOnly || false,
+          });
+          break;
+      }
+    }
+
+    imports.push({
+      specifier: node.source.value,
+      line,
+      col,
+      isDynamic: false,
+      isTypeOnly: node.typeOnly || false,
+      importedNames: importedNames.length > 0 ? importedNames : undefined,
+    });
+  } else {
+    // Local export: `export { foo, bar }`
+    for (const specifier of node.specifiers) {
+      if (specifier.type === 'ExportSpecifier') {
+        const exportedName = specifier.exported
+          ? getModuleExportName(specifier.exported)
+          : getModuleExportName(specifier.orig);
+        exports.push({
+          name: exportedName,
+          line,
+          col,
+          isTypeOnly: node.typeOnly || specifier.isTypeOnly || false,
+        });
+      }
+    }
+  }
+}
+
+function handleExportDeclaration(
+  declaration: Declaration,
+  exports: ExportedSymbol[],
+  content: string,
+  baseOffset: number,
+  spanStart: number,
+): void {
+  const { line, col } = offsetToLineCol(content, spanStart, baseOffset);
+
+  switch (declaration.type) {
+    case 'FunctionDeclaration':
+      exports.push({
+        name: declaration.identifier.value,
+        line,
+        col,
+        isTypeOnly: false,
+      });
+      break;
+
+    case 'ClassDeclaration':
+      exports.push({
+        name: declaration.identifier.value,
+        line,
+        col,
+        isTypeOnly: false,
+      });
+      break;
+
+    case 'VariableDeclaration':
+      for (const declarator of declaration.declarations) {
+        const names = extractBindingNames(declarator.id);
+        for (const name of names) {
+          exports.push({ name, line, col, isTypeOnly: false });
+        }
+      }
+      break;
+
+    case 'TsInterfaceDeclaration':
+      exports.push({
+        name: declaration.id.value,
+        line,
+        col,
+        isTypeOnly: true,
+      });
+      break;
+
+    case 'TsTypeAliasDeclaration':
+      exports.push({
+        name: declaration.id.value,
+        line,
+        col,
+        isTypeOnly: true,
+      });
+      break;
+
+    case 'TsEnumDeclaration':
+      exports.push({
+        name: declaration.id.value,
+        line,
+        col,
+        isTypeOnly: false,
+      });
+      break;
+
+    case 'TsModuleDeclaration':
+      if (declaration.id.type === 'Identifier') {
+        exports.push({
+          name: declaration.id.value,
+          line,
+          col,
+          isTypeOnly: true,
+        });
+      }
+      break;
   }
 }
 

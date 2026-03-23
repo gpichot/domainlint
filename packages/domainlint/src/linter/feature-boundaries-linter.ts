@@ -13,6 +13,8 @@ import {
   type Rule,
   runRules,
 } from '../rules/rules.js';
+import { unusedExportRule } from '../rules/unused-export-detector.js';
+import { unusedFileRule } from '../rules/unused-file-detector.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
 export interface LintResult {
@@ -49,7 +51,12 @@ export class FeatureBoundariesLinter {
       const query = new GraphQuery(graph, this.config);
       const ruleContext = { graph, query, config: this.config };
 
-      const builtInRules: Rule[] = [cycleRule, featureBoundaryRule];
+      const builtInRules: Rule[] = [
+        cycleRule,
+        featureBoundaryRule,
+        unusedFileRule,
+        unusedExportRule,
+      ];
       const builtInViolations = await runRules(builtInRules, ruleContext);
       violations.push(...builtInViolations);
 

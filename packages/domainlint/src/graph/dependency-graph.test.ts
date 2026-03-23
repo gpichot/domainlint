@@ -43,6 +43,7 @@ function makeParseResult(filePath: string, specifiers: string[]): ParseResult {
       isDynamic: false,
       isTypeOnly: false,
     })),
+    exports: [],
   };
 }
 

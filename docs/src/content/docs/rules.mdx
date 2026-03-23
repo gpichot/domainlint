@@ -5,7 +5,7 @@ description: Complete reference for domainlint rules, violation codes, and confi
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-domainlint enforces two core architectural rules plus a permissive default for same-feature imports. Each rule can be configured globally or per-feature.
+domainlint enforces architectural rules for feature boundaries, import cycles, and unused code detection. Each rule can be configured globally or per-feature.
 
 ---
 
@@ -81,6 +81,50 @@ Within a feature, files may import each other freely. domainlint does not enforc
 
 ---
 
+## R4 — Unused files
+
+**Violation code:** `ARCH_UNUSED_FILE`
+
+Files that are not imported by any other file in the project are likely dead code. domainlint detects these by checking the dependency graph for nodes with no incoming edges.
+
+Barrel files (`index.ts` by default) are excluded since they serve as public API entry points and may be consumed externally.
+
+```
+src/features/auth/old-handler.ts:1:1 ARCH_UNUSED_FILE
+  File "src/features/auth/old-handler.ts" is not imported by any other file in the project.
+```
+
+### How to fix
+
+- Delete the file if it is truly unused.
+- If the file is an entry point (e.g. consumed by an external tool or framework), consider adding it to a barrel file or disabling the rule for that scope.
+
+---
+
+## R5 — Unused exports
+
+**Violation code:** `ARCH_UNUSED_EXPORT`
+
+Exported symbols (functions, classes, types, constants) that are never imported by any other file in the project add noise to the public API surface and may indicate dead code.
+
+domainlint checks each file's exports against all import edges to find symbols that no one consumes. The following are excluded:
+- **Barrel files** — their exports are public API entry points.
+- **Wildcard re-exports** (`export * from`) — the actual set of re-exported names cannot be statically determined.
+- **Namespace imports** (`import * as ns`) — all exports of the target file are considered used.
+
+```
+src/features/billing/utils.ts:5:1 ARCH_UNUSED_EXPORT
+  Export "formatCurrency" in "src/features/billing/utils.ts" is not imported by any other file.
+```
+
+### How to fix
+
+- Remove the `export` keyword if the symbol is only used locally within the file.
+- Delete the symbol if it is truly dead code.
+- If the symbol is part of a public API consumed externally, disable the rule for that scope via overrides.
+
+---
+
 ## Configuration schema
 
 Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project root. All fields are optional — the defaults work for a standard `src/features/` layout.
@@ -101,7 +145,9 @@ Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project 
     "global": {
       "rules": {
         "import-cycles": "error",
-        "cross-feature-imports": "error"
+        "cross-feature-imports": "error",
+        "unused-files": "error",
+        "unused-exports": "error"
       }
     },
     "features": {
@@ -140,6 +186,8 @@ Overrides let you change the severity of each rule — or disable it entirely �
 |-----------|---------|
 | `import-cycles` | R1 — No import cycles |
 | `cross-feature-imports` | R2 — Cross-feature barrel imports |
+| `unused-files` | R4 — Unused files |
+| `unused-exports` | R5 — Unused exports |
 
 #### Severity levels
 
@@ -207,6 +255,8 @@ const ruleOverrideSchema = z.object({
     .object({
       "import-cycles": z.enum(["off", "warn", "error"]).optional(),
       "cross-feature-imports": z.enum(["off", "warn", "error"]).optional(),
+      "unused-files": z.enum(["off", "warn", "error"]).optional(),
+      "unused-exports": z.enum(["off", "warn", "error"]).optional(),
     })
     .optional(),
 });
@@ -411,5 +461,6 @@ export const rules: Rule[] = [noInternalLib, maxFanOut, noUpwardImports];
 The raw `DependencyGraph` is also available via `context.graph`:
 
 - **`nodes`** (`Set<string>`) — all analyzed file paths
-- **`edges`** (`DependencyEdge[]`) — all import edges, each with `from`, `to`, and `importInfo` (specifier, line, col, isDynamic, isTypeOnly)
+- **`edges`** (`DependencyEdge[]`) — all import edges, each with `from`, `to`, and `importInfo` (specifier, line, col, isDynamic, isTypeOnly, importedNames)
 - **`adjacencyList`** (`Map<string, Set<string>>`) — for fast neighbor lookups
+- **`nodeExports`** (`Map<string, ExportedSymbol[]>`) — per-file exported symbols (name, line, col, isTypeOnly)

@@ -1,6 +1,19 @@
 import type { Violation } from '../graph/types.js';
 import type { FeatureBoundariesConfig, RuleLevel, RuleName } from './types.js';
 
+function codeToRuleName(code: string): RuleName {
+  switch (code) {
+    case 'ARCH_IMPORT_CYCLE':
+      return 'import-cycles';
+    case 'ARCH_UNUSED_FILE':
+      return 'unused-files';
+    case 'ARCH_UNUSED_EXPORT':
+      return 'unused-exports';
+    default:
+      return 'cross-feature-imports';
+  }
+}
+
 export interface RuleCheckResult {
   shouldRun: boolean;
   level: RuleLevel;
@@ -52,10 +65,7 @@ export function filterViolationsByOverrides(
 ): Violation[] {
   return violations
     .map((violation) => {
-      const ruleName: RuleName =
-        violation.code === 'ARCH_IMPORT_CYCLE'
-          ? 'import-cycles'
-          : 'cross-feature-imports';
+      const ruleName: RuleName = codeToRuleName(violation.code);
 
       const ruleCheck = checkRuleOverride(config, ruleName, violation.file);
 
