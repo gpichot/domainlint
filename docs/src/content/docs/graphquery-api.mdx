@@ -1,0 +1,50 @@
+---
+title: GraphQuery API
+description: Query the import graph programmatically in custom rules.
+---
+
+The `query` object is available in every [custom rule](/custom-rules/) context. It provides high-level methods for inspecting the import graph. All glob patterns match against paths relative to `rootDir`.
+
+## Edge querying
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `edgesFrom(glob)` | `EdgeQueryResult` | Edges originating from files matching the glob. |
+| `edgesTo(glob)` | `EdgeQueryResult` | Edges targeting files matching the glob. |
+| `edgesBetween(fromGlob, toGlob)` | `EdgeQueryResult` | Edges from one set of files to another. |
+
+Each `EdgeQueryResult` has:
+- **`edges`** — the matched `DependencyEdge[]`
+- **`violations(code, message)`** — converts matched edges into violation results. `message` can be a string or a `(edge) => string` function for dynamic messages.
+
+## Node querying
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `filesMatching(glob)` | `string[]` | All graph nodes matching the glob. |
+| `featureOf(file)` | `string \| null` | The feature owning a file, or `null`. |
+| `importsOf(file)` | `string[]` | Direct imports (outgoing neighbors). |
+| `importersOf(file)` | `string[]` | Direct importers (incoming neighbors). |
+
+## Transitive analysis
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `dependsOn(file, target)` | `boolean` | Whether `file` transitively depends on `target`. |
+| `dependenciesOf(file)` | `string[]` | All transitive dependencies of a file. |
+| `dependentsOf(file)` | `string[]` | All transitive reverse dependencies. |
+
+## Aggregates
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `fanOut(file)` | `number` | Number of direct imports. |
+| `fanIn(file)` | `number` | Number of direct importers. |
+
+## Raw graph structure
+
+The raw `DependencyGraph` is also available via `context.graph`:
+
+- **`nodes`** (`Set<string>`) — all analyzed file paths
+- **`edges`** (`DependencyEdge[]`) — all import edges, each with `from`, `to`, and `importInfo` (specifier, line, col, isDynamic, isTypeOnly)
+- **`adjacencyList`** (`Map<string, Set<string>>`) — for fast neighbor lookups

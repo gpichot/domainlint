@@ -1,0 +1,42 @@
+---
+title: CI Integration
+description: Add domainlint to your CI pipeline.
+---
+
+domainlint uses [exit codes](/cli/#exit-codes) to signal results, making it straightforward to integrate into any CI system.
+
+## GitHub Actions
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  lint-architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Lint architecture
+        run: npx domainlint check
+```
+
+## Other CI systems
+
+Run `domainlint check` as a build step. The process exits with code `1` when violations are found, which will fail the build.
+
+```sh
+# Any CI script
+npx domainlint check
+```
+
+## Tips
+
+- Run domainlint **after** `npm ci` / `pnpm install` so that `tsconfig.json` path resolution works correctly.
+- Use `--no-color` if your CI logs don't support ANSI colors.
+- Use `--feature=<name>` to scope checks to a specific feature in large codebases.

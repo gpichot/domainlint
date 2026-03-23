@@ -15,24 +15,15 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        {
-          label: "Start Here",
-          items: [
-            { label: "Getting Started", slug: "getting-started" },
-          ],
-        },
-        {
-          label: "Reference",
-          items: [
-            { label: "Rules & Schema", slug: "rules" },
-          ],
-        },
-        {
-          label: "About",
-          items: [
-            { label: "Philosophy & Vision", slug: "philosophy" },
-          ],
-        },
+        { label: "Getting Started", slug: "getting-started" },
+        { label: "Configuration", slug: "configuration" },
+        { label: "CLI Reference", slug: "cli" },
+        { label: "Rules", slug: "rules" },
+        { label: "Custom Rules", slug: "custom-rules" },
+        { label: "GraphQuery API", slug: "graphquery-api" },
+        { label: "Workspaces", slug: "workspaces" },
+        { label: "CI Integration", slug: "ci" },
+        { label: "Philosophy", slug: "philosophy" },
       ],
     }),
   ],

@@ -1,0 +1,37 @@
+---
+title: Workspaces
+description: Use domainlint in monorepos with npm, pnpm, or yarn workspaces.
+---
+
+domainlint automatically detects **npm**, **pnpm**, and **yarn** workspaces. When run from a workspace root, it lints each package independently.
+
+```sh
+# From the monorepo root — lints all packages
+domainlint check
+```
+
+## Detection
+
+Detection sources (checked in order):
+1. `pnpm-workspace.yaml` — reads the `packages:` list
+2. `package.json` `"workspaces"` field — supports both npm and yarn formats
+
+Packages without a `src/` directory (or whatever `srcDir` is configured to) are automatically skipped.
+
+Each package uses its own `domainlint.json` and `tsconfig.json` if present, falling back to defaults.
+
+## Output
+
+```
+Workspace (pnpm)
+
+  ✓ @my/core (packages/core) 42 files, 150ms
+  ✗ @my/ui (packages/ui) 28 files, 90ms
+    3 violations
+  - @my/docs (docs) - skipped: No src/features directory found
+
+Analyzed 70 files across 2 packages in 240ms
+✗ 3 total violations found
+```
+
+Use `--verbose` to see individual violations per package.
