@@ -91,7 +91,7 @@ describe('featureBoundaryRule', () => {
     expect(violations).toHaveLength(0);
   });
 
-  it('reports ARCH_NO_CROSS_FEATURE_DEEP_IMPORT for cross-feature non-barrel import', async () => {
+  it('reports noCrossFeatureDeepImport for cross-feature non-barrel import', async () => {
     const edges = [
       makeEdge(
         '/project/src/features/billing/invoice.ts',
@@ -101,7 +101,7 @@ describe('featureBoundaryRule', () => {
     ];
     const violations = await checkBoundaries(makeGraph(edges));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe('ARCH_NO_CROSS_FEATURE_DEEP_IMPORT');
+    expect(violations[0].code).toBe('noCrossFeatureDeepImport');
     expect(violations[0].file).toBe('/project/src/features/billing/invoice.ts');
     expect(violations[0].message).toContain('../auth/service');
   });
@@ -118,7 +118,7 @@ describe('featureBoundaryRule', () => {
     expect(violations[0].message).toContain('index.ts');
   });
 
-  it('reports ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN for feature importing outside features dir', async () => {
+  it('reports noFeatureImportFromNonDomain for feature importing outside features dir', async () => {
     const edges = [
       makeEdge(
         '/project/src/features/auth/service.ts',
@@ -128,7 +128,7 @@ describe('featureBoundaryRule', () => {
     ];
     const violations = await checkBoundaries(makeGraph(edges));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe('ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN');
+    expect(violations[0].code).toBe('noFeatureImportFromNonDomain');
   });
 
   it('returns no violations for non-feature files importing anything', async () => {

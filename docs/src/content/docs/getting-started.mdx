@@ -43,24 +43,24 @@ This will analyze `src/` and report any violations.
 
 ## Understanding violations
 
-### `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
+### `noCrossFeatureDeepImport`
 
 A file outside a feature (or in a different feature) imported an internal module directly instead of going through the barrel.
 
 ```
-src/pages/home.tsx:5:1 ARCH_NO_CROSS_FEATURE_DEEP_IMPORT
+src/pages/home.tsx:5:1 noCrossFeatureDeepImport
   Importing src/features/billing/ui/Button.tsx directly.
   Expected: src/features/billing/index.ts
 ```
 
 **Fix:** import from the feature's `index.ts` instead.
 
-### `ARCH_IMPORT_CYCLE`
+### `noImportCycle`
 
 A circular dependency was detected in the module graph.
 
 ```
-src/features/auth/session.ts ARCH_IMPORT_CYCLE
+src/features/auth/session.ts noImportCycle
   Cycle: auth/session.ts → auth/user.ts → auth/session.ts
 ```
 

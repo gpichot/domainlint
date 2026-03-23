@@ -189,7 +189,7 @@ export class ColoredReporter {
     const processedMessage = this.stripPaths(message, rootDir);
     const levelLabel = level.toUpperCase();
 
-    if (code === 'ARCH_IMPORT_CYCLE') {
+    if (code === 'noImportCycle') {
       return this.formatCyclePlain(
         file,
         line,
@@ -200,7 +200,7 @@ export class ColoredReporter {
       );
     }
 
-    if (code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT') {
+    if (code === 'noCrossFeatureDeepImport') {
       return this.formatBoundaryViolationPlain(
         file,
         line,
@@ -211,7 +211,7 @@ export class ColoredReporter {
       );
     }
 
-    if (code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN') {
+    if (code === 'noFeatureImportFromNonDomain') {
       return this.formatNonDomainViolationPlain(
         file,
         line,
@@ -238,7 +238,7 @@ export class ColoredReporter {
     const levelColor = level === 'warn' ? chalk.yellow : chalk.red;
     const levelLabel = levelColor(level.toUpperCase());
 
-    if (code === 'ARCH_IMPORT_CYCLE') {
+    if (code === 'noImportCycle') {
       return this.formatCycleColored(
         file,
         line,
@@ -249,7 +249,7 @@ export class ColoredReporter {
       );
     }
 
-    if (code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT') {
+    if (code === 'noCrossFeatureDeepImport') {
       return this.formatBoundaryViolationColored(
         file,
         line,
@@ -260,7 +260,7 @@ export class ColoredReporter {
       );
     }
 
-    if (code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN') {
+    if (code === 'noFeatureImportFromNonDomain') {
       return this.formatNonDomainViolationColored(
         file,
         line,
@@ -285,12 +285,12 @@ export class ColoredReporter {
     }
 
     const cycleCount = violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     ).length;
     const boundaryCount = violations.filter(
       (v) =>
-        v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT' ||
-        v.code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+        v.code === 'noCrossFeatureDeepImport' ||
+        v.code === 'noFeatureImportFromNonDomain',
     ).length;
 
     const parts: string[] = [];
@@ -481,7 +481,7 @@ export class ColoredReporter {
 
   formatCycleAnalysis(violations: Violation[]): string {
     const cycleViolations = violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     );
 
     if (cycleViolations.length === 0) {
@@ -627,12 +627,12 @@ export class ColoredReporter {
     allFeatureStats?: FeatureStats[],
   ): string {
     const cycleCount = violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     ).length;
     const boundaryCount = violations.filter(
       (v) =>
-        v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT' ||
-        v.code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+        v.code === 'noCrossFeatureDeepImport' ||
+        v.code === 'noFeatureImportFromNonDomain',
     ).length;
 
     const domainName =
@@ -711,11 +711,11 @@ export class ColoredReporter {
     }
 
     switch (code) {
-      case 'ARCH_IMPORT_CYCLE':
+      case 'noImportCycle':
         return chalk.red.bold(code);
-      case 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT':
+      case 'noCrossFeatureDeepImport':
         return chalk.yellow.bold(code);
-      case 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN':
+      case 'noFeatureImportFromNonDomain':
         return chalk.cyan.bold(code);
       default:
         return chalk.magenta.bold(code);

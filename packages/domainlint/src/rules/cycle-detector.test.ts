@@ -84,7 +84,7 @@ describe('cycleRule', () => {
     const graph = makeGraph([['a', 'a']]);
     const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].code).toBe('noImportCycle');
     expect(violations[0].file).toBe('a');
     expect(violations[0].message).toMatch(/import cycle/i);
   });
@@ -96,7 +96,7 @@ describe('cycleRule', () => {
     ]);
     const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].code).toBe('noImportCycle');
     expect(violations[0].message).toContain('a');
     expect(violations[0].message).toContain('b');
   });
@@ -109,7 +109,7 @@ describe('cycleRule', () => {
     ]);
     const violations = await detectCycles(graph);
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe('ARCH_IMPORT_CYCLE');
+    expect(violations[0].code).toBe('noImportCycle');
     expect(violations[0].message).toContain('a');
     expect(violations[0].message).toContain('b');
     expect(violations[0].message).toContain('c');
@@ -124,7 +124,7 @@ describe('cycleRule', () => {
     ]);
     const violations = await detectCycles(graph);
     expect(violations).toHaveLength(2);
-    expect(violations.every((v) => v.code === 'ARCH_IMPORT_CYCLE')).toBe(true);
+    expect(violations.every((v) => v.code === 'noImportCycle')).toBe(true);
   });
 
   it('does not report the same cycle start twice', async () => {

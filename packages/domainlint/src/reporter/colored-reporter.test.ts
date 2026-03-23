@@ -5,7 +5,7 @@ import { ColoredReporter } from './colored-reporter.js';
 
 describe('ColoredReporter', () => {
   const cycleViolation: Violation = {
-    code: 'ARCH_IMPORT_CYCLE',
+    code: 'noImportCycle',
     file: '/project/src/a.ts',
     line: 1,
     col: 1,
@@ -14,7 +14,7 @@ describe('ColoredReporter', () => {
   };
 
   const boundaryViolation: Violation = {
-    code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+    code: 'noCrossFeatureDeepImport',
     file: '/project/src/features/billing/invoice.ts',
     line: 2,
     col: 10,
@@ -27,7 +27,7 @@ describe('ColoredReporter', () => {
 
     const result = reporter.formatViolation(cycleViolation, '/project');
 
-    expect(result).toContain('src/a.ts:1:1 ERROR ARCH_IMPORT_CYCLE');
+    expect(result).toContain('src/a.ts:1:1 ERROR noImportCycle');
     expect(result).toContain('Import cycle detected:');
     expect(result).toContain('./src/a.ts ->');
     expect(result).toContain('./src/b.ts ->');
@@ -39,7 +39,7 @@ describe('ColoredReporter', () => {
     const result = reporter.formatViolation(boundaryViolation, '/project');
 
     expect(result).toContain(
-      'src/features/billing/invoice.ts:2:10 ERROR ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+      'src/features/billing/invoice.ts:2:10 ERROR noCrossFeatureDeepImport',
     );
     expect(result).toContain('Cross-feature deep import not allowed');
     expect(result).toContain('Import:        "../../auth/domain/user"');
@@ -93,7 +93,7 @@ describe('ColoredReporter', () => {
 
   it('should truncate long import cycles', () => {
     const longCycleViolation: Violation = {
-      code: 'ARCH_IMPORT_CYCLE',
+      code: 'noImportCycle',
       file: '/project/src/a.ts',
       line: 1,
       col: 1,
@@ -104,7 +104,7 @@ describe('ColoredReporter', () => {
     const reporter = new ColoredReporter({ colors: false });
     const result = reporter.formatViolation(longCycleViolation, '/project');
 
-    expect(result).toContain('src/a.ts:1:1 ERROR ARCH_IMPORT_CYCLE');
+    expect(result).toContain('src/a.ts:1:1 ERROR noImportCycle');
     expect(result).toContain('Import cycle detected:');
     expect(result).toContain('./src/a.ts');
     expect(result).toContain('./src/b.ts');
@@ -126,7 +126,7 @@ describe('ColoredReporter', () => {
   describe('Domain Summary', () => {
     it('should format domain summary with violations grouped by feature', () => {
       const authViolation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
@@ -134,7 +134,7 @@ describe('ColoredReporter', () => {
       };
 
       const billingViolation: Violation = {
-        code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        code: 'noCrossFeatureDeepImport',
         file: '/project/src/features/billing/invoice.ts',
         line: 1,
         col: 1,
@@ -142,7 +142,7 @@ describe('ColoredReporter', () => {
       };
 
       const globalViolation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/utils.ts',
         line: 1,
         col: 1,
@@ -174,7 +174,7 @@ describe('ColoredReporter', () => {
 
     it('should handle multiple violations in same domain', () => {
       const authCycle: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
@@ -182,7 +182,7 @@ describe('ColoredReporter', () => {
       };
 
       const authBoundary: Violation = {
-        code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        code: 'noCrossFeatureDeepImport',
         file: '/project/src/features/auth/login.ts',
         line: 1,
         col: 1,
@@ -204,7 +204,7 @@ describe('ColoredReporter', () => {
 
     it('should handle non-domain import violations', () => {
       const nonDomainViolation: Violation = {
-        code: 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+        code: 'noFeatureImportFromNonDomain',
         file: '/project/src/features/auth/user.ts',
         line: 5,
         col: 10,
@@ -223,7 +223,7 @@ describe('ColoredReporter', () => {
 
     it('should display file count and LOC in feature summary', () => {
       const authViolation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
