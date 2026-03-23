@@ -18,12 +18,22 @@ export default defineConfig({
         { label: "Getting Started", slug: "getting-started" },
         { label: "Feature Structure", slug: "feature-structure" },
         { label: "Configuration", slug: "configuration" },
-        { label: "CLI Reference", slug: "cli" },
-        { label: "Rules", slug: "rules" },
-        { label: "Custom Rules", slug: "custom-rules" },
-        { label: "GraphQuery API", slug: "graphquery-api" },
-        { label: "Workspaces", slug: "workspaces" },
-        { label: "CI Integration", slug: "ci" },
+        {
+          label: "Reference",
+          items: [
+            { label: "Rules", slug: "rules" },
+            { label: "CLI", slug: "cli" },
+          ],
+        },
+        {
+          label: "Advanced",
+          items: [
+            { label: "Custom Rules", slug: "custom-rules" },
+            { label: "GraphQuery API", slug: "graphquery-api" },
+            { label: "Workspaces", slug: "workspaces" },
+            { label: "CI Integration", slug: "ci" },
+          ],
+        },
         { label: "Philosophy", slug: "philosophy" },
       ],
     }),
