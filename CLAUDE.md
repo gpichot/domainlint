@@ -62,6 +62,7 @@ Config file: `domainlint.json` (or via CLI flags). Key options:
 ## Violation codes
 
 - `noImportCycle` — circular dependency detected
+- `noFeatureImportFromNonDomain` — feature file imports from outside the features directory
 - `noCrossFeatureDeepImport` — cross-feature import bypasses barrel
 
 ## Exit codes
