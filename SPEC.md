@@ -105,7 +105,7 @@ Avoid circular dependencies across the module graph.
 
 ### Reporting
 For each cycle detected, the linter MUST emit at least one violation with:
-- `code`: `ARCH_IMPORT_CYCLE`
+- `code`: `noImportCycle`
 - `file`: path of at least one involved file
 - `message`: includes a representative cycle path (e.g. `a -> b -> c -> a`)
 
@@ -141,7 +141,7 @@ Otherwise the edge is a violation.
 
 ### Reporting
 When violated, the linter MUST emit a violation with:
-- `code`: `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
+- `code`: `noCrossFeatureDeepImport`
 - `file`: importer file (`from`)
 - `line`/`col`: import statement location (best-effort)
 - `message`: MUST indicate:
@@ -291,7 +291,7 @@ The linter SHOULD support a config file and CLI flags. If both exist, CLI flags 
 
 ### 8.1 Violation shape
 Each violation MUST include:
-- `code`: stable identifier (`ARCH_IMPORT_CYCLE`, `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`)
+- `code`: stable identifier (`noImportCycle`, `noCrossFeatureDeepImport`)
 - `file`: importer file path
 - `line`: 1-based line number (best-effort)
 - `col`: 1-based column number (best-effort)

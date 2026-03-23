@@ -26,7 +26,7 @@ describe('LintOrchestrator', () => {
     it('should delegate to violation filter service', () => {
       const mockViolations = [
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/test/file.ts',
           line: 1,
           col: 1,
@@ -40,7 +40,7 @@ describe('LintOrchestrator', () => {
         cycleCount: 1,
         boundaryViolationCount: 0,
         totalCount: 1,
-        violationsByType: { ARCH_IMPORT_CYCLE: 1 },
+        violationsByType: { noImportCycle: 1 },
       });
 
       const result = orchestrator.analyzeExistingViolations(mockViolations);
@@ -52,7 +52,7 @@ describe('LintOrchestrator', () => {
         cycleCount: 1,
         boundaryViolationCount: 0,
         totalCount: 1,
-        violationsByType: { ARCH_IMPORT_CYCLE: 1 },
+        violationsByType: { noImportCycle: 1 },
       });
     });
   });
@@ -90,7 +90,7 @@ describe('LintOrchestrator', () => {
       const mockResult = {
         violations: [
           {
-            code: 'ARCH_IMPORT_CYCLE',
+            code: 'noImportCycle',
             file: '/project/src/features/auth/user.ts',
             line: 1,
             col: 1,
@@ -118,7 +118,7 @@ describe('LintOrchestrator', () => {
       const result = orchestrator.formatResults(mockResult, mockConfig);
 
       expect(result.violationOutput).toHaveLength(1);
-      expect(result.violationOutput[0]).toContain('ARCH_IMPORT_CYCLE');
+      expect(result.violationOutput[0]).toContain('noImportCycle');
       expect(result.summaryOutput).toContain('1 import cycle');
       expect(result.domainSummaryOutput).toContain('Feature Status:');
       expect(result.cycleAnalysisOutput).toContain('Cycle Analysis');

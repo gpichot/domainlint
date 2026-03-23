@@ -27,7 +27,7 @@ Prefer tests that exercise behavior through the public API, not internal impleme
 // Drive through FeatureBoundariesLinter, assert on violations
 const result = await linter.lint();
 expect(result.violations).toContainEqual(
-  expect.objectContaining({ code: 'ARCH_IMPORT_CYCLE' }),
+  expect.objectContaining({ code: 'noImportCycle' }),
 );
 ```
 

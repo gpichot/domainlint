@@ -56,7 +56,7 @@ export function ScoreGauge() { return data.score; }`,
     const result = await linter.lint();
 
     const cycleViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     );
     expect(cycleViolations).toHaveLength(0);
   });
@@ -76,7 +76,7 @@ export function DimensionTooltip(props: DimensionTooltipProps) {}`,
     const result = await linter.lint();
 
     const cycleViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     );
     expect(cycleViolations).toHaveLength(0);
   });
@@ -98,7 +98,7 @@ export function Widget() { return widgetData; }`,
     const result = await linter.lint();
 
     const cycleViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
+      (v) => v.code === 'noImportCycle',
     );
     expect(cycleViolations.length).toBeGreaterThan(0);
   });

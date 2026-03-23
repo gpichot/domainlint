@@ -35,7 +35,7 @@ export const cycleRule: Rule = {
             );
 
             emitViolation({
-              code: 'ARCH_IMPORT_CYCLE',
+              code: 'noImportCycle',
               file: graph.normalizedToOriginalPath?.get(cycle[0]) || cycle[0],
               line: firstEdge?.importInfo.line || 1,
               col: firstEdge?.importInfo.col || 1,

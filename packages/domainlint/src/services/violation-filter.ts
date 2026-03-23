@@ -26,12 +26,8 @@ export class ViolationFilterService {
     }
 
     // Separate cycle violations for special processing
-    const cycleViolations = filtered.filter(
-      (v) => v.code === 'ARCH_IMPORT_CYCLE',
-    );
-    const otherViolations = filtered.filter(
-      (v) => v.code !== 'ARCH_IMPORT_CYCLE',
-    );
+    const cycleViolations = filtered.filter((v) => v.code === 'noImportCycle');
+    const otherViolations = filtered.filter((v) => v.code !== 'noImportCycle');
 
     let filteredCycleViolations = cycleViolations;
 
@@ -145,10 +141,10 @@ export class ViolationFilterService {
     });
 
     return {
-      cycleCount: violationsByType['ARCH_IMPORT_CYCLE'] || 0,
+      cycleCount: violationsByType['noImportCycle'] || 0,
       boundaryViolationCount:
-        (violationsByType['ARCH_NO_CROSS_FEATURE_DEEP_IMPORT'] || 0) +
-        (violationsByType['ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN'] || 0),
+        (violationsByType['noCrossFeatureDeepImport'] || 0) +
+        (violationsByType['noFeatureImportFromNonDomain'] || 0),
       totalCount: violations.length,
       violationsByType,
     };

@@ -153,7 +153,7 @@ describe('Rule Overrides', () => {
 
       const violations: Violation[] = [
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/project/src/utils/helper.ts',
           line: 1,
           col: 1,
@@ -181,7 +181,7 @@ describe('Rule Overrides', () => {
 
       const violations: Violation[] = [
         {
-          code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+          code: 'noCrossFeatureDeepImport',
           file: '/project/src/features/auth/services/user.ts',
           line: 1,
           col: 1,
@@ -192,7 +192,7 @@ describe('Rule Overrides', () => {
       const result = filterViolationsByOverrides(violations, config);
       expect(result).toEqual([
         {
-          code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+          code: 'noCrossFeatureDeepImport',
           file: '/project/src/features/auth/services/user.ts',
           line: 1,
           col: 1,
@@ -205,7 +205,7 @@ describe('Rule Overrides', () => {
     it('should default to error level when no override is specified', () => {
       const violations: Violation[] = [
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/project/src/utils/helper.ts',
           line: 1,
           col: 1,
@@ -216,7 +216,7 @@ describe('Rule Overrides', () => {
       const result = filterViolationsByOverrides(violations, baseConfig);
       expect(result).toEqual([
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/project/src/utils/helper.ts',
           line: 1,
           col: 1,

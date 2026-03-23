@@ -111,7 +111,7 @@ describe('runWorkspaceLint', () => {
     mockLoadConfig.mockResolvedValue(mockConfig);
 
     const violation = {
-      code: 'ARCH_IMPORT_CYCLE',
+      code: 'noImportCycle',
       file: '/workspace/packages/core/src/a.ts',
       line: 1,
       col: 1,

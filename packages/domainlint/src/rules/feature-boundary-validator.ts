@@ -27,7 +27,7 @@ export const featureBoundaryRule: Rule = {
       // Rule 1: No feature imports from non-domain directories
       if (fromFeature && !toFeature) {
         emitViolation({
-          code: 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+          code: 'noFeatureImportFromNonDomain',
           file: fromPath,
           line: edge.importInfo.line,
           col: edge.importInfo.col,
@@ -51,7 +51,7 @@ export const featureBoundaryRule: Rule = {
         const expectedBarrelPath = getBarrelPath(toFeature, config);
 
         emitViolation({
-          code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+          code: 'noCrossFeatureDeepImport',
           file: fromPath,
           line: edge.importInfo.line,
           col: edge.importInfo.col,

@@ -53,7 +53,7 @@ export function filterViolationsByOverrides(
   return violations
     .map((violation) => {
       const ruleName: RuleName =
-        violation.code === 'ARCH_IMPORT_CYCLE'
+        violation.code === 'noImportCycle'
           ? 'import-cycles'
           : 'cross-feature-imports';
 

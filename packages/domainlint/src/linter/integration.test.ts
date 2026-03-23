@@ -55,7 +55,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     expect(result.violations.length).toBeGreaterThan(0);
-    expect(result.violations.some((v) => v.code === 'ARCH_IMPORT_CYCLE')).toBe(
+    expect(result.violations.some((v) => v.code === 'noImportCycle')).toBe(
       true,
     );
   });
@@ -75,7 +75,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const boundaryViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+      (v) => v.code === 'noCrossFeatureDeepImport',
     );
     expect(boundaryViolations.length).toBeGreaterThan(0);
     expect(boundaryViolations[0].message).toContain(
@@ -98,7 +98,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const boundaryViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+      (v) => v.code === 'noCrossFeatureDeepImport',
     );
     expect(boundaryViolations).toHaveLength(0);
   });
@@ -118,7 +118,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const boundaryViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+      (v) => v.code === 'noCrossFeatureDeepImport',
     );
     expect(boundaryViolations).toHaveLength(0);
   });
@@ -137,7 +137,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const nonDomainViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+      (v) => v.code === 'noFeatureImportFromNonDomain',
     );
     expect(nonDomainViolations.length).toBeGreaterThan(0);
     expect(nonDomainViolations[0].message).toContain(
@@ -159,7 +159,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const nonDomainViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+      (v) => v.code === 'noFeatureImportFromNonDomain',
     );
     expect(nonDomainViolations).toHaveLength(0);
   });
@@ -178,7 +178,7 @@ describe('Integration Tests', () => {
     const result = await linter.lint();
 
     const nonDomainViolations = result.violations.filter(
-      (v) => v.code === 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+      (v) => v.code === 'noFeatureImportFromNonDomain',
     );
     expect(nonDomainViolations).toHaveLength(0);
   });
@@ -198,9 +198,9 @@ describe('Integration Tests', () => {
       const linter = new FeatureBoundariesLinter(config);
       const result = await linter.lint();
 
-      expect(
-        result.violations.some((v) => v.code === 'ARCH_IMPORT_CYCLE'),
-      ).toBe(true);
+      expect(result.violations.some((v) => v.code === 'noImportCycle')).toBe(
+        true,
+      );
     });
 
     it('should detect a cycle spanning four files', async () => {
@@ -218,9 +218,9 @@ describe('Integration Tests', () => {
       const linter = new FeatureBoundariesLinter(config);
       const result = await linter.lint();
 
-      expect(
-        result.violations.some((v) => v.code === 'ARCH_IMPORT_CYCLE'),
-      ).toBe(true);
+      expect(result.violations.some((v) => v.code === 'noImportCycle')).toBe(
+        true,
+      );
     });
   });
 
@@ -239,7 +239,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const cycleViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_IMPORT_CYCLE',
+        (v) => v.code === 'noImportCycle',
       );
       expect(cycleViolations).toHaveLength(0);
     });
@@ -257,9 +257,9 @@ describe('Integration Tests', () => {
       const linter = new FeatureBoundariesLinter(config);
       const result = await linter.lint();
 
-      expect(
-        result.violations.some((v) => v.code === 'ARCH_IMPORT_CYCLE'),
-      ).toBe(true);
+      expect(result.violations.some((v) => v.code === 'noImportCycle')).toBe(
+        true,
+      );
     });
 
     it('should detect cross-feature deep import via dynamic import when includeDynamicImports is true', async () => {
@@ -277,9 +277,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
   });
@@ -300,9 +298,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
 
@@ -321,7 +317,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        (v) => v.code === 'noCrossFeatureDeepImport',
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -344,7 +340,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        (v) => v.code === 'noCrossFeatureDeepImport',
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -366,9 +362,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
   });
@@ -392,9 +386,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
 
@@ -415,7 +407,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        (v) => v.code === 'noCrossFeatureDeepImport',
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -441,9 +433,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
 
@@ -469,9 +459,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
   });
@@ -491,7 +479,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        (v) => v.code === 'noCrossFeatureDeepImport',
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -527,9 +515,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       expect(
-        result.violations.some(
-          (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
-        ),
+        result.violations.some((v) => v.code === 'noCrossFeatureDeepImport'),
       ).toBe(true);
     });
 
@@ -548,7 +534,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        (v) => v.code === 'noCrossFeatureDeepImport',
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -568,9 +554,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter((v) =>
-        ['ARCH_IMPORT_CYCLE', 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT'].includes(
-          v.code,
-        ),
+        ['noImportCycle', 'noCrossFeatureDeepImport'].includes(v.code),
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -589,9 +573,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const boundaryViolations = result.violations.filter((v) =>
-        ['ARCH_IMPORT_CYCLE', 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT'].includes(
-          v.code,
-        ),
+        ['noImportCycle', 'noCrossFeatureDeepImport'].includes(v.code),
       );
       expect(boundaryViolations).toHaveLength(0);
     });
@@ -611,7 +593,7 @@ describe('Integration Tests', () => {
       const result = await linter.lint();
 
       const cycleViolations = result.violations.filter(
-        (v) => v.code === 'ARCH_IMPORT_CYCLE',
+        (v) => v.code === 'noImportCycle',
       );
       expect(cycleViolations).toHaveLength(0);
     });

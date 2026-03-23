@@ -23,21 +23,21 @@ describe('ViolationFilterService', () => {
 
     mockViolations = [
       {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
         message: 'Import cycle detected: user.ts -> service.ts -> user.ts',
       },
       {
-        code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+        code: 'noCrossFeatureDeepImport',
         file: '/project/src/features/billing/invoice.ts',
         line: 1,
         col: 1,
         message: 'Cross-feature deep import not allowed',
       },
       {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/billing/payment.ts',
         line: 1,
         col: 1,
@@ -88,22 +88,20 @@ describe('ViolationFilterService', () => {
       );
 
       expect(result).toHaveLength(2); // 1 short cycle + 1 boundary violation
-      expect(result.filter((v) => v.code === 'ARCH_IMPORT_CYCLE')).toHaveLength(
-        1,
-      );
+      expect(result.filter((v) => v.code === 'noImportCycle')).toHaveLength(1);
     });
 
     it('should select shortest cycles when flag is set', () => {
       const duplicateCycles: Violation[] = [
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/project/src/features/auth/user.ts',
           line: 1,
           col: 1,
           message: 'Import cycle detected: user.ts -> service.ts -> user.ts', // length 2
         },
         {
-          code: 'ARCH_IMPORT_CYCLE',
+          code: 'noImportCycle',
           file: '/project/src/features/auth/user.ts',
           line: 5,
           col: 1,
@@ -134,14 +132,14 @@ describe('ViolationFilterService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].code).toBe('ARCH_NO_CROSS_FEATURE_DEEP_IMPORT');
+      expect(result[0].code).toBe('noCrossFeatureDeepImport');
     });
   });
 
   describe('cycle length extraction', () => {
     it('should extract cycle length from total cycle length indicator', () => {
       const violation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
@@ -158,7 +156,7 @@ describe('ViolationFilterService', () => {
 
     it('should extract cycle length from truncated cycle indicator', () => {
       const violation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
@@ -175,7 +173,7 @@ describe('ViolationFilterService', () => {
 
     it('should count visible parts for short cycles', () => {
       const violation: Violation = {
-        code: 'ARCH_IMPORT_CYCLE',
+        code: 'noImportCycle',
         file: '/project/src/features/auth/user.ts',
         line: 1,
         col: 1,
@@ -199,8 +197,8 @@ describe('ViolationFilterService', () => {
         boundaryViolationCount: 1,
         totalCount: 3,
         violationsByType: {
-          ARCH_IMPORT_CYCLE: 2,
-          ARCH_NO_CROSS_FEATURE_DEEP_IMPORT: 1,
+          noImportCycle: 2,
+          noCrossFeatureDeepImport: 1,
         },
       });
     });
@@ -219,14 +217,14 @@ describe('ViolationFilterService', () => {
     it('should count multiple boundary violation types', () => {
       const violations: Violation[] = [
         {
-          code: 'ARCH_NO_CROSS_FEATURE_DEEP_IMPORT',
+          code: 'noCrossFeatureDeepImport',
           file: '/project/src/features/auth/user.ts',
           line: 1,
           col: 1,
           message: 'Cross-feature deep import',
         },
         {
-          code: 'ARCH_NO_FEATURE_IMPORT_FROM_NON_DOMAIN',
+          code: 'noFeatureImportFromNonDomain',
           file: '/project/src/features/auth/user.ts',
           line: 1,
           col: 1,

@@ -9,7 +9,7 @@ domainlint enforces two core architectural rules plus a permissive default for s
 
 ## R1 — No import cycles
 
-**Violation code:** `ARCH_IMPORT_CYCLE`
+**Violation code:** `noImportCycle`
 
 Circular dependencies make code harder to reason about, cause runtime issues with module initialization, and block tree-shaking. domainlint builds a directed graph of every local import edge and checks that it is acyclic.
 
@@ -18,7 +18,7 @@ Circular dependencies make code harder to reason about, cause runtime issues wit
 Any strongly connected component with more than one node, or a self-loop (`A → A`), is reported as a cycle.
 
 ```
-src/features/auth/session.ts ARCH_IMPORT_CYCLE
+src/features/auth/session.ts noImportCycle
   Cycle: auth/session.ts → auth/user.ts → auth/session.ts
 ```
 
@@ -32,7 +32,7 @@ src/features/auth/session.ts ARCH_IMPORT_CYCLE
 
 ## R2 — Cross-feature imports must use the barrel
 
-**Violation code:** `ARCH_NO_CROSS_FEATURE_DEEP_IMPORT`
+**Violation code:** `noCrossFeatureDeepImport`
 
 Features expose a public API through a barrel file (`index.ts` by default). Any import that reaches into a feature's internals from outside that feature is a violation.
 
@@ -62,7 +62,7 @@ import { Invoice } from "../features/billing/domain/invoice";
 ```
 
 ```
-src/pages/home.tsx:5:1 ARCH_NO_CROSS_FEATURE_DEEP_IMPORT
+src/pages/home.tsx:5:1 noCrossFeatureDeepImport
   Importing src/features/billing/domain/invoice.ts directly.
   Expected: src/features/billing/index.ts
 ```
