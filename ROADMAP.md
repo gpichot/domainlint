@@ -68,6 +68,21 @@ Built-in rules are refactored to implement the same `Rule` interface used by use
 
 ---
 
+## 6. Switch to oxc parser and resolver
+
+**Status:** done
+**Scope:** `src/parser/oxc-parser.ts`, `src/resolution/module-resolver.ts`
+
+- Replaced SWC (`@swc/core`) with `oxc-parser` for import extraction
+  - Uses `module.staticImports` / `module.staticExports` / `module.dynamicImports` directly — no AST walking needed
+  - Simpler line/column computation (0-based offsets, no cumulative byte correction)
+- Replaced custom `ModuleResolver` with `oxc-resolver` (Rust-native module resolution)
+  - Built-in tsconfig paths, extensions, barrel files, and Node builtin detection
+  - Eliminates manual file-exists probing and custom caching
+- Integration and unit tests converted from memfs to real temp directories (required because oxc-resolver accesses the filesystem from Rust, bypassing Node's fs module)
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)
