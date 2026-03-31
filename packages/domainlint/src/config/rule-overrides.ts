@@ -11,7 +11,8 @@ export function checkRuleOverride(
   ruleName: RuleName,
   filePath: string,
 ): RuleCheckResult {
-  const defaultLevel: RuleLevel = 'error';
+  const defaultLevel: RuleLevel =
+    ruleName === 'no-external-feature-imports' ? 'off' : 'error';
 
   // Normalize file path
   const normalizedPath = filePath.replace(/\\/g, '/');
@@ -22,21 +23,21 @@ export function checkRuleOverride(
 
   let effectiveLevel: RuleLevel = defaultLevel;
 
+  // Apply global overrides first
+  const globalOverride = config.overrides?.global;
+  if (globalOverride?.rules?.[ruleName]) {
+    effectiveLevel = globalOverride.rules[ruleName]!;
+  }
+
   if (isInFeatures) {
     // Extract feature name from path
     const relativePath = normalizedPath.slice(normalizedFeaturesDir.length);
     const featureName = relativePath.split('/')[1]; // Get first segment after features/
 
-    // Check feature-specific overrides
+    // Feature-specific overrides take precedence over global
     const featureOverride = config.overrides?.features?.[featureName];
     if (featureOverride?.rules?.[ruleName]) {
       effectiveLevel = featureOverride.rules[ruleName]!;
-    }
-  } else {
-    // Check global overrides for non-feature files
-    const globalOverride = config.overrides?.global;
-    if (globalOverride?.rules?.[ruleName]) {
-      effectiveLevel = globalOverride.rules[ruleName]!;
     }
   }
 
@@ -55,7 +56,9 @@ export function filterViolationsByOverrides(
       const ruleName: RuleName =
         violation.code === 'noImportCycle'
           ? 'import-cycles'
-          : 'cross-feature-imports';
+          : violation.code === 'noFeatureImportFromNonDomain'
+            ? 'no-external-feature-imports'
+            : 'cross-feature-imports';
 
       const ruleCheck = checkRuleOverride(config, ruleName, violation.file);
 

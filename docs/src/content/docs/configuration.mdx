@@ -58,10 +58,11 @@ Overrides let you change the severity of each rule — or disable it entirely �
 
 ### Rule names
 
-| Rule name | Maps to |
-|-----------|---------|
-| `import-cycles` | R1 — No import cycles |
-| `cross-feature-imports` | R2 — Cross-feature barrel imports |
+| Rule name | Default | Maps to |
+|-----------|---------|---------|
+| `import-cycles` | `"error"` | R1 — No import cycles |
+| `cross-feature-imports` | `"error"` | R2 — Cross-feature barrel imports |
+| `no-external-feature-imports` | `"off"` | Feature files cannot import from outside the features directory |
 
 ### Severity levels
 
@@ -75,7 +76,7 @@ Overrides let you change the severity of each rule — or disable it entirely �
 
 1. **Feature-level** — `overrides.features["<featureName>"].rules` applies to files inside that feature.
 2. **Global** — `overrides.global.rules` applies to all other files.
-3. **Default** — `"error"` if no override matches.
+3. **Default** — `"error"` if no override matches (`"off"` for `no-external-feature-imports`).
 
 ### Examples
 
@@ -127,6 +128,7 @@ const ruleOverrideSchema = z.object({
     .object({
       "import-cycles": z.enum(["off", "warn", "error"]).optional(),
       "cross-feature-imports": z.enum(["off", "warn", "error"]).optional(),
+      "no-external-feature-imports": z.enum(["off", "warn", "error"]).optional(),
     })
     .optional(),
 });

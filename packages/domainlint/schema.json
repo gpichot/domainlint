@@ -56,6 +56,10 @@
                 "cross-feature-imports": {
                   "type": "string",
                   "enum": ["off", "warn", "error"]
+                },
+                "no-external-feature-imports": {
+                  "type": "string",
+                  "enum": ["off", "warn", "error"]
                 }
               },
               "additionalProperties": false
@@ -79,6 +83,10 @@
                     "enum": ["off", "warn", "error"]
                   },
                   "cross-feature-imports": {
+                    "type": "string",
+                    "enum": ["off", "warn", "error"]
+                  },
+                  "no-external-feature-imports": {
                     "type": "string",
                     "enum": ["off", "warn", "error"]
                   }

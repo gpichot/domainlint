@@ -123,7 +123,35 @@ describe('Integration Tests', () => {
     expect(boundaryViolations).toHaveLength(0);
   });
 
-  it('should detect feature imports from non-domain directories', async () => {
+  it('should detect feature imports from non-domain directories when rule is enabled', async () => {
+    createMockFileSystem({
+      '/project/tsconfig.json': JSON.stringify({
+        compilerOptions: { baseUrl: '.' },
+      }),
+      '/project/src/features/auth/domain/user.ts': `import { helper } from '../../../lib/utils';`,
+      '/project/src/lib/utils.ts': `export function helper() {}`,
+    });
+
+    const config = createDefaultConfig({
+      overrides: {
+        global: {
+          rules: { 'no-external-feature-imports': 'error' },
+        },
+      },
+    });
+    const linter = new FeatureBoundariesLinter(config);
+    const result = await linter.lint();
+
+    const nonDomainViolations = result.violations.filter(
+      (v) => v.code === 'noFeatureImportFromNonDomain',
+    );
+    expect(nonDomainViolations.length).toBeGreaterThan(0);
+    expect(nonDomainViolations[0].message).toContain(
+      'Feature files cannot import from non-domain directories',
+    );
+  });
+
+  it('should not report feature imports from non-domain directories by default', async () => {
     createMockFileSystem({
       '/project/tsconfig.json': JSON.stringify({
         compilerOptions: { baseUrl: '.' },
@@ -139,10 +167,7 @@ describe('Integration Tests', () => {
     const nonDomainViolations = result.violations.filter(
       (v) => v.code === 'noFeatureImportFromNonDomain',
     );
-    expect(nonDomainViolations.length).toBeGreaterThan(0);
-    expect(nonDomainViolations[0].message).toContain(
-      'Feature files cannot import from non-domain directories',
-    );
+    expect(nonDomainViolations).toHaveLength(0);
   });
 
   it('should allow feature imports from within same feature', async () => {

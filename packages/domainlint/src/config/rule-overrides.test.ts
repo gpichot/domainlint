@@ -36,6 +36,18 @@ describe('Rule Overrides', () => {
       });
     });
 
+    it('should return off by default for no-external-feature-imports', () => {
+      const result = checkRuleOverride(
+        baseConfig,
+        'no-external-feature-imports',
+        '/project/src/features/auth/user.ts',
+      );
+      expect(result).toEqual({
+        shouldRun: false,
+        level: 'off',
+      });
+    });
+
     it('should apply global overrides for non-feature files', () => {
       const config = {
         ...baseConfig,
