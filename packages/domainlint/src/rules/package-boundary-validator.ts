@@ -48,11 +48,13 @@ export function validatePackageBoundaries(
   }
 
   // Build a map: file path → which package it belongs to (relative path)
+  // Use pkg.path + '/' to avoid prefix collisions (e.g., core vs core-utils)
   const fileToPackageRelPath = new Map<string, string>();
   for (const pkg of packages) {
     const relPath = relative(workspaceRoot, pkg.path);
+    const prefix = `${pkg.path}/`;
     for (const filePath of fileImports.keys()) {
-      if (filePath.startsWith(pkg.path)) {
+      if (filePath.startsWith(prefix)) {
         fileToPackageRelPath.set(filePath, relPath);
       }
     }

@@ -77,7 +77,6 @@ export interface FeatureBoundariesConfig {
     global?: RuleOverride;
     features?: Record<string, RuleOverride>;
   };
-  packageRules?: PackageRule[];
 }
 
 export interface ConfigOverrides {

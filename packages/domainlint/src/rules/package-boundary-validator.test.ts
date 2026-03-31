@@ -244,6 +244,61 @@ describe('validatePackageBoundaries', () => {
     expect(violations[1].file).toBe('/workspace/packages/core/src/b.ts');
   });
 
+  it('attributes files to correct package when paths share a prefix', () => {
+    const prefixPackages: WorkspacePackage[] = [
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+      { path: '/workspace/packages/core-utils', name: '@myorg/core-utils' },
+    ];
+
+    const rules: PackageRule[] = [
+      { from: 'packages/core', deny: ['packages/core-utils'] },
+    ];
+
+    // File in core-utils importing core should NOT trigger the rule
+    // (rule applies to core, not core-utils)
+    const violations = validatePackageBoundaries({
+      workspaceRoot: '/workspace',
+      packages: prefixPackages,
+      packageRules: rules,
+      fileImports: new Map([
+        [
+          '/workspace/packages/core-utils/src/helper.ts',
+          [makeImport('@myorg/core')],
+        ],
+      ]),
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('reports violation for correct package with prefix collision', () => {
+    const prefixPackages: WorkspacePackage[] = [
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+      { path: '/workspace/packages/core-utils', name: '@myorg/core-utils' },
+    ];
+
+    const rules: PackageRule[] = [
+      { from: 'packages/core', deny: ['packages/core-utils'] },
+    ];
+
+    // File in core importing core-utils SHOULD trigger the rule
+    const violations = validatePackageBoundaries({
+      workspaceRoot: '/workspace',
+      packages: prefixPackages,
+      packageRules: rules,
+      fileImports: new Map([
+        [
+          '/workspace/packages/core/src/index.ts',
+          [makeImport('@myorg/core-utils')],
+        ],
+      ]),
+    });
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0].message).toContain('"packages/core"');
+    expect(violations[0].message).toContain('"packages/core-utils"');
+  });
+
   it('handles files not belonging to any package', () => {
     const rules: PackageRule[] = [
       { from: 'packages/core', deny: ['packages/feature-*'] },
