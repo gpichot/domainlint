@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.6.1...domainlint-v0.7.0) (2026-04-02)
+
+
+### Features
+
+* add no-external-feature-imports rule with off-by-default configuration ([#51](https://github.com/gpichot/domainlint/issues/51)) ([2ef7f99](https://github.com/gpichot/domainlint/commit/2ef7f99b35720e406cb7c1970395664af92ca6d4))
+* **rules:** add cross-package import rules for monorepos ([#45](https://github.com/gpichot/domainlint/issues/45)) ([ddce076](https://github.com/gpichot/domainlint/commit/ddce07630bc35a8248857a58be070c5b3f0c991c))
+
 ## [0.6.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.6.0...domainlint-v0.6.1) (2026-03-17)
 
 
