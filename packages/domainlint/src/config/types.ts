@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-export type RuleName = 'import-cycles' | 'cross-feature-imports';
+export type RuleName =
+  | 'import-cycles'
+  | 'cross-feature-imports'
+  | 'no-external-feature-imports';
 export type RuleLevel = 'off' | 'warn' | 'error';
 
 export interface RuleOverride {
@@ -12,6 +15,9 @@ const ruleOverrideSchema = z.object({
     .object({
       'import-cycles': z.enum(['off', 'warn', 'error']).optional(),
       'cross-feature-imports': z.enum(['off', 'warn', 'error']).optional(),
+      'no-external-feature-imports': z
+        .enum(['off', 'warn', 'error'])
+        .optional(),
     })
     .optional(),
 });
