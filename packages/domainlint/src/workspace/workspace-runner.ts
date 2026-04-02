@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { glob } from 'glob';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { loadConfig } from '../config/config-loader.js';
 import type {
@@ -13,12 +12,12 @@ import {
   FeatureBoundariesLinter,
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
-import { parseFile } from '../parser/swc-parser.js';
 import type { ImportInfo } from '../parser/types.js';
 import { packageCycleRule } from '../rules/package-cycle-detector.js';
 import { packageImportDenyRule } from '../rules/package-import-deny-rule.js';
 import {
   buildPackageImportEdges,
+  buildPackageJsonEdges,
   loadWorkspaceRules,
   runWorkspaceRules,
   type WorkspaceRule,
@@ -83,7 +82,7 @@ export async function runWorkspaceLint(
     packageResults.push(pkgResult);
   }
 
-  // Run workspace-level rules using parse results from per-package linting
+  // Run workspace-level rules
   const packageBoundaryViolations = await runWorkspaceLevelRules(
     workspace,
     packageResults,
@@ -111,9 +110,14 @@ export async function runWorkspaceLint(
 
 /**
  * Runs all workspace-level rules: built-in (deny, cycles) and custom.
- * Reuses parse results from per-package linting when available,
- * and parses skipped packages separately so they still participate
- * in cross-package analysis (e.g., cycle detection).
+ *
+ * Edges come from two sources:
+ * 1. package.json dependencies — always available, covers all packages
+ * 2. Source-level imports — from non-skipped packages' parse results
+ *
+ * Source-level edges provide file/line precision for deny-rule violations.
+ * package.json edges ensure cycle detection works even when packages are
+ * skipped (no featuresDir).
  */
 async function runWorkspaceLevelRules(
   workspace: WorkspaceInfo,
@@ -125,39 +129,41 @@ async function runWorkspaceLevelRules(
     configPath,
   );
 
-  // Extract file imports from per-package parse results
+  // Source 1: package.json deps (always works, all packages)
+  const pkgJsonEdges = await buildPackageJsonEdges(
+    workspace.root,
+    workspace.packages,
+  );
+
+  // Source 2: source-level imports from non-skipped packages (file-level precision)
   const fileImports = new Map<string, ImportInfo[]>();
   for (const pkgResult of packageResults) {
-    if (!pkgResult.skipped) {
-      for (const parseResult of pkgResult.result.parseResults) {
-        if (parseResult.imports.length > 0) {
-          fileImports.set(parseResult.filePath, parseResult.imports);
-        }
+    if (pkgResult.skipped) continue;
+    for (const parseResult of pkgResult.result.parseResults) {
+      if (parseResult.imports.length > 0) {
+        fileImports.set(parseResult.filePath, parseResult.imports);
       }
     }
   }
-
-  // Parse skipped packages so they participate in workspace-level rules
-  const skippedPackages = packageResults
-    .filter((r) => r.skipped)
-    .map((r) => workspace.packages.find((p) => p.path === r.path))
-    .filter((p): p is WorkspacePackage => p !== undefined);
-
-  if (skippedPackages.length > 0) {
-    const skippedImports = await parseSkippedPackages(skippedPackages);
-    for (const [filePath, imports] of skippedImports) {
-      fileImports.set(filePath, imports);
-    }
-  }
-
-  // Build cross-package import edges
-  const edges = buildPackageImportEdges(
+  const sourceEdges = buildPackageImportEdges(
     workspace.root,
     workspace.packages,
     fileImports,
   );
 
-  // If no edges and no deny rules, skip
+  // Merge edges: source-level edges take priority (file/line precision),
+  // package.json edges fill in for skipped packages.
+  // Deduplicate by (fromPackage, toPackage) — keep source edges when available.
+  const sourceEdgePairs = new Set(
+    sourceEdges.map((e) => `${e.fromPackage}::${e.toPackage}`),
+  );
+  const edges = [
+    ...sourceEdges,
+    ...pkgJsonEdges.filter(
+      (e) => !sourceEdgePairs.has(`${e.fromPackage}::${e.toPackage}`),
+    ),
+  ];
+
   if (edges.length === 0 && packageRules.length === 0) {
     return [];
   }
@@ -214,72 +220,6 @@ async function loadWorkspaceConfig(
   }
 
   return { packageRules: [] };
-}
-
-/**
- * Parses source files in skipped packages to collect import specifiers.
- * This ensures skipped packages (e.g., missing featuresDir) still participate
- * in workspace-level rules like cycle detection.
- */
-async function parseSkippedPackages(
-  packages: WorkspacePackage[],
-): Promise<Map<string, ImportInfo[]>> {
-  const fileImports = new Map<string, ImportInfo[]>();
-  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
-
-  for (const pkg of packages) {
-    // Try common source directories
-    const srcDirs = ['src', 'lib', '.'];
-    for (const srcDir of srcDirs) {
-      const cwd = join(pkg.path, srcDir);
-      const patterns = extensions.map((ext) => `**/*${ext}`);
-      const files: string[] = [];
-
-      for (const pattern of patterns) {
-        try {
-          const matches = await glob(pattern, {
-            cwd,
-            absolute: true,
-            nodir: true,
-            ignore: ['**/node_modules/**', '**/dist/**'],
-          });
-          files.push(...matches);
-        } catch {
-          // Directory doesn't exist, skip
-        }
-      }
-
-      if (files.length === 0) continue;
-
-      // Minimal config for parsing
-      const parseConfig = {
-        rootDir: pkg.path,
-        srcDir: cwd,
-        featuresDir: join(pkg.path, '__unused__'),
-        barrelFiles: ['index.ts'],
-        extensions,
-        tsconfigPath: join(pkg.path, 'tsconfig.json'),
-        exclude: ['**/node_modules/**', '**/dist/**'],
-        includeDynamicImports: false,
-      };
-
-      for (const filePath of files) {
-        try {
-          const result = await parseFile(filePath, parseConfig);
-          if (result.imports.length > 0) {
-            fileImports.set(filePath, result.imports);
-          }
-        } catch {
-          // Skip files that fail to parse
-        }
-      }
-
-      // Found source files in this directory, don't try other srcDirs
-      break;
-    }
-  }
-
-  return fileImports;
 }
 
 async function lintPackage(

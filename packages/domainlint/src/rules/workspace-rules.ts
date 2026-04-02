@@ -1,5 +1,5 @@
-import { access } from 'node:fs/promises';
-import { relative, resolve } from 'node:path';
+import { access, readFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { PackageImportRestriction } from '../config/types.js';
 import type { Violation } from '../graph/types.js';
@@ -105,6 +105,62 @@ export function buildPackageImportEdges(
         line: imp.line,
         col: imp.col,
       });
+    }
+  }
+
+  return edges;
+}
+
+/**
+ * Builds cross-package edges from package.json dependencies.
+ * Reads dependencies, devDependencies, and peerDependencies from each
+ * package's package.json and creates edges for any that reference
+ * another workspace package. This works regardless of source layout.
+ */
+export async function buildPackageJsonEdges(
+  workspaceRoot: string,
+  packages: WorkspacePackage[],
+): Promise<PackageImportEdge[]> {
+  const edges: PackageImportEdge[] = [];
+
+  const packageNames = new Set(packages.map((p) => p.name));
+  const packageNameToRelPath = new Map<string, string>();
+  for (const pkg of packages) {
+    packageNameToRelPath.set(pkg.name, relative(workspaceRoot, pkg.path));
+  }
+
+  for (const pkg of packages) {
+    const pkgJsonPath = join(pkg.path, 'package.json');
+    let pkgJson: Record<string, unknown>;
+    try {
+      const content = await readFile(pkgJsonPath, 'utf-8');
+      pkgJson = JSON.parse(content);
+    } catch {
+      continue;
+    }
+
+    const fromPackage = relative(workspaceRoot, pkg.path);
+    const depFields = ['dependencies', 'devDependencies', 'peerDependencies'];
+
+    for (const field of depFields) {
+      const deps = pkgJson[field];
+      if (!deps || typeof deps !== 'object') continue;
+
+      for (const depName of Object.keys(deps as Record<string, unknown>)) {
+        if (!packageNames.has(depName)) continue;
+
+        const toPackage = packageNameToRelPath.get(depName);
+        if (!toPackage || toPackage === fromPackage) continue;
+
+        edges.push({
+          fromPackage,
+          toPackage,
+          file: pkgJsonPath,
+          specifier: depName,
+          line: 1,
+          col: 1,
+        });
+      }
     }
   }
 

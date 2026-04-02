@@ -1,11 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { vol } from 'memfs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImportInfo } from '../parser/types.js';
 import type { WorkspacePackage } from '../workspace/workspace-detector.js';
 import {
   buildPackageImportEdges,
+  buildPackageJsonEdges,
   runWorkspaceRules,
   type WorkspaceRule,
 } from './workspace-rules.js';
+
+vi.mock('node:fs/promises', async () => {
+  const memfs = await import('memfs');
+  return memfs.fs.promises;
+});
+
+beforeEach(() => vol.reset());
 
 const packages: WorkspacePackage[] = [
   { path: '/workspace/packages/core', name: '@myorg/core' },
@@ -98,6 +107,121 @@ describe('buildPackageImportEdges', () => {
     expect(edges).toHaveLength(1);
     expect(edges[0].fromPackage).toBe('packages/core-utils');
     expect(edges[0].toPackage).toBe('packages/core');
+  });
+});
+
+describe('buildPackageJsonEdges', () => {
+  it('builds edges from package.json dependencies', async () => {
+    vol.fromJSON({
+      '/workspace/packages/core/package.json': JSON.stringify({
+        name: '@myorg/core',
+        dependencies: { '@myorg/shared': '^1.0.0' },
+      }),
+      '/workspace/packages/shared/package.json': JSON.stringify({
+        name: '@myorg/shared',
+      }),
+    });
+
+    const pkgs: WorkspacePackage[] = [
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+      { path: '/workspace/packages/shared', name: '@myorg/shared' },
+    ];
+
+    const edges = await buildPackageJsonEdges('/workspace', pkgs);
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0].fromPackage).toBe('packages/core');
+    expect(edges[0].toPackage).toBe('packages/shared');
+    expect(edges[0].file).toBe('/workspace/packages/core/package.json');
+    expect(edges[0].specifier).toBe('@myorg/shared');
+  });
+
+  it('reads devDependencies and peerDependencies', async () => {
+    vol.fromJSON({
+      '/workspace/packages/app/package.json': JSON.stringify({
+        name: '@myorg/app',
+        devDependencies: { '@myorg/test-utils': '^1.0.0' },
+        peerDependencies: { '@myorg/core': '^1.0.0' },
+      }),
+      '/workspace/packages/core/package.json': JSON.stringify({
+        name: '@myorg/core',
+      }),
+      '/workspace/packages/test-utils/package.json': JSON.stringify({
+        name: '@myorg/test-utils',
+      }),
+    });
+
+    const pkgs: WorkspacePackage[] = [
+      { path: '/workspace/packages/app', name: '@myorg/app' },
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+      { path: '/workspace/packages/test-utils', name: '@myorg/test-utils' },
+    ];
+
+    const edges = await buildPackageJsonEdges('/workspace', pkgs);
+
+    expect(edges).toHaveLength(2);
+    const targets = edges.map((e) => e.toPackage).sort();
+    expect(targets).toEqual(['packages/core', 'packages/test-utils']);
+  });
+
+  it('ignores external dependencies', async () => {
+    vol.fromJSON({
+      '/workspace/packages/core/package.json': JSON.stringify({
+        name: '@myorg/core',
+        dependencies: { lodash: '^4.0.0', react: '^18.0.0' },
+      }),
+    });
+
+    const pkgs: WorkspacePackage[] = [
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+    ];
+
+    const edges = await buildPackageJsonEdges('/workspace', pkgs);
+
+    expect(edges).toEqual([]);
+  });
+
+  it('ignores self-dependencies', async () => {
+    vol.fromJSON({
+      '/workspace/packages/core/package.json': JSON.stringify({
+        name: '@myorg/core',
+        dependencies: { '@myorg/core': '^1.0.0' },
+      }),
+    });
+
+    const pkgs: WorkspacePackage[] = [
+      { path: '/workspace/packages/core', name: '@myorg/core' },
+    ];
+
+    const edges = await buildPackageJsonEdges('/workspace', pkgs);
+
+    expect(edges).toEqual([]);
+  });
+
+  it('detects a cycle via package.json deps', async () => {
+    vol.fromJSON({
+      '/workspace/packages/a/package.json': JSON.stringify({
+        name: '@myorg/a',
+        dependencies: { '@myorg/b': '^1.0.0' },
+      }),
+      '/workspace/packages/b/package.json': JSON.stringify({
+        name: '@myorg/b',
+        dependencies: { '@myorg/a': '^1.0.0' },
+      }),
+    });
+
+    const pkgs: WorkspacePackage[] = [
+      { path: '/workspace/packages/a', name: '@myorg/a' },
+      { path: '/workspace/packages/b', name: '@myorg/b' },
+    ];
+
+    const edges = await buildPackageJsonEdges('/workspace', pkgs);
+
+    expect(edges).toHaveLength(2);
+    expect(edges[0].fromPackage).toBe('packages/a');
+    expect(edges[0].toPackage).toBe('packages/b');
+    expect(edges[1].fromPackage).toBe('packages/b');
+    expect(edges[1].toPackage).toBe('packages/a');
   });
 });
 
