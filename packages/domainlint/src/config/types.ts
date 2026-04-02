@@ -10,7 +10,7 @@ export interface RuleOverride {
   rules?: Partial<Record<RuleName, RuleLevel>>;
 }
 
-export interface PackageRule {
+export interface PackageImportRestriction {
   /** Glob pattern matching source package paths (relative to workspace root) */
   from: string;
   /** Glob patterns for packages that `from` is not allowed to import */
@@ -59,6 +59,7 @@ export const configFileSchema = z.object({
     })
     .optional(),
   packageRules: z.array(packageRuleSchema).optional(),
+  packageRulesFile: z.string().optional(),
 });
 
 export type ConfigFile = z.infer<typeof configFileSchema>;

@@ -1,7 +1,10 @@
 export { run } from '@oclif/core';
 export { loadConfig } from './config/config-loader.js';
 // Re-export main types for external usage
-export type { FeatureBoundariesConfig, PackageRule } from './config/types.js';
+export type {
+  FeatureBoundariesConfig,
+  PackageImportRestriction,
+} from './config/types.js';
 export { GraphQuery } from './graph/graph-query.js';
 export type {
   DependencyEdge,
@@ -18,6 +21,14 @@ export type {
   RuleContext,
   RuleResult,
 } from './rules/rules.js';
+// Workspace rules API
+export type {
+  PackageImportEdge,
+  WorkspacePackageInfo,
+  WorkspaceRule,
+  WorkspaceRuleContext,
+  WorkspaceRuleResult,
+} from './rules/workspace-rules.js';
 export type {
   WorkspaceInfo,
   WorkspacePackage,

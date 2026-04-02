@@ -1,9 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { glob } from 'glob';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { loadConfig } from '../config/config-loader.js';
-import type { ConfigOverrides, PackageRule } from '../config/types.js';
+import type {
+  ConfigOverrides,
+  PackageImportRestriction,
+} from '../config/types.js';
 import { configFileSchema } from '../config/types.js';
 import type { Violation } from '../graph/types.js';
 import {
@@ -12,7 +15,14 @@ import {
 } from '../linter/feature-boundaries-linter.js';
 import { parseFile } from '../parser/swc-parser.js';
 import type { ImportInfo } from '../parser/types.js';
-import { validatePackageBoundaries } from '../rules/package-boundary-validator.js';
+import { packageCycleRule } from '../rules/package-cycle-detector.js';
+import { packageImportDenyRule } from '../rules/package-import-deny-rule.js';
+import {
+  buildPackageImportEdges,
+  loadWorkspaceRules,
+  runWorkspaceRules,
+  type WorkspaceRule,
+} from '../rules/workspace-rules.js';
 import type { WorkspaceInfo, WorkspacePackage } from './workspace-detector.js';
 
 export interface WorkspacePackageResult {
@@ -41,7 +51,7 @@ export interface WorkspaceLintResult {
   totalFileCount: number;
   /** Whether any violations were found */
   hasViolations: boolean;
-  /** Violations from cross-package import rules */
+  /** Violations from workspace-level rules (cross-package imports, cycles, custom) */
   packageBoundaryViolations?: Violation[];
 }
 
@@ -55,7 +65,7 @@ const EMPTY_RESULT: LintResult = {
 /**
  * Runs domainlint on each package in a workspace.
  * Each package is linted independently with its own config.
- * Also checks cross-package import rules if configured.
+ * Also runs workspace-level rules (package imports, cycles, custom rules).
  */
 export async function runWorkspaceLint(
   workspace: WorkspaceInfo,
@@ -72,18 +82,11 @@ export async function runWorkspaceLint(
     packageResults.push(pkgResult);
   }
 
-  // Check cross-package import rules
-  const packageRules = await loadPackageRules(
-    workspace.root,
+  // Run workspace-level rules
+  const packageBoundaryViolations = await runWorkspaceLevelRules(
+    workspace,
     options.configPath,
   );
-  let packageBoundaryViolations: Violation[] = [];
-  if (packageRules.length > 0) {
-    packageBoundaryViolations = await checkPackageBoundaries(
-      workspace,
-      packageRules,
-    );
-  }
 
   const totalTimeMs = Date.now() - startTime;
   const totalFileCount = packageResults
@@ -105,12 +108,65 @@ export async function runWorkspaceLint(
 }
 
 /**
- * Loads packageRules from the workspace root domainlint.json.
+ * Runs all workspace-level rules: built-in (deny, cycles) and custom.
  */
-async function loadPackageRules(
+async function runWorkspaceLevelRules(
+  workspace: WorkspaceInfo,
+  configPath?: string,
+): Promise<Violation[]> {
+  const { packageRules, packageRulesFile } = await loadWorkspaceConfig(
+    workspace.root,
+    configPath,
+  );
+
+  // Collect all file imports across packages
+  const fileImports = await collectPackageImports(workspace);
+
+  // Build cross-package import edges
+  const edges = buildPackageImportEdges(
+    workspace.root,
+    workspace.packages,
+    fileImports,
+  );
+
+  // If no edges and no deny rules, skip
+  if (edges.length === 0 && packageRules.length === 0) {
+    return [];
+  }
+
+  // Build package info with relative paths
+  const packages = workspace.packages.map((pkg) => ({
+    name: pkg.name,
+    path: pkg.path,
+    relPath: relative(workspace.root, pkg.path),
+  }));
+
+  // Assemble rules: built-in + custom
+  const builtInRules: WorkspaceRule[] = [
+    packageImportDenyRule,
+    packageCycleRule,
+  ];
+
+  const customRules = await loadWorkspaceRules(
+    workspace.root,
+    packageRulesFile,
+  );
+
+  const allRules = [...builtInRules, ...customRules];
+
+  return runWorkspaceRules(allRules, { packages, edges, packageRules });
+}
+
+/**
+ * Loads workspace config (packageRules and packageRulesFile) from workspace root.
+ */
+async function loadWorkspaceConfig(
   workspaceRoot: string,
   configPath?: string,
-): Promise<PackageRule[]> {
+): Promise<{
+  packageRules: PackageImportRestriction[];
+  packageRulesFile?: string;
+}> {
   const configFiles = configPath
     ? [configPath]
     : ['domainlint.json', '.domainlint.json'];
@@ -120,27 +176,27 @@ async function loadPackageRules(
       const content = await readFile(join(workspaceRoot, configFile), 'utf-8');
       const parsed = parseJsonc(content);
       const validated = configFileSchema.parse(parsed);
-      return validated.packageRules ?? [];
+      return {
+        packageRules: validated.packageRules ?? [],
+        packageRulesFile: validated.packageRulesFile,
+      };
     } catch {
       // Continue to next config file
     }
   }
 
-  return [];
+  return { packageRules: [] };
 }
 
 /**
- * Collects imports from all source files across workspace packages
- * and checks them against package boundary rules.
+ * Collects import specifiers from all source files across workspace packages.
  */
-async function checkPackageBoundaries(
+async function collectPackageImports(
   workspace: WorkspaceInfo,
-  packageRules: PackageRule[],
-): Promise<Violation[]> {
+): Promise<Map<string, ImportInfo[]>> {
   const fileImports = new Map<string, ImportInfo[]>();
   const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
 
-  // Minimal config for parsing (we only need the imports)
   const parseConfig = {
     rootDir: workspace.root,
     srcDir: workspace.root,
@@ -153,7 +209,6 @@ async function checkPackageBoundaries(
   };
 
   for (const pkg of workspace.packages) {
-    // Discover source files in the package
     const patterns = extensions.map((ext) => `**/*${ext}`);
     const files: string[] = [];
     for (const pattern of patterns) {
@@ -166,7 +221,6 @@ async function checkPackageBoundaries(
       files.push(...matches);
     }
 
-    // Parse each file for imports
     for (const filePath of files) {
       try {
         const result = await parseFile(filePath, parseConfig);
@@ -179,12 +233,7 @@ async function checkPackageBoundaries(
     }
   }
 
-  return validatePackageBoundaries({
-    workspaceRoot: workspace.root,
-    packages: workspace.packages,
-    packageRules,
-    fileImports,
-  });
+  return fileImports;
 }
 
 async function lintPackage(
@@ -213,7 +262,6 @@ async function lintPackage(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Detect srcDir/featuresDir not found as a skip reason
     const isMissingDir =
       message.includes('"srcDir" does not exist') ||
       message.includes('"featuresDir" does not exist');

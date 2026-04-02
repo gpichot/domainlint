@@ -121,6 +121,9 @@
         "required": ["from", "deny"],
         "additionalProperties": false
       }
+    },
+    "packageRulesFile": {
+      "type": "string"
     }
   },
   "additionalProperties": false

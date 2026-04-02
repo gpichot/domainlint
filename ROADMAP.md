@@ -83,18 +83,28 @@ Built-in rules are refactored to implement the same `Rule` interface used by use
 
 ---
 
-## 7. Monorepo package import rules
+## 7. Monorepo workspace rules
 
 **Status:** done
-**Scope:** `src/config/types.ts`, `src/rules/package-boundary-validator.ts`, `src/workspace/workspace-runner.ts`
+**Scope:** `src/rules/workspace-rules.ts`, `src/rules/package-import-deny-rule.ts`, `src/rules/package-cycle-detector.ts`, `src/workspace/workspace-runner.ts`
 
-- Configure `packageRules` in the workspace root `domainlint.json` to restrict cross-package imports
-- Rules use glob patterns on package paths (relative to workspace root)
-- Example: `{ "from": "packages/core", "deny": ["packages/feature-*"] }` prevents core from importing feature packages
-- Supports glob patterns in both `from` and `deny` fields
-- Handles exact and subpath imports (e.g., `@myorg/feature-auth/utils`)
-- Violation code: `ARCH_NO_PACKAGE_IMPORT`
-- Runs automatically in workspace mode after individual package linting
+Workspace-level rules follow the same `Rule` interface pattern as module-level rules. Two built-in rules are provided, and users can add custom workspace rules.
+
+### Built-in workspace rules
+
+- **Package import deny** (`noPackageImport`): Configure `packageRules` in workspace root `domainlint.json` to restrict cross-package imports using glob patterns
+- **Package cycle detection** (`noPackageCycle`): Automatically detects circular dependencies between workspace packages
+
+### Custom workspace rules
+
+Users can export `workspaceRules: WorkspaceRule[]` from `domainlint.rules.ts` (or a file configured via `packageRulesFile`). Each rule receives `WorkspaceRuleContext` with cross-package import edges, package info, and `emitViolation`.
+
+### Architecture
+
+- `WorkspaceRule` interface mirrors the module-level `Rule` interface (`name` + `check(context)`)
+- `buildPackageImportEdges()` builds a cross-package import graph from parsed file imports
+- `runWorkspaceRules()` executes all rules (built-in + custom) against the workspace graph
+- Package matching uses trailing separators to avoid path prefix collisions
 
 ---
 
