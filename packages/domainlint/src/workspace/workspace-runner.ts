@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { glob } from 'glob';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { loadConfig } from '../config/config-loader.js';
 import type {
@@ -13,7 +12,6 @@ import {
   FeatureBoundariesLinter,
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
-import { parseFile } from '../parser/swc-parser.js';
 import type { ImportInfo } from '../parser/types.js';
 import { packageCycleRule } from '../rules/package-cycle-detector.js';
 import { packageImportDenyRule } from '../rules/package-import-deny-rule.js';
@@ -60,6 +58,7 @@ const EMPTY_RESULT: LintResult = {
   fileCount: 0,
   analysisTimeMs: 0,
   dependencyGraph: { nodes: new Set(), edges: [], adjacencyList: new Map() },
+  parseResults: [],
 };
 
 /**
@@ -82,9 +81,10 @@ export async function runWorkspaceLint(
     packageResults.push(pkgResult);
   }
 
-  // Run workspace-level rules
+  // Run workspace-level rules using parse results from per-package linting
   const packageBoundaryViolations = await runWorkspaceLevelRules(
     workspace,
+    packageResults,
     options.configPath,
   );
 
@@ -109,9 +109,11 @@ export async function runWorkspaceLint(
 
 /**
  * Runs all workspace-level rules: built-in (deny, cycles) and custom.
+ * Reuses parse results from per-package linting instead of re-parsing files.
  */
 async function runWorkspaceLevelRules(
   workspace: WorkspaceInfo,
+  packageResults: WorkspacePackageResult[],
   configPath?: string,
 ): Promise<Violation[]> {
   const { packageRules, packageRulesFile } = await loadWorkspaceConfig(
@@ -119,8 +121,16 @@ async function runWorkspaceLevelRules(
     configPath,
   );
 
-  // Collect all file imports across packages
-  const fileImports = await collectPackageImports(workspace);
+  // Extract file imports from per-package parse results (no re-parsing needed)
+  const fileImports = new Map<string, ImportInfo[]>();
+  for (const pkgResult of packageResults) {
+    if (pkgResult.skipped) continue;
+    for (const parseResult of pkgResult.result.parseResults) {
+      if (parseResult.imports.length > 0) {
+        fileImports.set(parseResult.filePath, parseResult.imports);
+      }
+    }
+  }
 
   // Build cross-package import edges
   const edges = buildPackageImportEdges(
@@ -186,54 +196,6 @@ async function loadWorkspaceConfig(
   }
 
   return { packageRules: [] };
-}
-
-/**
- * Collects import specifiers from all source files across workspace packages.
- */
-async function collectPackageImports(
-  workspace: WorkspaceInfo,
-): Promise<Map<string, ImportInfo[]>> {
-  const fileImports = new Map<string, ImportInfo[]>();
-  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs'];
-
-  const parseConfig = {
-    rootDir: workspace.root,
-    srcDir: workspace.root,
-    featuresDir: `${workspace.root}/__unused__`,
-    barrelFiles: ['index.ts'],
-    extensions,
-    tsconfigPath: `${workspace.root}/tsconfig.json`,
-    exclude: ['**/node_modules/**', '**/dist/**'],
-    includeDynamicImports: false,
-  };
-
-  for (const pkg of workspace.packages) {
-    const patterns = extensions.map((ext) => `**/*${ext}`);
-    const files: string[] = [];
-    for (const pattern of patterns) {
-      const matches = await glob(pattern, {
-        cwd: join(pkg.path, 'src'),
-        absolute: true,
-        nodir: true,
-        ignore: ['**/node_modules/**', '**/dist/**'],
-      });
-      files.push(...matches);
-    }
-
-    for (const filePath of files) {
-      try {
-        const result = await parseFile(filePath, parseConfig);
-        if (result.imports.length > 0) {
-          fileImports.set(filePath, result.imports);
-        }
-      } catch {
-        // Skip files that fail to parse
-      }
-    }
-  }
-
-  return fileImports;
 }
 
 async function lintPackage(

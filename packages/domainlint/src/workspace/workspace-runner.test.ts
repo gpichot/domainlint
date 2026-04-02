@@ -82,6 +82,7 @@ describe('runWorkspaceLint', () => {
         edges: [],
         adjacencyList: new Map(),
       },
+      parseResults: [],
     };
 
     getLintMock().mockResolvedValue(mockLintResult);
@@ -128,6 +129,7 @@ describe('runWorkspaceLint', () => {
           edges: [],
           adjacencyList: new Map(),
         },
+        parseResults: [],
       })
       .mockResolvedValueOnce({
         violations: [],
@@ -138,6 +140,7 @@ describe('runWorkspaceLint', () => {
           edges: [],
           adjacencyList: new Map(),
         },
+        parseResults: [],
       });
 
     const result = await runWorkspaceLint(workspace);
@@ -180,6 +183,7 @@ describe('runWorkspaceLint', () => {
         edges: [],
         adjacencyList: new Map(),
       },
+      parseResults: [],
     });
 
     const singlePkgWorkspace: WorkspaceInfo = {
