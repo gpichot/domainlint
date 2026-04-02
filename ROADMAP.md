@@ -83,6 +83,31 @@ Built-in rules are refactored to implement the same `Rule` interface used by use
 
 ---
 
+## 7. Monorepo workspace rules
+
+**Status:** done
+**Scope:** `src/rules/workspace-rules.ts`, `src/rules/package-import-deny-rule.ts`, `src/rules/package-cycle-detector.ts`, `src/workspace/workspace-runner.ts`
+
+Workspace-level rules follow the same `Rule` interface pattern as module-level rules. Two built-in rules are provided, and users can add custom workspace rules.
+
+### Built-in workspace rules
+
+- **Package import deny** (`noPackageImport`): Configure `packageRules` in workspace root `domainlint.json` to restrict cross-package imports using glob patterns
+- **Package cycle detection** (`noPackageCycle`): Automatically detects circular dependencies between workspace packages
+
+### Custom workspace rules
+
+Users can export `workspaceRules: WorkspaceRule[]` from `domainlint.rules.ts` (or a file configured via `packageRulesFile`). Each rule receives `WorkspaceRuleContext` with cross-package import edges, package info, and `emitViolation`.
+
+### Architecture
+
+- `WorkspaceRule` interface mirrors the module-level `Rule` interface (`name` + `check(context)`)
+- `buildPackageImportEdges()` builds a cross-package import graph from parsed file imports
+- `runWorkspaceRules()` executes all rules (built-in + custom) against the workspace graph
+- Package matching uses trailing separators to avoid path prefix collisions
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)

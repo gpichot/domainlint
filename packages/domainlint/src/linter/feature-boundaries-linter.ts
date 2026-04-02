@@ -5,6 +5,7 @@ import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
 import { GraphQuery } from '../graph/graph-query.js';
 import type { Violation } from '../graph/types.js';
 import { parseFile } from '../parser/oxc-parser.js';
+import type { ParseResult } from '../parser/types.js';
 import { cycleRule } from '../rules/cycle-detector.js';
 import { featureBoundaryRule } from '../rules/feature-boundary-validator.js';
 import {
@@ -20,6 +21,8 @@ export interface LintResult {
   fileCount: number;
   analysisTimeMs: number;
   dependencyGraph: import('../graph/types.js').DependencyGraph;
+  /** Raw parse results with all import specifiers (including external packages) */
+  parseResults: ParseResult[];
 }
 
 export class FeatureBoundariesLinter {
@@ -72,6 +75,7 @@ export class FeatureBoundariesLinter {
         fileCount: files.length,
         analysisTimeMs: endTime - startTime,
         dependencyGraph: graph,
+        parseResults,
       };
     } catch (error) {
       throw new Error(

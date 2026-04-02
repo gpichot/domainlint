@@ -10,6 +10,13 @@ export interface RuleOverride {
   rules?: Partial<Record<RuleName, RuleLevel>>;
 }
 
+export interface PackageImportRestriction {
+  /** Glob pattern matching source package paths (relative to workspace root) */
+  from: string;
+  /** Glob patterns for packages that `from` is not allowed to import */
+  deny: string[];
+}
+
 const ruleOverrideSchema = z.object({
   rules: z
     .object({
@@ -20,6 +27,13 @@ const ruleOverrideSchema = z.object({
         .optional(),
     })
     .optional(),
+});
+
+const packageRuleSchema = z.object({
+  from: z.string().min(1, '"from" must be a non-empty string'),
+  deny: z
+    .array(z.string().min(1, '"deny" entries must be non-empty strings'))
+    .min(1, '"deny" must have at least one entry'),
 });
 
 export const configFileSchema = z.object({
@@ -44,6 +58,8 @@ export const configFileSchema = z.object({
       features: z.record(z.string(), ruleOverrideSchema).optional(),
     })
     .optional(),
+  packageRules: z.array(packageRuleSchema).optional(),
+  packageRulesFile: z.string().optional(),
 });
 
 export type ConfigFile = z.infer<typeof configFileSchema>;

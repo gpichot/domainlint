@@ -73,9 +73,12 @@ export class LintOrchestrator {
     });
 
     // Aggregate violations across all packages
-    const allViolations = workspaceResult.packageResults
-      .filter((r) => !r.skipped)
-      .flatMap((r) => r.result.violations);
+    const allViolations = [
+      ...workspaceResult.packageResults
+        .filter((r) => !r.skipped)
+        .flatMap((r) => r.result.violations),
+      ...(workspaceResult.packageBoundaryViolations ?? []),
+    ];
 
     return {
       violations: allViolations,

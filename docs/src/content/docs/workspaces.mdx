@@ -35,3 +35,85 @@ Analyzed 70 files across 2 packages in 240ms
 ```
 
 Use `--verbose` to see individual violations per package.
+
+## Cross-package import rules
+
+You can restrict which packages are allowed to import from each other using `packageRules` in the workspace root `domainlint.json`:
+
+```json
+{
+  "packageRules": [
+    {
+      "from": "packages/core",
+      "deny": ["packages/feature-*"]
+    },
+    {
+      "from": "packages/shared",
+      "deny": ["packages/feature-*", "packages/app"]
+    }
+  ]
+}
+```
+
+Both `from` and `deny` use glob patterns matched against package paths relative to the workspace root.
+
+**Violation code:** `noPackageImport`
+
+```
+packages/core/src/service.ts:5:1 noPackageImport
+  Package "packages/core" is not allowed to import from "packages/feature-auth" (@myorg/feature-auth)
+```
+
+## Package cycle detection
+
+domainlint automatically detects circular dependencies between workspace packages. No configuration needed — if package A imports package B and package B imports package A, a cycle is reported.
+
+**Violation code:** `noPackageCycle`
+
+```
+packages/core/src/service.ts:3:1 noPackageCycle
+  Package cycle detected: packages/core -> packages/auth -> packages/core
+```
+
+## Custom workspace rules
+
+You can write custom workspace-level rules alongside your module-level custom rules. Export a `workspaceRules` array from your `domainlint.rules.ts`:
+
+```ts
+import type { WorkspaceRule } from "domainlint";
+
+export const workspaceRules: WorkspaceRule[] = [
+  {
+    name: "no-app-to-lib",
+    check({ edges, emitViolation }) {
+      for (const edge of edges) {
+        if (edge.fromPackage.startsWith("apps/") && edge.toPackage.startsWith("libs/internal")) {
+          emitViolation({
+            file: edge.file,
+            line: edge.line,
+            col: edge.col,
+            message: `App "${edge.fromPackage}" should not import internal lib "${edge.toPackage}"`,
+          });
+        }
+      }
+    },
+  },
+];
+```
+
+The `WorkspaceRuleContext` provides:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `packages` | `WorkspacePackageInfo[]` | All workspace packages with `name`, `path`, and `relPath`. |
+| `edges` | `PackageImportEdge[]` | All cross-package import edges with `fromPackage`, `toPackage`, `file`, `specifier`, `line`, `col`. |
+| `packageRules` | `PackageImportRestriction[]` | The deny rules from config (useful if you want to build on them). |
+| `emitViolation` | `(result) => void` | Report a violation. |
+
+Use `packageRulesFile` in `domainlint.json` to load workspace rules from a custom path:
+
+```json
+{
+  "packageRulesFile": "config/workspace-rules.ts"
+}
+```

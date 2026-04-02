@@ -51,6 +51,8 @@ Configuration lives in `domainlint.json` (or `.domainlint.json`) at the project 
 | `exclude` | `string[]` | `["**/node_modules/**", "**/dist/**", "**/.next/**"]` | Glob patterns to exclude from analysis. |
 | `includeDynamicImports` | `boolean` | `false` | Whether to include `await import()` expressions in the dependency graph. |
 | `overrides` | `object` | — | Rule-level overrides (see below). |
+| `packageRules` | `PackageImportRestriction[]` | — | Cross-package import restrictions for monorepos (see [Workspaces](/workspaces/#cross-package-import-rules)). |
+| `packageRulesFile` | `string` | — | Path to a file exporting custom workspace rules. |
 
 ## Rule overrides
 

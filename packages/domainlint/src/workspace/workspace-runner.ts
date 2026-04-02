@@ -1,9 +1,27 @@
+import { readFile } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { loadConfig } from '../config/config-loader.js';
-import type { ConfigOverrides } from '../config/types.js';
+import type {
+  ConfigOverrides,
+  PackageImportRestriction,
+} from '../config/types.js';
+import { configFileSchema } from '../config/types.js';
+import type { Violation } from '../graph/types.js';
 import {
   FeatureBoundariesLinter,
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
+import type { ImportInfo } from '../parser/types.js';
+import { packageCycleRule } from '../rules/package-cycle-detector.js';
+import { packageImportDenyRule } from '../rules/package-import-deny-rule.js';
+import {
+  buildPackageImportEdges,
+  buildPackageJsonEdges,
+  loadWorkspaceRules,
+  runWorkspaceRules,
+  type WorkspaceRule,
+} from '../rules/workspace-rules.js';
 import type { WorkspaceInfo, WorkspacePackage } from './workspace-detector.js';
 
 export interface WorkspacePackageResult {
@@ -32,6 +50,8 @@ export interface WorkspaceLintResult {
   totalFileCount: number;
   /** Whether any violations were found */
   hasViolations: boolean;
+  /** Violations from workspace-level rules (cross-package imports, cycles, custom) */
+  packageBoundaryViolations?: Violation[];
 }
 
 const EMPTY_RESULT: LintResult = {
@@ -39,11 +59,13 @@ const EMPTY_RESULT: LintResult = {
   fileCount: 0,
   analysisTimeMs: 0,
   dependencyGraph: { nodes: new Set(), edges: [], adjacencyList: new Map() },
+  parseResults: [],
 };
 
 /**
  * Runs domainlint on each package in a workspace.
  * Each package is linted independently with its own config.
+ * Also runs workspace-level rules (package imports, cycles, custom rules).
  */
 export async function runWorkspaceLint(
   workspace: WorkspaceInfo,
@@ -60,13 +82,20 @@ export async function runWorkspaceLint(
     packageResults.push(pkgResult);
   }
 
+  // Run workspace-level rules
+  const packageBoundaryViolations = await runWorkspaceLevelRules(
+    workspace,
+    packageResults,
+    options.configPath,
+  );
+
   const totalTimeMs = Date.now() - startTime;
   const totalFileCount = packageResults
     .filter((r) => !r.skipped)
     .reduce((sum, r) => sum + r.result.fileCount, 0);
-  const hasViolations = packageResults.some(
-    (r) => !r.skipped && r.result.violations.length > 0,
-  );
+  const hasViolations =
+    packageResults.some((r) => !r.skipped && r.result.violations.length > 0) ||
+    packageBoundaryViolations.length > 0;
 
   return {
     root: workspace.root,
@@ -75,7 +104,122 @@ export async function runWorkspaceLint(
     totalTimeMs,
     totalFileCount,
     hasViolations,
+    packageBoundaryViolations,
   };
+}
+
+/**
+ * Runs all workspace-level rules: built-in (deny, cycles) and custom.
+ *
+ * Edges come from two sources:
+ * 1. package.json dependencies — always available, covers all packages
+ * 2. Source-level imports — from non-skipped packages' parse results
+ *
+ * Source-level edges provide file/line precision for deny-rule violations.
+ * package.json edges ensure cycle detection works even when packages are
+ * skipped (no featuresDir).
+ */
+async function runWorkspaceLevelRules(
+  workspace: WorkspaceInfo,
+  packageResults: WorkspacePackageResult[],
+  configPath?: string,
+): Promise<Violation[]> {
+  const { packageRules, packageRulesFile } = await loadWorkspaceConfig(
+    workspace.root,
+    configPath,
+  );
+
+  // Source 1: package.json deps (always works, all packages)
+  const pkgJsonEdges = await buildPackageJsonEdges(
+    workspace.root,
+    workspace.packages,
+  );
+
+  // Source 2: source-level imports from non-skipped packages (file-level precision)
+  const fileImports = new Map<string, ImportInfo[]>();
+  for (const pkgResult of packageResults) {
+    if (pkgResult.skipped) continue;
+    for (const parseResult of pkgResult.result.parseResults) {
+      if (parseResult.imports.length > 0) {
+        fileImports.set(parseResult.filePath, parseResult.imports);
+      }
+    }
+  }
+  const sourceEdges = buildPackageImportEdges(
+    workspace.root,
+    workspace.packages,
+    fileImports,
+  );
+
+  // Merge edges: source-level edges take priority (file/line precision),
+  // package.json edges fill in for skipped packages.
+  // Deduplicate by (fromPackage, toPackage) — keep source edges when available.
+  const sourceEdgePairs = new Set(
+    sourceEdges.map((e) => `${e.fromPackage}::${e.toPackage}`),
+  );
+  const edges = [
+    ...sourceEdges,
+    ...pkgJsonEdges.filter(
+      (e) => !sourceEdgePairs.has(`${e.fromPackage}::${e.toPackage}`),
+    ),
+  ];
+
+  if (edges.length === 0 && packageRules.length === 0) {
+    return [];
+  }
+
+  // Build package info with relative paths
+  const packages = workspace.packages.map((pkg) => ({
+    name: pkg.name,
+    path: pkg.path,
+    relPath: relative(workspace.root, pkg.path),
+  }));
+
+  // Assemble rules: built-in + custom
+  const builtInRules: WorkspaceRule[] = [
+    packageImportDenyRule,
+    packageCycleRule,
+  ];
+
+  const customRules = await loadWorkspaceRules(
+    workspace.root,
+    packageRulesFile,
+  );
+
+  const allRules = [...builtInRules, ...customRules];
+
+  return runWorkspaceRules(allRules, { packages, edges, packageRules });
+}
+
+/**
+ * Loads workspace config (packageRules and packageRulesFile) from workspace root.
+ */
+async function loadWorkspaceConfig(
+  workspaceRoot: string,
+  configPath?: string,
+): Promise<{
+  packageRules: PackageImportRestriction[];
+  packageRulesFile?: string;
+}> {
+  const configFiles = configPath
+    ? [configPath]
+    : ['domainlint.json', '.domainlint.json'];
+
+  for (const configFile of configFiles) {
+    try {
+      const content = await readFile(join(workspaceRoot, configFile), 'utf-8');
+      const parsed = parseJsonc(content);
+      const validated = configFileSchema.parse(parsed);
+      return {
+        packageRules: validated.packageRules ?? [],
+        packageRulesFile: validated.packageRulesFile,
+      };
+    } catch {
+      // Continue to next config file
+    }
+  }
+
+  return { packageRules: [] };
 }
 
 async function lintPackage(
@@ -104,7 +248,6 @@ async function lintPackage(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Detect srcDir/featuresDir not found as a skip reason
     const isMissingDir =
       message.includes('"srcDir" does not exist') ||
       message.includes('"featuresDir" does not exist');
