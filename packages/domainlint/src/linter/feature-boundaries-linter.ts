@@ -4,7 +4,7 @@ import { discoverFiles } from '../files/file-discovery.js';
 import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
 import { GraphQuery } from '../graph/graph-query.js';
 import type { Violation } from '../graph/types.js';
-import { parseFile } from '../parser/swc-parser.js';
+import { parseFile } from '../parser/oxc-parser.js';
 import { cycleRule } from '../rules/cycle-detector.js';
 import { featureBoundaryRule } from '../rules/feature-boundary-validator.js';
 import {

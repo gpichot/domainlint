@@ -2,7 +2,7 @@ import { vol } from 'memfs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { createTestFs } from '../test-utils/setup.js';
-import { parseFile } from './swc-parser.js';
+import { parseFile } from './oxc-parser.js';
 
 beforeEach(() => vol.reset());
 

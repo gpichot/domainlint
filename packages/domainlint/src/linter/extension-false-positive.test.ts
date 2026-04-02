@@ -1,48 +1,57 @@
-import { vol } from 'memfs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultConfig } from '../test-utils/setup.js';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { FeatureBoundariesConfig } from '../config/types.js';
 import { FeatureBoundariesLinter } from './feature-boundaries-linter.js';
 
-// Mock fs module completely
-vi.mock('node:fs/promises', async () => {
-  const memfs = await import('memfs');
-  return memfs.fs.promises;
-});
+let testDir: string;
 
-// Mock glob to work with memfs
-vi.mock('glob', () => ({
-  glob: async (pattern: string, options: Record<string, unknown> = {}) => {
-    const cwd = (options.cwd as string) || process.cwd();
-    const memfsFiles = Object.keys(vol.toJSON());
-
-    // Filter files that are in the cwd and match the pattern
-    // Check .tsx before .ts to avoid substring match issues
-    const filteredFiles = memfsFiles
-      .filter((file) => file.startsWith(cwd))
-      .filter((file) => {
-        if (pattern.includes('**/*.tsx')) return file.endsWith('.tsx');
-        if (pattern.includes('**/*.ts')) return file.endsWith('.ts');
-        return true;
-      });
-
-    return options.absolute
-      ? filteredFiles
-      : filteredFiles.map((f) => f.replace(`${cwd}/`, ''));
-  },
-}));
-
-function createMockFileSystem(files: Record<string, string>) {
-  vol.reset();
-  vol.fromJSON(files);
+function writeFile(relativePath: string, content: string): void {
+  const fullPath = join(testDir, relativePath);
+  const dir = fullPath.slice(0, fullPath.lastIndexOf('/'));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(fullPath, content);
 }
 
-describe('Extension false positive prevention', () => {
-  beforeEach(() => {
-    vol.reset();
-  });
+function createFileSystem(files: Record<string, string>): void {
+  for (const [path, content] of Object.entries(files)) {
+    const relativePath = path.replace('/project/', '');
+    writeFile(relativePath, content);
+  }
+}
 
+function createConfig(
+  overrides: Partial<FeatureBoundariesConfig> = {},
+): FeatureBoundariesConfig {
+  return {
+    rootDir: testDir,
+    srcDir: join(testDir, 'src'),
+    featuresDir: join(testDir, 'src/features'),
+    barrelFiles: ['index.ts'],
+    extensions: ['.ts', '.tsx', '.d.ts'],
+    tsconfigPath: join(testDir, 'tsconfig.json'),
+    exclude: ['**/node_modules/**', '**/dist/**'],
+    includeDynamicImports: false,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  testDir = join(
+    tmpdir(),
+    `domainlint-ext-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  mkdirSync(testDir, { recursive: true });
+});
+
+afterEach(() => {
+  rmSync(testDir, { recursive: true, force: true });
+});
+
+describe('Extension false positive prevention', () => {
   it('should NOT detect false cycle when .tsx imports same-name .ts file', async () => {
-    createMockFileSystem({
+    createFileSystem({
       '/project/tsconfig.json': JSON.stringify({
         compilerOptions: { baseUrl: '.' },
       }),
@@ -51,7 +60,7 @@ describe('Extension false positive prevention', () => {
 export function ScoreGauge() { return data.score; }`,
     });
 
-    const config = createDefaultConfig();
+    const config = createConfig();
     const linter = new FeatureBoundariesLinter(config);
     const result = await linter.lint();
 
@@ -62,7 +71,7 @@ export function ScoreGauge() { return data.score; }`,
   });
 
   it('should NOT detect false self-cycle for files like DimensionTooltip.tsx / .ts', async () => {
-    createMockFileSystem({
+    createFileSystem({
       '/project/tsconfig.json': JSON.stringify({
         compilerOptions: { baseUrl: '.' },
       }),
@@ -71,7 +80,7 @@ export function ScoreGauge() { return data.score; }`,
 export function DimensionTooltip(props: DimensionTooltipProps) {}`,
     });
 
-    const config = createDefaultConfig();
+    const config = createConfig();
     const linter = new FeatureBoundariesLinter(config);
     const result = await linter.lint();
 
@@ -82,7 +91,7 @@ export function DimensionTooltip(props: DimensionTooltipProps) {}`,
   });
 
   it('should still detect real cycles between colliding-name files', async () => {
-    createMockFileSystem({
+    createFileSystem({
       '/project/tsconfig.json': JSON.stringify({
         compilerOptions: { baseUrl: '.' },
       }),
@@ -93,7 +102,7 @@ export const widgetData = 1;`,
 export function Widget() { return widgetData; }`,
     });
 
-    const config = createDefaultConfig();
+    const config = createConfig();
     const linter = new FeatureBoundariesLinter(config);
     const result = await linter.lint();
 

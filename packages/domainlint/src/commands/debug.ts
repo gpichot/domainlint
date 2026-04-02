@@ -7,7 +7,7 @@ import {
   FeatureBoundariesLinter,
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
-import { parseFile } from '../parser/swc-parser.js';
+import { parseFile } from '../parser/oxc-parser.js';
 import { ColoredReporter } from '../reporter/colored-reporter.js';
 import { ModuleResolver } from '../resolution/module-resolver.js';
 import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
