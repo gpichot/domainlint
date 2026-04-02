@@ -153,4 +153,94 @@ describe('packageCycleRule', () => {
     const violations = runCycleRule(edges);
     expect(violations).toHaveLength(1);
   });
+
+  it('only reports the shortest cycle when a longer one contains it', () => {
+    // A→B→A is a 2-cycle, A→B→C→A is a 3-cycle containing {A,B}.
+    // Only the 2-cycle should be reported.
+    const edges: PackageImportEdge[] = [
+      {
+        fromPackage: 'packages/core',
+        toPackage: 'packages/auth',
+        file: '/w/packages/core/src/a.ts',
+        specifier: '@myorg/auth',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/auth',
+        toPackage: 'packages/core',
+        file: '/w/packages/auth/src/b.ts',
+        specifier: '@myorg/core',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/auth',
+        toPackage: 'packages/billing',
+        file: '/w/packages/auth/src/c.ts',
+        specifier: '@myorg/billing',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/billing',
+        toPackage: 'packages/core',
+        file: '/w/packages/billing/src/d.ts',
+        specifier: '@myorg/core',
+        line: 1,
+        col: 1,
+      },
+    ];
+
+    const violations = runCycleRule(edges);
+
+    // Only the short cycle (core ↔ auth) should be reported,
+    // not the longer core → auth → billing → core
+    expect(violations).toHaveLength(1);
+    expect(violations[0].message).toContain('packages/core');
+    expect(violations[0].message).toContain('packages/auth');
+    expect(violations[0].message).not.toContain('packages/billing');
+  });
+
+  it('reports independent cycles separately', () => {
+    // Two independent cycles: A↔B and C↔D
+    const edges: PackageImportEdge[] = [
+      {
+        fromPackage: 'packages/core',
+        toPackage: 'packages/auth',
+        file: '/w/packages/core/src/a.ts',
+        specifier: '@myorg/auth',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/auth',
+        toPackage: 'packages/core',
+        file: '/w/packages/auth/src/b.ts',
+        specifier: '@myorg/core',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/billing',
+        toPackage: 'packages/shared',
+        file: '/w/packages/billing/src/c.ts',
+        specifier: '@myorg/shared',
+        line: 1,
+        col: 1,
+      },
+      {
+        fromPackage: 'packages/shared',
+        toPackage: 'packages/billing',
+        file: '/w/packages/shared/src/d.ts',
+        specifier: '@myorg/billing',
+        line: 1,
+        col: 1,
+      },
+    ];
+
+    const violations = runCycleRule(edges);
+
+    expect(violations).toHaveLength(2);
+  });
 });

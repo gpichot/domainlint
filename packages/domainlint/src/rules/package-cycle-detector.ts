@@ -42,7 +42,7 @@ export const packageCycleRule: WorkspaceRule = {
     }
 
     const globalVisited = new Set<string>();
-    const reportedCycleStarts = new Set<string>();
+    const allCycles: string[][] = [];
 
     for (const node of allNodes) {
       if (globalVisited.has(node)) continue;
@@ -60,23 +60,56 @@ export const packageCycleRule: WorkspaceRule = {
         globalVisited,
       );
 
-      for (const cycle of cycles) {
-        const cycleKey = cycle.slice(0, -1).sort().join('::');
-        if (reportedCycleStarts.has(cycleKey)) continue;
-        reportedCycleStarts.add(cycleKey);
+      allCycles.push(...cycles);
+    }
 
-        const cycleDisplay = cycle.join(' -> ');
-        const edgeKey = `${cycle[0]}::${cycle[1]}`;
-        const edge = representativeEdge.get(edgeKey);
+    // Deduplicate: normalize each cycle to a canonical sorted key
+    const uniqueCycles: string[][] = [];
+    const seen = new Set<string>();
+    for (const cycle of allCycles) {
+      const nodes = cycle.slice(0, -1);
+      const key = [...nodes].sort().join('::');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniqueCycles.push(cycle);
+    }
 
-        emitViolation({
-          code: 'noPackageCycle',
-          file: edge?.file ?? cycle[0],
-          line: edge?.line ?? 1,
-          col: edge?.col ?? 1,
-          message: `Package cycle detected: ${cycleDisplay}`,
-        });
+    // Filter out cycles that are supersets of shorter ones.
+    // If A→B→A exists, don't also report A→B→C→A.
+    const sortedByLength = [...uniqueCycles].sort(
+      (a, b) => a.length - b.length,
+    );
+    const minimalCycles: string[][] = [];
+    const minimalNodeSets: Set<string>[] = [];
+
+    for (const cycle of sortedByLength) {
+      const nodes = new Set(cycle.slice(0, -1));
+      const isSuperset = minimalNodeSets.some((smaller) => {
+        if (smaller.size >= nodes.size) return false;
+        for (const n of smaller) {
+          if (!nodes.has(n)) return false;
+        }
+        return true;
+      });
+
+      if (!isSuperset) {
+        minimalCycles.push(cycle);
+        minimalNodeSets.push(nodes);
       }
+    }
+
+    for (const cycle of minimalCycles) {
+      const cycleDisplay = cycle.join(' -> ');
+      const edgeKey = `${cycle[0]}::${cycle[1]}`;
+      const edge = representativeEdge.get(edgeKey);
+
+      emitViolation({
+        code: 'noPackageCycle',
+        file: edge?.file ?? cycle[0],
+        line: edge?.line ?? 1,
+        col: edge?.col ?? 1,
+        message: `Package cycle detected: ${cycleDisplay}`,
+      });
     }
   },
 };
