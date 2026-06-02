@@ -21,6 +21,7 @@
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^4.1.16",
+    "@tanstack/intent": "^0.0.41",
     "@types/node": "^20",
     "@vitest/coverage-v8": "^4.1.0",
     "@vitest/ui": "^4.1.0",
@@ -38,11 +39,13 @@
     "./bin",
     "./dist",
     "./oclif.manifest.json",
-    "./schema.json"
+    "./schema.json",
+    "skills"
   ],
   "homepage": "https://github.com/gpichot/domainlint",
   "keywords": [
-    "oclif"
+    "oclif",
+    "tanstack-intent"
   ],
   "license": "MIT",
   "main": "dist/index.js",

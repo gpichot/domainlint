@@ -10,15 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          version: latest
-      - uses: actions/setup-node@v5
-        with:
-          node-version: lts/*
+          node-version: 22
           cache: pnpm
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter domainlint build
       - run: pnpm --filter domainlint test:coverage
       - name: Write coverage summary

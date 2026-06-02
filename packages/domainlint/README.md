@@ -29,6 +29,17 @@ Create a `domainlint.json` in your project root:
 }
 ```
 
+## Using with AI agents
+
+`domainlint` ships agent-facing skills (Claude Code, Cursor, Copilot, etc.) via
+[`@tanstack/intent`](https://www.npmjs.com/package/@tanstack/intent). Install them once per project:
+
+```bash
+npx @tanstack/intent@latest install
+```
+
+This wires the skills bundled with `domainlint` (in `node_modules/domainlint/skills/`) into your agent so it knows how to configure the linter, write custom rules, and triage violations.
+
 ## Commands
 
 <!-- commands -->
