@@ -21,7 +21,9 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "@swc/core",
+      "esbuild",
+      "sharp"
     ]
   },
   "lint-staged": {
