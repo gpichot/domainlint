@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.7.0...domainlint-v0.8.0) (2026-06-02)
+
+
+### Features
+
+* **skills:** add TanStack Intent agent skills ([#53](https://github.com/gpichot/domainlint/issues/53)) ([96acdbe](https://github.com/gpichot/domainlint/commit/96acdbef82a0efd4ace198747d4e2834eb67750e))
+
 ## [0.7.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.6.1...domainlint-v0.7.0) (2026-04-02)
 
 
