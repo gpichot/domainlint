@@ -1,3 +1,15 @@
 packages:
   - packages/*
   - docs
+
+# Defer installing very fresh releases — mitigates supply-chain attacks
+# where a malicious version is published and yanked within hours.
+# Value is in minutes; 10080 = 7 days.
+minimumReleaseAge: 10080
+
+# Packages allowed to run install scripts. Anything not listed here is
+# downloaded but its install/postinstall is skipped.
+onlyBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+  - sharp
