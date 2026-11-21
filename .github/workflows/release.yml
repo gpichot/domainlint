@@ -18,7 +18,7 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # One native addon (`domainlint.<platform>.node`) per supported platform. Each is published
   # as its own `domainlint-binding-<platform>` package (see packages/domainlint/npm/) that
