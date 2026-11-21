@@ -280,14 +280,15 @@ Follows the spike above (recommendation: hybrid). The JS core is removed; there 
 - **Also fixed:** the EMFILE crash at ~20k files (it's gone with the JS pipeline) and Windows path handling in `getFeature`, `debug` and the Rust graph/config/resolve code.
 - **Performance** (10,100 files, `check` wall clock): ~3.5s → ~0.3s. The native `lint()` call takes ~80ms; the rest is Node start-up, module loading and graph rebuild. Benchmark (median of 5): full 0.30s vs oxlint+boundaries 3.55s, dependency-cruiser 6.33s, ESLint 15.81s. Cycles only: 0.29s vs oxlint's native `import/no-cycle` at 0.26s (on par).
 - **Packaging:** `@napi-rs/cli` 3.10. There are 7 prebuilt targets published as unscoped `domainlint-binding-<platform>` (linux x64/arm64 gnu+musl, darwin x64/arm64, win32-x64-msvc), in `packages/domainlint/npm/<platform>/`, with versions bumped by release-please `extra-files`. `optionalDependencies` are injected at publish time (`scripts/inject-optional-deps.mjs`): committing them would break `pnpm install --frozen-lockfile` until the packages exist. The loader tries a locally built `native/domainlint.<platform>.node` first. A missing addon gives a clear error and exit code 2.
-- **CI:** Rust fmt/clippy/test plus native build in the test job. Native smoke matrix on Linux, macOS and Windows (Windows is `continue-on-error` until seen green: memfs tests use POSIX paths).
+- **CI:** Rust fmt/clippy/test plus native build in the test job. Native smoke matrix on Linux, macOS and Windows, all required (Windows went green on #58).
 - **Release:** a `build-native` matrix (napi-cross / zig for linux, macOS cross for x64, windows), then `napi artifacts`, then each platform package is published (skipped if already published), then domainlint.
 
 ### Follow-up tasks
 
 - **First publish (manual).** Publish each `domainlint-binding-*` package once by hand, then add a trusted publisher on npmjs.com (this repo + `release.yml`) for each. Until then, published `domainlint` installs without an addon.
 - **Validate the release workflow** on a real tag: musl via zig (`mlugg/setup-zig@v2` pin unverified), macOS x64 cross-build, Windows, and npm OIDC. Pin action refs to SHAs/versions ≥7 days old.
-- **Make the Windows CI job required** once green; check reporter paths for `\` on Windows.
+- ~~**Make the Windows CI job required** once green.~~ Done (Windows passed on #58; `continue-on-error` removed).
+- **Check reporter paths for `\` on Windows.**
 - **Port the workspace rules to Rust** (optional; small).
 - **`GraphQuery` performance.** minimatch over every node plus lazy reverse adjacency costs ~200ms for a handful of queries at 10k files. Precompile matchers, or push hot queries into Rust.
 - **`pnpm pack` warning.** It prints an ENOENT on `oclif.manifest.json` after `postpack` removes it (pre-existing); watch it on the first publish.

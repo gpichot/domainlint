@@ -63,10 +63,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    # The JS test suite was written on POSIX (memfs fixtures with '/project'
-    # paths): Windows is advisory until it has been seen green once, then drop
-    # this line to make it required.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
