@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use domainlint_graph::config::{Overrides, RuleSelection};
-use domainlint_graph::{Config, RunOptions, get_feature, is_barrel, run};
+use domainlint_graph::{Config, RunOptions, get_feature, is_barrel, parse_file, resolve_specifiers, run};
 use napi::Error;
 use napi::bindgen_prelude::{Int32Array, Uint8Array, Uint32Array};
 use napi_derive::napi;
@@ -220,4 +220,42 @@ pub fn lint(options: LintOptions) -> napi::Result<NativeLintResult> {
             total: ms(t.total),
         },
     })
+}
+
+#[napi(object)]
+pub struct NativeImport {
+    pub specifier: String,
+    pub line: u32,
+    pub col: u32,
+    pub is_type_only: bool,
+    pub is_dynamic: bool,
+}
+
+/// Parses a single file (used by `domainlint debug`); same import extraction as `lint`.
+#[napi]
+pub fn parse_imports(options: LintOptions, file_path: String) -> napi::Result<Vec<NativeImport>> {
+    let config = to_config(options);
+    let imports =
+        parse_file(&config, &file_path).map_err(|e| Error::from_reason(format!("{e:#}")))?;
+    Ok(imports
+        .into_iter()
+        .map(|i| NativeImport {
+            specifier: i.specifier,
+            line: i.line,
+            col: i.col,
+            is_type_only: i.is_type_only,
+            is_dynamic: i.is_dynamic,
+        })
+        .collect())
+}
+
+/// Resolves specifiers imported from `from_file`; `null` = external or unresolved (used by
+/// `domainlint debug`).
+#[napi]
+pub fn resolve_imports(
+    options: LintOptions,
+    from_file: String,
+    specifiers: Vec<String>,
+) -> Vec<Option<String>> {
+    resolve_specifiers(&to_config(options), &from_file, &specifiers)
 }

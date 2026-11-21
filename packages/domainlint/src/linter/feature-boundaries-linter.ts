@@ -1,20 +1,16 @@
 import { filterViolationsByOverrides } from '../config/rule-overrides.js';
 import type { FeatureBoundariesConfig } from '../config/types.js';
-import { discoverFiles } from '../files/file-discovery.js';
-import { DependencyGraphBuilder } from '../graph/dependency-graph.js';
+import type { FileInfo } from '../files/file-discovery.js';
 import { GraphQuery } from '../graph/graph-query.js';
 import type { Violation } from '../graph/types.js';
-import { parseFile } from '../parser/oxc-parser.js';
+import { runNativePipeline } from '../native/native-pipeline.js';
 import type { ParseResult } from '../parser/types.js';
-import { cycleRule } from '../rules/cycle-detector.js';
-import { featureBoundaryRule } from '../rules/feature-boundary-validator.js';
 import {
   findRulesFile,
   loadRules,
   type Rule,
   runRules,
 } from '../rules/rules.js';
-import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
 export interface LintResult {
   violations: Violation[];
@@ -23,6 +19,8 @@ export interface LintResult {
   dependencyGraph: import('../graph/types.js').DependencyGraph;
   /** Raw parse results with all import specifiers (including external packages) */
   parseResults: ParseResult[];
+  /** Discovered source files (sorted by path) with feature/barrel info */
+  files: FileInfo[];
 }
 
 export class FeatureBoundariesLinter {
@@ -33,33 +31,21 @@ export class FeatureBoundariesLinter {
     const violations: Violation[] = [];
 
     try {
-      // Load tsconfig
-      const tsconfig = await loadTsConfig(this.config.tsconfigPath);
+      // Native: discovery, parsing, resolution, graph, built-in rules (cycles
+      // and feature boundaries).
+      const native = runNativePipeline(this.config);
+      const { graph, parseResults, files } = native;
+      violations.push(...native.violations);
 
-      // Discover files
-      const files = await discoverFiles(this.config);
-
-      // Parse all files
-      const parseResults = await Promise.all(
-        files.map((file) => parseFile(file.path, this.config)),
-      );
-
-      // Build dependency graph
-      const graphBuilder = new DependencyGraphBuilder(this.config, tsconfig);
-      const graph = await graphBuilder.buildGraph(files, parseResults);
-
-      // Run built-in rules
-      const query = new GraphQuery(graph, this.config);
-      const ruleContext = { graph, query, config: this.config };
-
-      const builtInRules: Rule[] = [cycleRule, featureBoundaryRule];
-      const builtInViolations = await runRules(builtInRules, ruleContext);
-      violations.push(...builtInViolations);
-
-      // Run user-defined rules
+      // Run user-defined rules (JS) against the rebuilt graph
       const userRules = await this.loadRulesIfPresent();
       if (userRules.length > 0) {
-        const userViolations = await runRules(userRules, ruleContext);
+        const query = new GraphQuery(graph, this.config);
+        const userViolations = await runRules(userRules, {
+          graph,
+          query,
+          config: this.config,
+        });
         violations.push(...userViolations);
       }
 
@@ -76,6 +62,7 @@ export class FeatureBoundariesLinter {
         analysisTimeMs: endTime - startTime,
         dependencyGraph: graph,
         parseResults,
+        files,
       };
     } catch (error) {
       throw new Error(

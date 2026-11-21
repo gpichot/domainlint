@@ -1,0 +1,30 @@
+{
+  "name": "domainlint-binding-linux-x64-musl",
+  "version": "0.8.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "domainlint.linux-x64-musl.node",
+  "files": [
+    "domainlint.linux-x64-musl.node"
+  ],
+  "description": "Linter for domain-based repository",
+  "keywords": [
+    "oclif",
+    "tanstack-intent"
+  ],
+  "author": "Gabriel Pichot",
+  "homepage": "https://github.com/gpichot/domainlint",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": "gpichot/domainlint",
+  "bugs": "https://github.com/gpichot/domainlint/issues",
+  "os": [
+    "linux"
+  ],
+  "libc": [
+    "musl"
+  ]
+}

@@ -7,10 +7,9 @@ import {
   FeatureBoundariesLinter,
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
-import { parseFile } from '../parser/oxc-parser.js';
+import { loadNativeBinding } from '../native/native-binding.js';
+import { toNativeOptions } from '../native/native-pipeline.js';
 import { ColoredReporter } from '../reporter/colored-reporter.js';
-import { ModuleResolver } from '../resolution/module-resolver.js';
-import { loadTsConfig } from '../tsconfig/tsconfig-loader.js';
 
 interface FileDebugInfo {
   filePath: string;
@@ -126,47 +125,44 @@ export default class Debug extends Command {
     config: FeatureBoundariesConfig,
     lintResult: LintResult,
   ): Promise<FileDebugInfo> {
-    // Parse the target file to get its imports
-    const parseResult = await parseFile(targetFile, config);
+    // Parse the target file and resolve its imports with the native addon
+    const native = loadNativeBinding();
+    const nativeOptions = toNativeOptions(config);
+    const imports = native.parseImports(nativeOptions, targetFile);
+    const resolvedPaths = native.resolveImports(
+      nativeOptions,
+      targetFile,
+      imports.map((i) => i.specifier),
+    );
     const feature = getFeature(targetFile, config);
 
-    // Load tsconfig and create resolver
-    const tsconfig = await loadTsConfig(config.tsconfigPath);
-    const resolver = new ModuleResolver(config, tsconfig);
-
     // Analyze outgoing imports
-    const outgoingImports = await Promise.all(
-      parseResult.imports.map(async (importInfo) => {
-        const resolved = await resolver.resolveImport(
-          importInfo.specifier,
-          targetFile,
-        );
+    const outgoingImports = imports.map((importInfo, index) => {
+      const resolvedPath = resolvedPaths[index];
+      const targetFeature = resolvedPath
+        ? getFeature(resolvedPath, config)
+        : null;
 
-        const targetFeature = resolved.resolvedPath
-          ? getFeature(resolved.resolvedPath, config)
-          : null;
+      // Find violations for this import
+      const violations = this.findViolationsForImport(
+        targetFile,
+        resolvedPath,
+        importInfo.line,
+        importInfo.col,
+        lintResult,
+      );
 
-        // Find violations for this import
-        const violations = this.findViolationsForImport(
-          targetFile,
-          resolved.resolvedPath,
-          importInfo.line,
-          importInfo.col,
-          lintResult,
-        );
-
-        return {
-          specifier: importInfo.specifier,
-          resolvedPath: resolved.resolvedPath,
-          line: importInfo.line,
-          col: importInfo.col,
-          isDynamic: importInfo.isDynamic,
-          isTypeOnly: importInfo.isTypeOnly,
-          targetFeature,
-          violations,
-        };
-      }),
-    );
+      return {
+        specifier: importInfo.specifier,
+        resolvedPath,
+        line: importInfo.line,
+        col: importInfo.col,
+        isDynamic: importInfo.isDynamic,
+        isTypeOnly: importInfo.isTypeOnly,
+        targetFeature,
+        violations,
+      };
+    });
 
     // Analyze incoming imports
     const normalizedTargetFile = this.normalizeModulePath(targetFile, config);

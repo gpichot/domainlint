@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Parity check: runs the Node CLI and the Rust binary on the same project(s) and diffs the
+// Parity check: runs the Node CLI (native addon + JS reporter) and the standalone Rust binary on the same project(s) and diffs the
 // violation sets (each violation = first line + indented body lines; compared as sorted lists).
 //
 // Two comparisons are reported per run:
@@ -69,8 +69,6 @@ function runTool(cmd, argv, cwd) {
     cwd,
     encoding: 'utf8',
     maxBuffer: 1 << 28,
-    // Compare the Rust binary against the pure-JS pipeline, not the native addon.
-    env: { ...process.env, DOMAINLINT_NATIVE: '0' },
   });
   const ms = Number(process.hrtime.bigint() - t) / 1e6;
   return { ...r, ms };

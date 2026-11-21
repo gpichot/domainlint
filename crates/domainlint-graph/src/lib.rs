@@ -161,3 +161,30 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
         timings,
     })
 }
+
+/// Parses one file (any path, not necessarily under `srcDir`), for `domainlint debug`.
+pub fn parse_file(config: &Config, path: &str) -> Result<Vec<parse::ImportInfo>> {
+    let bytes = std::fs::read(path).map_err(|e| anyhow::anyhow!("Failed to read {path}: {e}"))?;
+    let source = String::from_utf8_lossy(&bytes);
+    let alloc = Allocator::default();
+    parse::parse_imports(
+        std::path::Path::new(path),
+        &source,
+        &alloc,
+        config.include_dynamic_imports,
+    )
+}
+
+/// Resolves `specifiers` as imported from `from_file` (`None` = external or unresolved), for
+/// `domainlint debug`. Same semantics as the resolution used for the graph.
+pub fn resolve_specifiers(
+    config: &Config,
+    from_file: &str,
+    specifiers: &[String],
+) -> Vec<Option<String>> {
+    let resolver = resolve::build_resolver(config);
+    specifiers
+        .iter()
+        .map(|s| resolve::resolve_local(&resolver, from_file, s))
+        .collect()
+}

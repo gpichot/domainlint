@@ -5,6 +5,8 @@ import { type FileSystem, nodeFileSystem } from '../fs.js';
 import type { LintResult } from '../linter/feature-boundaries-linter.js';
 import type { FeatureStats } from '../reporter/colored-reporter.js';
 
+const READ_CONCURRENCY = 64;
+
 export interface StatisticsCalculatorOptions {
   includeLineCount?: boolean;
 }
@@ -26,6 +28,7 @@ export class StatisticsCalculator {
     >();
 
     // Initialize stats for all features
+    const featureFiles: Array<{ path: string; feature: string }> = [];
     for (const file of allFiles) {
       const feature = getFeature(file.path, config);
       if (!feature) continue; // Skip non-feature files
@@ -38,20 +41,31 @@ export class StatisticsCalculator {
         });
       }
 
-      const stats = featureStatsMap.get(feature)!;
-      stats.fileCount++;
+      featureStatsMap.get(feature)!.fileCount++;
+      featureFiles.push({ path: file.path, feature });
+    }
 
-      if (this.options.includeLineCount !== false) {
-        try {
-          const content = await this.fs.readFile(file.path, 'utf-8');
-          // Count non-empty lines (simple LOC metric)
-          const lines = content
-            .split('\n')
-            .filter((line) => line.trim().length > 0);
-          stats.totalLines += lines.length;
-        } catch {
-          // If we can't read the file, skip it
-        }
+    if (this.options.includeLineCount !== false) {
+      // Bounded concurrency: reading every file at once exhausts file descriptors (EMFILE).
+      for (let i = 0; i < featureFiles.length; i += READ_CONCURRENCY) {
+        const chunk = featureFiles.slice(i, i + READ_CONCURRENCY);
+        const counts = await Promise.all(
+          chunk.map(async ({ path }) => {
+            try {
+              const content = await this.fs.readFile(path, 'utf-8');
+              // Count non-empty lines (simple LOC metric)
+              return content
+                .split('\n')
+                .filter((line) => line.trim().length > 0).length;
+            } catch {
+              // If we can't read the file, skip it
+              return 0;
+            }
+          }),
+        );
+        chunk.forEach(({ feature }, k) => {
+          featureStatsMap.get(feature)!.totalLines += counts[k];
+        });
       }
     }
 

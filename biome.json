@@ -30,7 +30,9 @@
       "**/*.json",
       "!**/node_modules",
       "!**/dist",
-      "!**/build"
+      "!**/build",
+      "!**/native",
+      "!**/target"
     ]
   }
 }

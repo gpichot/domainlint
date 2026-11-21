@@ -60,6 +60,7 @@ const EMPTY_RESULT: LintResult = {
   analysisTimeMs: 0,
   dependencyGraph: { nodes: new Set(), edges: [], adjacencyList: new Map() },
   parseResults: [],
+  files: [],
 };
 
 /**

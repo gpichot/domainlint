@@ -81,6 +81,7 @@ describe('StatisticsCalculator', () => {
           adjacencyList: new Map(),
         },
         parseResults: [],
+        files: [],
       };
 
       const calculator = new StatisticsCalculator({}, testFs);
@@ -150,6 +151,7 @@ describe('StatisticsCalculator', () => {
           adjacencyList: new Map(),
         },
         parseResults: [],
+        files: [],
       };
 
       const calculator = new StatisticsCalculator({}, testFs);
@@ -189,6 +191,7 @@ describe('StatisticsCalculator', () => {
           ]),
         },
         parseResults: [],
+        files: [],
       };
 
       const calculator = new StatisticsCalculator({}, testFs);
@@ -222,6 +225,7 @@ describe('StatisticsCalculator', () => {
           adjacencyList: new Map(),
         },
         parseResults: [],
+        files: [],
       };
 
       const calculator = new StatisticsCalculator(
