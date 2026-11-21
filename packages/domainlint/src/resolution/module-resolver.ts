@@ -13,7 +13,7 @@ export class ModuleResolver {
   private resolver: ResolverFactory;
   private resolutionCache = new Map<string, ResolvedImport>();
 
-  constructor(config: FeatureBoundariesConfig, tsconfig: ResolvedTsConfig) {
+  constructor(config: FeatureBoundariesConfig, _tsconfig: ResolvedTsConfig) {
     const tsconfigOption = config.tsconfigPath
       ? { configFile: config.tsconfigPath, references: 'auto' as const }
       : undefined;

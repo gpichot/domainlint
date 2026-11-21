@@ -22,12 +22,6 @@ interface ColumnWidths {
   lines: number;
 }
 
-function formatFileStats(fileCount: number, linesOfCode: number): string {
-  const fileText = fileCount === 1 ? 'file' : 'files';
-  const locText = linesOfCode === 1 ? 'line' : 'lines';
-  return `${fileCount} ${fileText}, ${linesOfCode} ${locText}`;
-}
-
 function formatAlignedMetrics(
   violationCount: number | null,
   fileCount: number | null,
@@ -235,8 +229,6 @@ export class ColoredReporter {
     rootDir?: string,
   ): string {
     const processedMessage = this.stripPaths(message, rootDir);
-    const levelColor = level === 'warn' ? chalk.yellow : chalk.red;
-    const levelLabel = levelColor(level.toUpperCase());
 
     if (code === 'noImportCycle') {
       return this.formatCycleColored(
@@ -833,7 +825,7 @@ export class ColoredReporter {
     col: number,
     code: string,
     message: string,
-    level: 'warn' | 'error',
+    _level: 'warn' | 'error',
   ): string {
     const details = this.extractNonDomainDetails(message);
     const location = chalk.cyan(`${file}:${line}:${col}`);
