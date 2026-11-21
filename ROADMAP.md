@@ -154,6 +154,18 @@ Verify before approving Step 2:
 
 ---
 
+## 9. CLI exit codes
+
+**Status:** done
+**Scope:** `src/commands/check.ts`
+
+- `check` now exits `1` when violations are found (previously printed `Internal error: EEXIT: 1` and exited `2`, because oclif's `this.exit()` throws and was caught by the internal-error handler)
+- Exit decision moved outside the `try` block; applies to both single-project and workspace modes
+- `debug` audited: it never calls `this.exit()` inside its `try`, so it was unaffected
+- Tests in `src/commands/check.test.ts` cover exit codes 0, 1 (single + workspace) and 2
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)
