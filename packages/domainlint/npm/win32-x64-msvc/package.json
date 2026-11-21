@@ -1,0 +1,27 @@
+{
+  "name": "domainlint-binding-win32-x64-msvc",
+  "version": "0.8.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "domainlint.win32-x64-msvc.node",
+  "files": [
+    "domainlint.win32-x64-msvc.node"
+  ],
+  "description": "Linter for domain-based repository",
+  "keywords": [
+    "oclif",
+    "tanstack-intent"
+  ],
+  "author": "Gabriel Pichot",
+  "homepage": "https://github.com/gpichot/domainlint",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": "gpichot/domainlint",
+  "bugs": "https://github.com/gpichot/domainlint/issues",
+  "os": [
+    "win32"
+  ]
+}

@@ -3,7 +3,6 @@ import type {
   ConfigOverrides,
   FeatureBoundariesConfig,
 } from '../config/types.js';
-import { discoverFiles } from '../files/file-discovery.js';
 import { FeatureBoundariesLinter } from '../linter/feature-boundaries-linter.js';
 import {
   ColoredReporter,
@@ -115,7 +114,7 @@ export class LintOrchestrator {
       options.includeFeatureStats !== false &&
       !options.filterOptions?.feature
     ) {
-      const allFiles = await discoverFiles(config);
+      const allFiles = lintResult.files;
       allFeatures = await this.statisticsCalculator.discoverAllFeatures(
         allFiles,
         config,

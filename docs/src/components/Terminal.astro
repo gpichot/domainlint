@@ -1,0 +1,189 @@
+---
+/**
+ * Animated terminal. Types the command, then streams output lines when the
+ * terminal scrolls into view. Reduced-motion users get the final state.
+ *
+ * Line kinds: `out` (default), `err`, `ok`, `dim`, `warn`, `blank`.
+ */
+export interface TerminalLine {
+  text: string;
+  kind?: 'out' | 'err' | 'ok' | 'dim' | 'warn' | 'blank';
+}
+
+interface Props {
+  title?: string;
+  command: string;
+  lines: TerminalLine[];
+  /** ms between output lines */
+  speed?: number;
+}
+
+const { title = 'zsh', command, lines, speed = 90 } = Astro.props;
+---
+
+<dl-terminal class="dl-term" data-speed={speed}>
+  <div class="dl-term-bar" aria-hidden="true">
+    <span></span><span></span><span></span>
+    <em>{title}</em>
+    <button class="dl-term-replay" type="button" aria-label="Replay animation">↻ replay</button>
+  </div>
+  <pre class="dl-term-body"><code><span class="dl-term-prompt">❯ </span><span class="dl-term-cmd" data-cmd={command}>{command}</span><span class="dl-term-caret" aria-hidden="true"></span>
+{lines.map((l) => <span class={`dl-term-line k-${l.kind ?? 'out'}`}>{l.kind === 'blank' ? ' ' : l.text}
+</span>)}</code></pre>
+</dl-terminal>
+
+<style>
+  .dl-term {
+    display: block;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--dl-border);
+    background: #0d0b16;
+    box-shadow:
+      0 30px 60px -30px rgb(124 92 255 / 0.45),
+      0 0 0 1px rgb(255 255 255 / 0.03) inset;
+    text-align: start;
+  }
+  .dl-term-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 0.9rem;
+    background: #16131f;
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  }
+  .dl-term-bar > span {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: #3a3546;
+  }
+  .dl-term-bar > span:nth-child(1) { background: #ff5f57; }
+  .dl-term-bar > span:nth-child(2) { background: #febc2e; }
+  .dl-term-bar > span:nth-child(3) { background: #28c840; }
+  .dl-term-bar em {
+    flex: 1;
+    text-align: center;
+    font-style: normal;
+    font-size: 0.75rem;
+    color: #8b85a0;
+    margin-inline-end: 2.5rem;
+  }
+  .dl-term-replay {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: #8b85a0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .dl-term:hover .dl-term-replay,
+  .dl-term-replay:focus-visible {
+    opacity: 1;
+  }
+  .dl-term-body {
+    margin: 0;
+    padding: 1rem 1.15rem 1.2rem;
+    background: transparent;
+    border: 0;
+    font-size: clamp(0.72rem, 1.6vw, 0.85rem);
+    line-height: 1.6;
+    color: #e6e1f5;
+    min-height: 6rem;
+    overflow-x: auto;
+  }
+  .dl-term-body code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+  .dl-term-prompt { color: #7c5cff; font-weight: 700; }
+  .dl-term-cmd { color: #fff; }
+  .dl-term-caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.1em;
+    vertical-align: text-bottom;
+    background: #7c5cff;
+    animation: dl-blink 1s steps(1) infinite;
+  }
+  .dl-term-line { display: inline; transition: opacity 0.18s ease; }
+  .k-err { color: #fb7185; }
+  .k-ok { color: #4ade80; }
+  .k-dim { color: #8b85a0; }
+  .k-warn { color: #fbbf24; }
+
+  :global(dl-terminal.is-animating) .dl-term-line:not(.is-shown) {
+    opacity: 0;
+  }
+  :global(dl-terminal.is-done) .dl-term-caret { display: none; }
+
+  @keyframes dl-blink {
+    50% { opacity: 0; }
+  }
+</style>
+
+<script>
+  class DlTerminal extends HTMLElement {
+    private timers: number[] = [];
+
+    connectedCallback() {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        this.classList.add('is-done');
+        return;
+      }
+      this.classList.add('is-animating');
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            io.disconnect();
+            this.play();
+          }
+        },
+        { threshold: 0.35 },
+      );
+      io.observe(this);
+      this.querySelector('.dl-term-replay')?.addEventListener('click', () => this.play());
+    }
+
+    disconnectedCallback() {
+      this.clear();
+    }
+
+    private clear() {
+      for (const t of this.timers) clearTimeout(t);
+      this.timers = [];
+    }
+
+    private at(ms: number, fn: () => void) {
+      this.timers.push(window.setTimeout(fn, ms));
+    }
+
+    play() {
+      this.clear();
+      this.classList.add('is-animating');
+      this.classList.remove('is-done');
+      const cmdEl = this.querySelector<HTMLElement>('.dl-term-cmd');
+      const lines = [...this.querySelectorAll<HTMLElement>('.dl-term-line')];
+      const speed = Number(this.dataset.speed) || 90;
+      const cmd = cmdEl?.dataset.cmd ?? '';
+      for (const l of lines) l.classList.remove('is-shown');
+      if (cmdEl) cmdEl.textContent = '';
+
+      let t = 350;
+      for (let i = 1; i <= cmd.length; i++) {
+        this.at(t, () => {
+          if (cmdEl) cmdEl.textContent = cmd.slice(0, i);
+        });
+        t += 35 + Math.random() * 45;
+      }
+      t += 450;
+      lines.forEach((line, i) => {
+        this.at(t + i * speed, () => line.classList.add('is-shown'));
+      });
+      this.at(t + lines.length * speed, () => this.classList.add('is-done'));
+    }
+  }
+  if (!customElements.get('dl-terminal')) customElements.define('dl-terminal', DlTerminal);
+</script>

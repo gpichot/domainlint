@@ -1,7 +1,7 @@
-import { relative } from 'node:path';
 import { Args, Command, Flags, type Interfaces } from '@oclif/core';
 import chalk from 'chalk';
 import { loadConfig } from '../config/config-loader.js';
+import { relativePosix } from '../path-utils.js';
 import { ColoredReporter } from '../reporter/colored-reporter.js';
 import { LintOrchestrator } from '../services/lint-orchestrator.js';
 import type { WorkspaceLintResult } from '../workspace/workspace-runner.js';
@@ -178,7 +178,7 @@ export default class Check extends Command {
     this.log('');
 
     for (const pkgResult of workspaceResult.packageResults) {
-      const relPath = relative(workspaceResult.root, pkgResult.path);
+      const relPath = relativePosix(workspaceResult.root, pkgResult.path);
       const pkgHeader = useColor
         ? chalk.bold.cyan(`${pkgResult.name}`)
         : pkgResult.name;

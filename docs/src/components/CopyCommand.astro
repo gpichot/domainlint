@@ -1,0 +1,27 @@
+---
+interface Props {
+  command: string;
+}
+const { command } = Astro.props;
+---
+
+<div class="dl-cmd">
+  <span><span aria-hidden="true" style="color: var(--sl-color-accent)">$ </span>{command}</span>
+  <button type="button" data-copy={command}>Copy</button>
+</div>
+
+<script>
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.dl-cmd button[data-copy]')) {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+        btn.textContent = 'Copied!';
+      } catch {
+        btn.textContent = 'Press ⌘C';
+      }
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+      }, 1600);
+    });
+  }
+</script>

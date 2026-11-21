@@ -15,7 +15,9 @@
     "**/coverage",
     "docs/.astro",
     "benchmarks/.tools",
-    "benchmarks/.fixtures"
+    "benchmarks/.fixtures",
+    "**/native",
+    "**/target"
   ],
   "rules": {
     "no-unused-vars": [

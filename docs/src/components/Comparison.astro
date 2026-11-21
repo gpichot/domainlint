@@ -1,0 +1,130 @@
+---
+/**
+ * Feature comparison with neighbouring tools. Keep it honest: list what the
+ * others do better too — that is what makes the rest credible.
+ */
+type Cell = 'yes' | 'no' | 'partial';
+interface Row {
+  label: string;
+  cells: [Cell, Cell, Cell, Cell, Cell];
+  hint?: string;
+}
+
+const tools = ['domainlint', 'oxlint', 'dependency-cruiser', 'madge', 'ESLint plugins'];
+const rows: Row[] = [
+  { label: 'Import cycle detection', cells: ['yes', 'yes', 'yes', 'yes', 'yes'] },
+  {
+    label: 'Barrel-only cross-feature imports',
+    cells: ['yes', 'partial', 'partial', 'no', 'partial'],
+    hint: 'Others can express it with regex / element-type config you write and maintain (oxlint via eslint-plugin-boundaries as a JS plugin).',
+  },
+  { label: 'Zero config for src/features layouts', cells: ['yes', 'no', 'no', 'no', 'no'] },
+  { label: 'tsconfig paths & extends', cells: ['yes', 'yes', 'yes', 'yes', 'yes'] },
+  { label: 'Monorepo package rules', cells: ['yes', 'partial', 'partial', 'no', 'partial'] },
+  {
+    label: 'Custom rules over the whole graph',
+    cells: ['yes', 'no', 'partial', 'no', 'no'],
+    hint: 'domainlint rules get the full dependency graph via a typed query API; ESLint and oxlint rules see one file at a time.',
+  },
+  { label: 'Fast on 10k+ files (measured)', cells: ['yes', 'yes', 'partial', 'partial', 'no'] },
+  { label: 'In-editor squiggles', cells: ['no', 'yes', 'no', 'no', 'yes'] },
+  { label: 'Dependency graph images', cells: ['no', 'no', 'yes', 'yes', 'no'] },
+];
+const icon = { yes: '✓', no: '—', partial: '~' } as const;
+const sr = { yes: 'Yes', no: 'No', partial: 'Partially, with configuration' } as const;
+---
+
+<div class="dl-compare" role="region" aria-label="Comparison with other tools" tabindex="0">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col"><span class="sr">Capability</span></th>
+        {tools.map((t, i) => <th scope="col" class:list={{ us: i === 0 }}>{t}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr>
+            <th scope="row">
+              {r.label}
+              {r.hint && <small>{r.hint}</small>}
+            </th>
+            {r.cells.map((c, i) => (
+              <td class:list={[c, { us: i === 0 }]}>
+                <span aria-hidden="true">{icon[c]}</span>
+                <span class="sr">{sr[c]}</span>
+              </td>
+            ))}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .dl-compare {
+    position: relative;
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid var(--dl-border);
+    background: var(--dl-card-bg);
+  }
+  table {
+    display: table;
+    width: 100%;
+    min-width: 40rem;
+    border-collapse: collapse;
+    margin: 0 !important;
+    font-size: var(--sl-text-sm);
+  }
+  th, td {
+    border: 0 !important;
+    border-bottom: 1px solid var(--dl-border) !important;
+    padding: 0.7rem 0.9rem !important;
+    background: transparent !important;
+  }
+  tbody tr:last-child > * { border-bottom: 0 !important; }
+  thead th {
+    font-size: var(--sl-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sl-color-gray-2);
+    text-align: center;
+  }
+  tbody th {
+    text-align: start;
+    font-weight: 500;
+    color: var(--sl-color-white);
+  }
+  tbody th small {
+    display: block;
+    font-weight: 400;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    margin-top: 0.15rem;
+  }
+  td {
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--sl-text-base);
+  }
+  td.yes { color: var(--dl-ok); }
+  td.partial { color: var(--dl-warn); }
+  td.no { color: var(--sl-color-gray-4); }
+  .us {
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent) !important;
+  }
+  thead th.us { color: var(--sl-color-accent-high); }
+  tbody tr { transition: background 0.2s; }
+  tbody tr:hover { background: color-mix(in srgb, var(--sl-color-gray-5) 20%, transparent); }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>

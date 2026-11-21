@@ -8,6 +8,21 @@ Architecture linter for TypeScript/JavaScript codebases. Enforces feature bounda
 npm install -g domainlint
 ```
 
+The analysis core is a native addon (Rust), shipped as prebuilt binaries in per-platform
+packages (`domainlint-binding-<platform>`) that your package manager installs automatically as
+optional dependencies. No Rust toolchain is needed.
+
+| OS | Architectures |
+|----|---------------|
+| Linux (glibc) | x64, arm64 |
+| Linux (musl, e.g. Alpine) | x64, arm64 |
+| macOS | x64, arm64 |
+| Windows | x64 |
+
+Don't install with `--omit=optional` / `--no-optional`, or domainlint can't load the addon. On an
+unsupported platform you can build it from source with a Rust toolchain
+(`pnpm --filter domainlint build:native` in the repository).
+
 ## Usage
 
 ```bash

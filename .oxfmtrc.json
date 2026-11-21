@@ -21,6 +21,8 @@
     "docs/.astro",
     "benchmarks/.tools",
     "benchmarks/.fixtures",
+    "**/native",
+    "**/target",
     "pnpm-lock.yaml",
     "**/*.md",
     "**/*.mdx",

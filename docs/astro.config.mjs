@@ -5,6 +5,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'domainlint',
+      customCss: ['./src/styles/custom.css'],
       description:
         'Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.',
       social: [

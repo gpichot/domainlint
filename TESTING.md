@@ -1,5 +1,19 @@
 # Testing
 
+## Prerequisites
+
+The linter runs on a Rust core loaded through a napi addon, so running the tests needs a stable
+[Rust toolchain](https://rustup.rs). `pnpm test` / `pnpm test:run` build the addon automatically
+the first time (`packages/domainlint/native/`, gitignored). Rebuild it with
+`pnpm --filter domainlint build:native` after changing anything under `crates/`.
+
+```bash
+pnpm test:run                       # vitest (builds the addon if missing)
+cargo test --workspace              # Rust tests
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+```
+
 ## Stack
 
 - **vitest** — test runner

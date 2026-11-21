@@ -1,62 +1,28 @@
-import { relative, resolve } from 'node:path';
-import { glob as defaultGlob } from 'glob';
-import { minimatch } from 'minimatch';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 
+/** A discovered source file (discovery itself is done by the native addon). */
 export interface FileInfo {
   path: string;
   relativePath: string;
   feature: string | null;
   isBarrel: boolean;
+  /** Non-blank line count, when already known (computed by the native core). */
+  lineCount?: number;
 }
 
-export type GlobFunction = (
-  pattern: string,
-  options: { cwd: string; absolute: boolean; nodir: boolean },
-) => Promise<string[]>;
+// `path.resolve` + `path.relative` dominate `getFeature` (called for every file
+// and edge endpoint): cache the normalized prefix and take a string fast path.
+const featuresPrefixCache = new Map<string, string>();
 
-export async function discoverFiles(
-  config: FeatureBoundariesConfig,
-  glob: GlobFunction = defaultGlob,
-): Promise<FileInfo[]> {
-  const { srcDir, extensions, exclude } = config;
-
-  // Create glob pattern for all files with configured extensions
-  const patterns = extensions.map((ext) => `**/*${ext}`);
-
-  // Find all files in source directory
-  const allFilesSet = new Set<string>();
-  for (const pattern of patterns) {
-    const files = await glob(pattern, {
-      cwd: srcDir,
-      absolute: true,
-      nodir: true,
-    });
-    for (const file of files) {
-      allFilesSet.add(file);
-    }
+function featuresPrefix(featuresDir: string): string {
+  let prefix = featuresPrefixCache.get(featuresDir);
+  if (prefix === undefined) {
+    const normalized = resolve(featuresDir);
+    prefix = normalized.endsWith(sep) ? normalized : normalized + sep;
+    featuresPrefixCache.set(featuresDir, prefix);
   }
-  const allFiles = Array.from(allFilesSet);
-
-  // Filter out excluded files
-  const filteredFiles = allFiles.filter((file) => {
-    const relativePath = relative(srcDir, file);
-    return !exclude.some((pattern) => minimatch(relativePath, pattern));
-  });
-
-  // Convert to FileInfo objects
-  return filteredFiles.map((file) => {
-    const relativePath = relative(config.rootDir, file);
-    const feature = getFeature(file, config);
-    const isBarrel = checkIsBarrel(file, feature, config);
-
-    return {
-      path: file,
-      relativePath,
-      feature,
-      isBarrel,
-    };
-  });
+  return prefix;
 }
 
 export function getFeature(
@@ -64,32 +30,35 @@ export function getFeature(
   config: FeatureBoundariesConfig,
 ): string | null {
   const { featuresDir } = config;
+
+  // Fast path: a path already below the (normalized) features dir, without
+  // dot segments, so `relative` would just strip the prefix.
+  const prefix = featuresPrefix(featuresDir);
+  if (filePath.startsWith(prefix)) {
+    const rest = filePath.slice(prefix.length);
+    if (!rest.includes('..') && !rest.includes('/.') && !rest.includes('\\.')) {
+      const end = rest.search(/[\\/]/);
+      const first = end === -1 ? rest : rest.slice(0, end);
+      if (first !== '' && first !== '.') return first;
+    }
+  }
+
   const relativePath = relative(featuresDir, filePath);
 
-  // Check if file is inside features directory
-  if (relativePath.startsWith('../') || relativePath.startsWith('/')) {
+  // Check if file is inside features directory (`relative` uses the platform
+  // separator, and returns an absolute path across Windows drives)
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith('../') ||
+    relativePath.startsWith('..\\') ||
+    isAbsolute(relativePath)
+  ) {
     return null;
   }
 
   // Extract feature name (first directory segment)
-  const pathParts = relativePath.split('/');
+  const pathParts = relativePath.split(/[\\/]/);
   return pathParts[0] || null;
-}
-
-function checkIsBarrel(
-  filePath: string,
-  feature: string | null,
-  config: FeatureBoundariesConfig,
-): boolean {
-  if (!feature) {
-    return false;
-  }
-
-  const { featuresDir, barrelFiles } = config;
-  const featureDir = resolve(featuresDir, feature);
-  const relativePath = relative(featureDir, filePath);
-
-  return barrelFiles.includes(relativePath);
 }
 
 export function getBarrelPath(

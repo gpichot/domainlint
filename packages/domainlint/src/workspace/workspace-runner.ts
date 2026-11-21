@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { loadConfig } from '../config/config-loader.js';
 import type {
@@ -13,6 +13,7 @@ import {
   type LintResult,
 } from '../linter/feature-boundaries-linter.js';
 import type { ImportInfo } from '../parser/types.js';
+import { relativePosix } from '../path-utils.js';
 import { packageCycleRule } from '../rules/package-cycle-detector.js';
 import { packageImportDenyRule } from '../rules/package-import-deny-rule.js';
 import {
@@ -60,6 +61,7 @@ const EMPTY_RESULT: LintResult = {
   analysisTimeMs: 0,
   dependencyGraph: { nodes: new Set(), edges: [], adjacencyList: new Map() },
   parseResults: [],
+  files: [],
 };
 
 /**
@@ -172,7 +174,7 @@ async function runWorkspaceLevelRules(
   const packages = workspace.packages.map((pkg) => ({
     name: pkg.name,
     path: pkg.path,
-    relPath: relative(workspace.root, pkg.path),
+    relPath: relativePosix(workspace.root, pkg.path),
   }));
 
   // Assemble rules: built-in + custom

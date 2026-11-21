@@ -18,6 +18,14 @@ Perfect for React applications with feature folders, domain-driven architectures
 [![Version](https://img.shields.io/npm/v/domainlint.svg)](https://npmjs.org/package/domainlint)
 [![Downloads/week](https://img.shields.io/npm/dw/domainlint.svg)](https://npmjs.org/package/domainlint)
 
+## Development
+
+domainlint's core (discovery, parsing, resolution, graph, built-in rules) is Rust, exposed to the
+TypeScript CLI through a napi-rs addon. Working on the repository needs Node.js 18+, pnpm and a
+stable [Rust toolchain](https://rustup.rs); see [TESTING.md](./TESTING.md). Users installing the
+published package need neither Rust nor a compiler: prebuilt binaries ship for Linux (glibc and
+musl, x64 and arm64), macOS (x64 and arm64) and Windows (x64).
+
 <!-- toc -->
 * [domainlint](#domainlint)
 * [Usage](#usage)

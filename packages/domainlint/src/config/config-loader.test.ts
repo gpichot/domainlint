@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockFileSystem } from '../test-utils/setup.js';
@@ -23,12 +24,12 @@ describe('Config Loader', () => {
     const config = await loadConfig('/project');
 
     expect(config).toMatchObject({
-      rootDir: '/project',
-      srcDir: '/project/src',
-      featuresDir: '/project/src/features',
+      rootDir: resolve('/project'),
+      srcDir: resolve('/project/src'),
+      featuresDir: resolve('/project/src/features'),
       barrelFiles: ['index.ts'],
       extensions: ['.ts', '.tsx', '.d.ts'],
-      tsconfigPath: '/project/tsconfig.json',
+      tsconfigPath: resolve('/project/tsconfig.json'),
       includeDynamicImports: false,
       overrides: {},
     });
@@ -48,9 +49,9 @@ describe('Config Loader', () => {
     const config = await loadConfig('/project');
 
     expect(config).toMatchObject({
-      rootDir: '/project',
-      srcDir: '/project/source',
-      featuresDir: '/project/src/features', // uses default since not overridden
+      rootDir: resolve('/project'),
+      srcDir: resolve('/project/source'),
+      featuresDir: resolve('/project/src/features'), // uses default since not overridden
       extensions: ['.ts'], // overridden from config file
       includeDynamicImports: true, // overridden from config file
       overrides: {},
@@ -73,7 +74,7 @@ describe('Config Loader', () => {
     });
 
     expect(config).toMatchObject({
-      srcDir: '/project/app', // CLI override wins
+      srcDir: resolve('/project/app'), // CLI override wins
       includeDynamicImports: false, // CLI override wins
     });
   });
@@ -91,7 +92,7 @@ describe('Config Loader', () => {
     const config = await loadConfig('/project', 'custom-config.json');
 
     expect(config).toMatchObject({
-      srcDir: '/project/custom',
+      srcDir: resolve('/project/custom'),
       extensions: ['.js', '.jsx'],
     });
   });

@@ -1,3 +1,4 @@
+import { resolve, sep } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -12,20 +13,28 @@ vi.mock('node:fs/promises', async () => {
 
 vi.mock('glob', () => ({
   glob: async (pattern: string, options: { cwd?: string } = {}) => {
+    // memfs keys and cwd may carry a drive letter and `\\` on Windows: compare
+    // them as drive-less POSIX paths.
+    const norm = (p: string) =>
+      p
+        .replace(/^[a-zA-Z]:/, '')
+        .split(sep)
+        .join('/');
     const cwd = options.cwd || process.cwd();
+    const posixCwd = norm(cwd);
     // Simple glob expansion for "packages/*" style patterns
     const allPaths = Object.keys(vol.toJSON());
     const dirs = new Set<string>();
     for (const p of allPaths) {
-      if (p.startsWith(cwd)) {
-        const rel = p.slice(cwd.length + 1);
+      if (norm(p).startsWith(`${posixCwd}/`)) {
+        const rel = norm(p).slice(posixCwd.length + 1);
         // Match "packages/*" pattern
         if (pattern.endsWith('/*')) {
           const prefix = pattern.slice(0, -2);
           if (rel.startsWith(prefix + '/')) {
             const rest = rel.slice(prefix.length + 1);
             const firstDir = rest.split('/')[0];
-            dirs.add(`${cwd}/${prefix}/${firstDir}`);
+            dirs.add(resolve(cwd, prefix, firstDir));
           }
         }
       }
@@ -74,7 +83,7 @@ describe('detectWorkspace', () => {
 
     expect(result).not.toBeNull();
     expect(result!.type).toBe('pnpm');
-    expect(result!.root).toBe('/workspace');
+    expect(result!.root).toBe(resolve('/workspace'));
     expect(result!.packages).toHaveLength(2);
     expect(result!.packages.map((p) => p.name)).toEqual(['@my/core', '@my/ui']);
   });

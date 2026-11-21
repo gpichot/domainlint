@@ -1,12 +1,7 @@
-import { vol } from 'memfs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
-import { createTestGlob } from '../test-utils/setup.js';
-import { discoverFiles, getBarrelPath, getFeature } from './file-discovery.js';
-
-beforeEach(() => vol.reset());
-
-const testGlob = createTestGlob();
+import { getBarrelPath, getFeature } from './file-discovery.js';
 
 const config: FeatureBoundariesConfig = {
   rootDir: '/project',
@@ -18,79 +13,6 @@ const config: FeatureBoundariesConfig = {
   exclude: [],
   includeDynamicImports: false,
 };
-
-describe('discoverFiles', () => {
-  it('discovers all .ts files in srcDir', async () => {
-    vol.fromJSON({
-      '/project/src/a.ts': '',
-      '/project/src/b.ts': '',
-    });
-    const files = await discoverFiles(config, testGlob);
-    const paths = files.map((f) => f.path);
-    expect(paths).toContain('/project/src/a.ts');
-    expect(paths).toContain('/project/src/b.ts');
-  });
-
-  it('discovers .tsx files as well', async () => {
-    vol.fromJSON({ '/project/src/Component.tsx': '' });
-    const files = await discoverFiles(config, testGlob);
-    expect(files.map((f) => f.path)).toContain('/project/src/Component.tsx');
-  });
-
-  it('excludes files matching exclude patterns', async () => {
-    vol.fromJSON({
-      '/project/src/a.ts': '',
-      '/project/src/node_modules/pkg/index.ts': '',
-    });
-    const files = await discoverFiles(
-      { ...config, exclude: ['**/node_modules/**'] },
-      testGlob,
-    );
-    const paths = files.map((f) => f.path);
-    expect(paths).toContain('/project/src/a.ts');
-    expect(paths).not.toContain('/project/src/node_modules/pkg/index.ts');
-  });
-
-  it('sets feature to null for files outside featuresDir', async () => {
-    vol.fromJSON({ '/project/src/shared/utils.ts': '' });
-    const files = await discoverFiles(config, testGlob);
-    const utils = files.find((f) => f.path.endsWith('utils.ts'));
-    expect(utils?.feature).toBeNull();
-  });
-
-  it('sets feature name for files inside featuresDir', async () => {
-    vol.fromJSON({ '/project/src/features/auth/service.ts': '' });
-    const files = await discoverFiles(config, testGlob);
-    const service = files.find((f) => f.path.endsWith('service.ts'));
-    expect(service?.feature).toBe('auth');
-  });
-
-  it('marks barrel files correctly', async () => {
-    vol.fromJSON({
-      '/project/src/features/auth/index.ts': '',
-      '/project/src/features/auth/service.ts': '',
-    });
-    const files = await discoverFiles(config, testGlob);
-    const barrel = files.find((f) => f.path.endsWith('auth/index.ts'));
-    const service = files.find((f) => f.path.endsWith('service.ts'));
-    expect(barrel?.isBarrel).toBe(true);
-    expect(service?.isBarrel).toBe(false);
-  });
-
-  it('returns relativePath relative to rootDir', async () => {
-    vol.fromJSON({ '/project/src/a.ts': '' });
-    const files = await discoverFiles(config, testGlob);
-    const file = files.find((f) => f.path.endsWith('a.ts'));
-    expect(file?.relativePath).toBe('src/a.ts');
-  });
-
-  it('deduplicates files found by multiple extension patterns', async () => {
-    vol.fromJSON({ '/project/src/a.ts': '' });
-    const files = await discoverFiles(config, testGlob);
-    const count = files.filter((f) => f.path.endsWith('a.ts')).length;
-    expect(count).toBe(1);
-  });
-});
 
 describe('getFeature', () => {
   it('returns null for a file outside featuresDir', () => {
@@ -116,10 +38,26 @@ describe('getFeature', () => {
   });
 });
 
+describe('getFeature edge cases', () => {
+  it('handles dot segments, sibling dirs and the features dir itself', () => {
+    expect(
+      getFeature('/project/src/features/auth/../billing/x.ts', config),
+    ).toBe('billing');
+    expect(
+      getFeature('/project/src/features/../shared/x.ts', config),
+    ).toBeNull();
+    expect(getFeature('/project/src/features-extra/a/x.ts', config)).toBeNull();
+    expect(getFeature('/project/src/features', config)).toBeNull();
+    expect(getFeature('/project/src/features/.hidden/x.ts', config)).toBe(
+      '.hidden',
+    );
+  });
+});
+
 describe('getBarrelPath', () => {
   it('returns the path to the first barrel file for a given feature', () => {
     const barrelPath = getBarrelPath('auth', config);
-    expect(barrelPath).toBe('/project/src/features/auth/index.ts');
+    expect(barrelPath).toBe(resolve('/project/src/features/auth/index.ts'));
   });
 
   it('uses the first barrel file when multiple are configured', () => {
@@ -128,6 +66,6 @@ describe('getBarrelPath', () => {
       barrelFiles: ['index.ts', 'index.tsx'],
     };
     const barrelPath = getBarrelPath('billing', multiBarrelConfig);
-    expect(barrelPath).toBe('/project/src/features/billing/index.ts');
+    expect(barrelPath).toBe(resolve('/project/src/features/billing/index.ts'));
   });
 });

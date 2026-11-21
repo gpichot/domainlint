@@ -14,11 +14,10 @@
     "glob": "^13.0.6",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.4",
-    "oxc-parser": "^0.121.0",
-    "oxc-resolver": "^11.19.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@napi-rs/cli": "3.10.12",
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^4.1.16",
     "@tanstack/intent": "^0.0.41",
@@ -38,6 +37,8 @@
   "files": [
     "./bin",
     "./dist",
+    "./native/binding.cjs",
+    "./native/binding.d.ts",
     "./oclif.manifest.json",
     "./schema.json",
     "skills"
@@ -64,11 +65,26 @@
     "build": "shx rm -rf dist && tsc -b && node scripts/generate-schema.mjs",
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "oclif manifest && oclif readme",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "node scripts/ensure-native.mjs && vitest",
+    "test:run": "node scripts/ensure-native.mjs && vitest run",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "version": "oclif readme && git add README.md"
+    "test:coverage": "node scripts/ensure-native.mjs && vitest --coverage",
+    "version": "oclif readme && git add README.md",
+    "build:native": "napi build --platform --release --strip --manifest-path ../../crates/domainlint-graph-napi/Cargo.toml --output-dir native --commonjs --js binding.cjs --dts binding.d.ts --no-dts-header",
+    "build:native:debug": "napi build --platform --manifest-path ../../crates/domainlint-graph-napi/Cargo.toml --output-dir native --commonjs --js binding.cjs --dts binding.d.ts --no-dts-header"
   },
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "napi": {
+    "binaryName": "domainlint",
+    "packageName": "domainlint-binding",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ]
+  }
 }
