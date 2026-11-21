@@ -1,0 +1,142 @@
+---
+/**
+ * Bar chart of benchmark results. Numbers come from `benchmarks/run.mjs`
+ * (median of 5 runs after a warm-up). Update them when re-running.
+ */
+interface Row {
+  tool: string;
+  seconds: number;
+  note: string;
+  highlight?: boolean;
+}
+
+const rows: Row[] = [
+  { tool: 'domainlint', seconds: 4.45, note: 'cycles + boundaries', highlight: true },
+  { tool: 'dependency-cruiser', seconds: 7.46, note: 'cycles + boundaries' },
+  { tool: 'madge', seconds: 8.2, note: 'cycles only' },
+  { tool: 'ESLint import-x/no-cycle', seconds: 14.13, note: 'cycles only' },
+];
+const max = Math.max(...rows.map((r) => r.seconds));
+const fastest = rows[0].seconds;
+---
+
+<figure class="dl-bench">
+  <figcaption class="dl-bench-head">
+    <strong>10,100 TypeScript files · 100 features</strong>
+    <span>Wall-clock, lower is better</span>
+  </figcaption>
+  <ul>
+    {
+      rows.map((r, i) => (
+        <li class:list={{ hl: r.highlight }} style={`--w:${(r.seconds / max) * 100}%;--i:${i}`}>
+          <span class="name">
+            {r.tool}
+            <small>{r.note}</small>
+          </span>
+          <span class="track">
+            <span class="bar" />
+          </span>
+          <span class="val">
+            {r.seconds.toFixed(1)}s
+            {!r.highlight && <small>{(r.seconds / fastest).toFixed(1)}× slower</small>}
+          </span>
+        </li>
+      ))
+    }
+  </ul>
+  <p class="dl-bench-foot">
+    Synthetic project, Node 22, 4 vCPU Linux. Median of 5 runs after warm-up, including process
+    start-up. On small projects (~500 files) every tool finishes in about a second.
+    <a href="https://github.com/gpichot/domainlint/tree/main/benchmarks">Reproduce it yourself →</a>
+  </p>
+</figure>
+
+<style>
+  .dl-bench {
+    margin: 0;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    border-radius: 18px;
+    border: 1px solid var(--dl-border);
+    background: var(--dl-card-bg);
+  }
+  .dl-bench-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+    margin-bottom: 1.1rem;
+  }
+  .dl-bench-head strong { color: var(--sl-color-white); }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.9rem;
+  }
+  li {
+    display: grid;
+    grid-template-columns: minmax(7rem, 13rem) 1fr 5.5rem;
+    align-items: center;
+    gap: 0.9rem;
+    margin: 0 !important;
+  }
+  .name {
+    font-weight: 600;
+    font-size: var(--sl-text-sm);
+    line-height: 1.2;
+    color: var(--sl-color-white);
+  }
+  small {
+    display: block;
+    font-weight: 400;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+  .track {
+    height: 0.9rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-gray-5) 35%, transparent);
+    overflow: hidden;
+  }
+  .bar {
+    display: block;
+    height: 100%;
+    width: var(--w);
+    border-radius: inherit;
+    background: var(--sl-color-gray-4);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  .hl .bar {
+    background: var(--dl-grad);
+    box-shadow: 0 0 18px rgb(124 92 255 / 0.6);
+  }
+  .val {
+    font-family: var(--sl-font-mono);
+    font-weight: 700;
+    font-size: var(--sl-text-sm);
+    text-align: end;
+    color: var(--sl-color-white);
+  }
+  .hl .val { color: var(--dl-ok); }
+  :global(.is-visible) .bar {
+    animation: grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    animation-delay: calc(var(--i) * 0.15s + 0.2s);
+  }
+  @keyframes grow { to { transform: scaleX(1); } }
+  .dl-bench-foot {
+    margin: 1.2rem 0 0 !important;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+  @media (max-width: 40rem) {
+    li { grid-template-columns: 1fr auto; }
+    .track { grid-column: 1 / -1; grid-row: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar { transform: none; animation: none !important; }
+  }
+</style>

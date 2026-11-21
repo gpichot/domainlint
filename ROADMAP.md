@@ -154,6 +154,27 @@ Verify before approving Step 2:
 
 ---
 
+## 9. Documentation site revamp + reproducible benchmarks
+
+**Status:** done
+**Scope:** `docs/src/content/docs/index.mdx`, `docs/src/content/docs/getting-started.mdx`, `docs/src/components/`, `docs/src/styles/custom.css`, `benchmarks/`
+
+- New landing page: animated terminal, problem statement, animated boundary/cycle diagram, benchmark chart, comparison table with dependency-cruiser / madge / ESLint plugins (including when to pick those instead), feature grid, copyable CTA
+- Getting started rewritten as 5 steps: layout (file tree), zero-install run (animated terminal), fix a deep import (animated before/after), fix a cycle, install + CI. Plus an "adopting on an existing codebase" section
+- All animations respect `prefers-reduced-motion`; no new docs dependencies
+- `benchmarks/`: deterministic fixture generator (`generate.mjs`) and runner (`run.mjs`) comparing domainlint, madge, dependency-cruiser and `eslint-plugin-import-x` at pinned versions. Fixtures and tools are generated into gitignored folders
+
+### Benchmark findings (10,100 files, 4 vCPU, Node 22, median of 5)
+
+domainlint 4.45s · dependency-cruiser 7.46s · madge 8.20s · ESLint import-x/no-cycle 14.13s. On ~500 files all tools take about 1s.
+
+### Follow-up tasks
+
+- **I/O is the bottleneck, not parsing.** A CPU profile shows oxc parsing takes ~280ms of a ~4.4s run; most time is per-file `fs/promises` open/read/close, `path.relative`/`normalize`, and idle waits. Batched/sync reads or a worker pool could plausibly cut total time substantially. Re-run `node benchmarks/run.mjs` and update `docs/src/components/BenchmarkChart.astro` after any perf change.
+- **`check` exits 2 instead of 1 on violations.** `this.exit(1)` inside the `try` in `src/commands/check.ts` is caught and rethrown as "Internal error: EEXIT: 1". Docs describe the intended contract (1 = violations).
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)

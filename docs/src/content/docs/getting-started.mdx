@@ -1,70 +1,152 @@
 ---
 title: Getting Started
-description: Install domainlint and run your first lint.
+description: Run domainlint on your codebase, fix your first violations, and enforce boundaries in CI in a few minutes.
 ---
 
-import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Steps, FileTree, Aside, LinkCard, CardGrid } from '@astrojs/starlight/components';
+import Terminal from '../../components/Terminal.astro';
+import ImportFix from '../../components/ImportFix.astro';
+import Reveal from '../../components/Reveal.astro';
 
-## Installation
+This guide takes you from nothing to a failing-then-green CI check. You need Node.js 18+ and a TypeScript or JavaScript project.
 
-<Tabs>
-  <TabItem label="npm">
-    ```sh
-    npm install --save-dev domainlint
-    ```
-  </TabItem>
-  <TabItem label="pnpm">
-    ```sh
-    pnpm add -D domainlint
-    ```
-  </TabItem>
-  <TabItem label="yarn">
-    ```sh
-    yarn add -D domainlint
-    ```
-  </TabItem>
-</Tabs>
+<Steps>
 
-Or install globally:
+1. **Check your layout**
 
-```sh
-npm install -g domainlint
+   domainlint treats every direct child of `src/features/` as a **feature**, and that feature's `index.ts` as its **barrel**, the only file other code may import from.
+
+   <FileTree>
+   - src/
+     - features/
+       - billing/
+         - **index.ts** public API: import from here
+         - internal/
+           - tax.ts private
+         - invoice.ts private
+       - checkout/
+         - **index.ts**
+         - pay.ts
+     - pages/
+       - home.tsx can import `@/features/billing`, not its internals
+   </FileTree>
+
+   Different folder names? Point domainlint at them with [`featuresDir` and `barrelFiles`](/configuration/).
+
+2. **Run it, without installing anything**
+
+   From your project root:
+
+   <Reveal>
+   <Terminal
+     title="~/acme-app"
+     command="npx domainlint check"
+     lines={[
+       { text: 'Analyzed 312 files in 148ms', kind: 'dim' },
+       { kind: 'blank', text: '' },
+       { text: 'src/features/checkout/pay.ts:1:1 ERROR noCrossFeatureDeepImport', kind: 'err' },
+       { text: '  Cross-feature deep import not allowed' },
+       { text: '    Import:        "@/features/billing/internal/tax"', kind: 'dim' },
+       { text: '    Resolves to:   "./src/features/billing/internal/tax.ts"', kind: 'dim' },
+       { text: '    Should use:    "./src/features/billing/index.ts"', kind: 'ok' },
+       { kind: 'blank', text: '' },
+       { text: '✗ Found 1 boundary violation (1 total violation)', kind: 'warn' },
+     ]}
+   />
+   </Reveal>
+
+   domainlint reads your `tsconfig.json`, so aliases like `@/features/...` resolve the same way your compiler resolves them.
+
+3. **Fix a deep import**
+
+   `noCrossFeatureDeepImport` means code reached into another feature's internals. Export what you need from the barrel, then import from the feature root:
+
+   <ImportFix />
+
+   That one `export` line is the point: it makes `computeTax` part of billing's public API on purpose, not by accident.
+
+4. **Fix an import cycle**
+
+   `noImportCycle` lists the modules in the loop:
+
+   ```
+   src/features/billing/invoice.ts:2:1 ERROR noImportCycle
+     Import cycle detected:
+       ./src/features/billing/invoice.ts ->
+       ./src/features/billing/tax.ts ->
+       ./src/features/billing/invoice.ts
+   ```
+
+   The usual fix is to move whatever both files need (types, constants) into a third module that both import, so the arrows point one way. Use `--shortest-cycles` to see the smallest loops first.
+
+5. **Install it and add it to CI**
+
+   <Tabs syncKey="pkg">
+     <TabItem label="npm">
+       ```sh
+       npm install --save-dev domainlint
+       ```
+     </TabItem>
+     <TabItem label="pnpm">
+       ```sh
+       pnpm add -D domainlint
+       ```
+     </TabItem>
+     <TabItem label="yarn">
+       ```sh
+       yarn add -D domainlint
+       ```
+     </TabItem>
+   </Tabs>
+
+   Add a script next to your type check:
+
+   ```json title="package.json" ins={4}
+   {
+     "scripts": {
+       "typecheck": "tsc --noEmit",
+       "lint:arch": "domainlint check"
+     }
+   }
+   ```
+
+   Then run it in CI. It exits with `1` when violations are found, so the build fails:
+
+   ```yaml title=".github/workflows/ci.yml" ins={6}
+   jobs:
+     lint:
+       runs-on: ubuntu-latest
+       steps:
+         # … checkout, setup-node, install
+         - run: npm run lint:arch
+   ```
+
+</Steps>
+
+## Adopting on an existing codebase
+
+Got hundreds of violations on day one? Don't fix them all at once. Start strict where it's cheap and loosen the rest:
+
+```json title="domainlint.json"
+{
+  "overrides": {
+    "global": {
+      "rules": { "cross-feature-imports": "warn" }
+    },
+    "features": {
+      "checkout": {
+        "rules": { "cross-feature-imports": "error" }
+      }
+    }
+  }
+}
 ```
 
-## Run your first check
+Warnings are printed but don't fail the build. Turn features to `error` one at a time as you clean them up. To focus on one feature's violations, use `domainlint check --feature billing`.
 
-From the root of your project:
-
-```sh
-domainlint check
-```
-
-This will analyze `src/` and report any violations.
-
-## Understanding violations
-
-### `noCrossFeatureDeepImport`
-
-A file outside a feature (or in a different feature) imported an internal module directly instead of going through the barrel.
-
-```
-src/pages/home.tsx:5:1 noCrossFeatureDeepImport
-  Importing src/features/billing/ui/Button.tsx directly.
-  Expected: src/features/billing/index.ts
-```
-
-**Fix:** import from the feature's `index.ts` instead.
-
-### `noImportCycle`
-
-A circular dependency was detected in the module graph.
-
-```
-src/features/auth/session.ts noImportCycle
-  Cycle: auth/session.ts → auth/user.ts → auth/session.ts
-```
-
-**Fix:** break the cycle by extracting shared state to a third module or restructuring dependencies.
+<Aside type="tip" title="Using an AI coding agent?">
+domainlint ships agent skills for adopting, configuring, and debugging violations. See the [package README](https://github.com/gpichot/domainlint/tree/main/packages/domainlint#readme) for `npx @tanstack/intent install`.
+</Aside>
 
 ## Exit codes
 
@@ -76,9 +158,9 @@ src/features/auth/session.ts noImportCycle
 
 ## Next steps
 
-- [Feature Structure](/feature-structure/) — how domainlint identifies features and barrels
-- [Configuration](/configuration/) — customize paths, extensions, and rule severity
-- [CLI Reference](/cli/) — all available flags
-- [Rules](/rules/) — learn about the built-in rules in detail
-- [Workspaces](/workspaces/) — monorepo support and cross-package import rules
-- [CI Integration](/ci/) — add domainlint to your pipeline
+<CardGrid>
+  <LinkCard title="Configuration" href="/configuration/" description="Paths, extensions, severities and per-feature overrides." />
+  <LinkCard title="Rules" href="/rules/" description="What each built-in rule checks, in detail." />
+  <LinkCard title="Custom rules" href="/custom-rules/" description="Write your own architecture rules against the dependency graph." />
+  <LinkCard title="Workspaces" href="/workspaces/" description="Monorepo support and cross-package import rules." />
+</CardGrid>

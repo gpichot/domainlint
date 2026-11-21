@@ -1,35 +1,199 @@
 ---
 title: domainlint
-description: Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.
+description: Fast architecture linter for TypeScript. Enforce feature boundaries and catch import cycles in seconds, powered by the Rust-based oxc parser.
 template: splash
 hero:
-  tagline: Keep your feature boundaries clean. Catch import cycles before they catch you.
+  tagline: Keep feature boundaries clean and import cycles out of your TypeScript codebase. Zero config, Rust-powered parsing, ready for CI in one command.
   actions:
-    - text: Get Started
+    - text: Get started
       link: /getting-started/
       icon: right-arrow
       variant: primary
-    - text: View on GitHub
+    - text: Why domainlint?
+      link: /#compare
+      variant: secondary
+    - text: GitHub
       link: https://github.com/gpichot/domainlint
       icon: external
       variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import Terminal from '../../components/Terminal.astro';
+import Reveal from '../../components/Reveal.astro';
+import BoundaryDiagram from '../../components/BoundaryDiagram.astro';
+import BenchmarkChart from '../../components/BenchmarkChart.astro';
+import Comparison from '../../components/Comparison.astro';
+import CopyCommand from '../../components/CopyCommand.astro';
 
-## What it does
+<Reveal>
+<Terminal
+  title="~/acme-app"
+  command="npx domainlint check"
+  lines={[
+    { text: 'Analyzed 2,418 files in 612ms', kind: 'dim' },
+    { kind: 'blank', text: '' },
+    { text: 'src/features/checkout/pay.ts:3:1 ERROR noCrossFeatureDeepImport', kind: 'err' },
+    { text: '  Cross-feature deep import not allowed' },
+    { text: '    Import:        "@/features/billing/tax"', kind: 'dim' },
+    { text: '    Should use:    "./src/features/billing/index.ts"', kind: 'ok' },
+    { text: 'src/features/billing/invoice.ts:2:1 ERROR noImportCycle', kind: 'err' },
+    { text: '  Import cycle detected:' },
+    { text: '    ./src/features/billing/invoice.ts ->', kind: 'dim' },
+    { text: '    ./src/features/billing/tax.ts ->', kind: 'dim' },
+    { text: '    ./src/features/billing/invoice.ts', kind: 'dim' },
+    { kind: 'blank', text: '' },
+    { text: '✗ Found 1 import cycle and 1 boundary violation (2 total violations)', kind: 'warn' },
+  ]}
+/>
+</Reveal>
 
-<CardGrid>
-  <Card title="Enforce feature boundaries" icon="puzzle">
-    Cross-feature imports must go through barrel files only (`src/features/<name>/index.ts`). No sneaking into internals.
-  </Card>
-  <Card title="Detect import cycles" icon="warning">
-    Finds circular dependencies across the module graph before they cause runtime surprises.
-  </Card>
-  <Card title="tsconfig-aware" icon="setting">
-    Resolves `baseUrl` and `paths` from your `tsconfig.json` so aliased imports are handled correctly.
-  </Card>
-  <Card title="Zero-config defaults" icon="rocket">
-    Works out of the box for `src/features/` layouts. Override anything with a simple `domainlint.json`.
-  </Card>
-</CardGrid>
+<section class="dl-section">
+<Reveal>
+<span class="dl-eyebrow">The problem</span>
+
+## Feature folders rot quietly
+
+You split the app into `features/`. Six months later every feature reaches into every other one, nobody can delete anything, and a circular import turns a value into `undefined` at runtime. Code review doesn't catch it, because each import looks harmless on its own.
+
+</Reveal>
+
+<div class="dl-grid">
+  <Reveal delay={0}>
+    <div class="dl-card">
+      <span class="dl-card-icon">🕸️</span>
+      <h3>Deep imports</h3>
+      <p>`billing/internal/tax.ts` imported from five places means it's public API now, whether you wanted that or not. Refactors break far away.</p>
+    </div>
+  </Reveal>
+  <Reveal delay={0.1}>
+    <div class="dl-card">
+      <span class="dl-card-icon">🔁</span>
+      <h3>Import cycles</h3>
+      <p>Cycles cause `undefined` at module init, flaky HMR, and code-splitting that can't split. They're invisible until something breaks.</p>
+    </div>
+  </Reveal>
+  <Reveal delay={0.2}>
+    <div class="dl-card">
+      <span class="dl-card-icon">🧑‍⚖️</span>
+      <h3>Rules on a wiki page</h3>
+      <p>"Only import through `index.ts`" works until the next deadline. Conventions nobody enforces turn into suggestions.</p>
+    </div>
+  </Reveal>
+</div>
+</section>
+
+<section class="dl-section">
+<Reveal>
+<span class="dl-eyebrow">How it works</span>
+
+## Every feature gets a front door
+
+Each folder in `src/features/` is a feature, and its `index.ts` is the only way in. domainlint builds the full import graph, resolving your tsconfig aliases, and reports every import that sneaks past a barrel, plus every cycle.
+
+</Reveal>
+
+<Reveal delay={0.1}>
+<BoundaryDiagram />
+</Reveal>
+</section>
+
+<section class="dl-section">
+<Reveal>
+<span class="dl-eyebrow">Speed</span>
+
+## Fast enough to run on every commit
+
+Parsing goes through [oxc](https://oxc.rs), a Rust-native JavaScript toolchain, and module resolution through `oxc-resolver`. Parsing 10,000 files takes about 300 ms, so most of the run is plain file I/O. On a 10k-file project, domainlint checks **cycles and boundaries together** in less time than other tools take for cycles alone.
+
+</Reveal>
+
+<Reveal delay={0.1}>
+<BenchmarkChart />
+</Reveal>
+</section>
+
+<section class="dl-section" id="compare">
+<Reveal>
+<span class="dl-eyebrow">Compared</span>
+
+## Why not just use…?
+
+Good tools already exist for parts of this problem. domainlint is narrower on purpose: it knows what a *feature* and a *barrel* are, so you get useful errors without writing regexes.
+
+</Reveal>
+
+<Reveal delay={0.1}>
+<Comparison />
+</Reveal>
+
+<Reveal delay={0.15}>
+<div class="dl-grid" style="margin-top: 1rem">
+  <div class="dl-card">
+    <h3>Pick dependency-cruiser if…</h3>
+    <p>you need arbitrary path-based rules (layers inside a feature, "no `ui` → `db`"), or dependency graph images. It's the most flexible option, and you pay for that in config.</p>
+  </div>
+  <div class="dl-card">
+    <h3>Pick ESLint plugins if…</h3>
+    <p>you want squiggles in the editor while you type. `eslint-plugin-boundaries` and `import-x/no-cycle` do that, but cycle detection gets slow on large graphs.</p>
+  </div>
+  <div class="dl-card">
+    <h3>Pick domainlint if…</h3>
+    <p>you organise code by feature and want those boundaries enforced in CI with no setup, fast, with a typed graph API for your own rules.</p>
+  </div>
+</div>
+</Reveal>
+</section>
+
+<section class="dl-section">
+<Reveal>
+<span class="dl-eyebrow">More than two rules</span>
+
+## Grows with your codebase
+
+</Reveal>
+
+<div class="dl-grid">
+  <Reveal>
+    <a class="dl-card" href="/workspaces/" style="display:block;text-decoration:none;color:inherit">
+      <span class="dl-card-icon">📦</span>
+      <h3>Monorepos</h3>
+      <p>Detects npm, pnpm and yarn workspaces. Lints each package and checks cross-package imports and cycles.</p>
+    </a>
+  </Reveal>
+  <Reveal delay={0.08}>
+    <a class="dl-card" href="/custom-rules/" style="display:block;text-decoration:none;color:inherit">
+      <span class="dl-card-icon">🧩</span>
+      <h3>Custom rules</h3>
+      <p>Write rules in TypeScript against the whole dependency graph with the GraphQuery API.</p>
+    </a>
+  </Reveal>
+  <Reveal delay={0.16}>
+    <a class="dl-card" href="/configuration/" style="display:block;text-decoration:none;color:inherit">
+      <span class="dl-card-icon">🎚️</span>
+      <h3>Gradual adoption</h3>
+      <p>Per-rule severities and per-feature overrides let you fix a legacy codebase one feature at a time.</p>
+    </a>
+  </Reveal>
+  <Reveal delay={0.24}>
+    <a class="dl-card" href="/ci/" style="display:block;text-decoration:none;color:inherit">
+      <span class="dl-card-icon">🚦</span>
+      <h3>CI-native</h3>
+      <p>One command, meaningful exit codes. Add it next to your type check and you're done.</p>
+    </a>
+  </Reveal>
+</div>
+</section>
+
+<section class="dl-section">
+<Reveal>
+<div class="dl-cta">
+
+## Try it on your codebase now
+
+<p class="dl-lead" style="margin-inline:auto">No install, no config. If you have a `src/features/` folder, this works as-is.</p>
+
+<CopyCommand command="npx domainlint check" />
+
+</div>
+</Reveal>
+</section>
