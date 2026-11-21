@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.8.0...domainlint-v0.9.0) (2026-11-21)
+
+
+### Features
+
+* native Rust core with napi binding for 10x performance ([#58](https://github.com/gpichot/domainlint/issues/58)) ([490ac75](https://github.com/gpichot/domainlint/commit/490ac75a40462e57253a4925af062a2bb74e0cf1))
+
+
+### Bug Fixes
+
+* **cli:** exit with code 1 when violations are found ([#56](https://github.com/gpichot/domainlint/issues/56)) ([71c8729](https://github.com/gpichot/domainlint/commit/71c872990c94fd88cf540ead9c21867f6a58ed8c))
+
 ## [0.8.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.7.0...domainlint-v0.8.0) (2026-06-02)
 
 
