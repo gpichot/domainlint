@@ -10,28 +10,38 @@ Two core rules:
 
 ## Tech stack
 
+- **Core**: Rust (stable, Cargo workspace) — parsing with `oxc_parser`, resolution with `oxc_resolver` (handles tsconfig paths), graph + built-in rules
+- **Bridge**: napi-rs addon (`crates/domainlint-graph-napi`), built with `@napi-rs/cli`. There is no JS fallback: a missing addon exits with code 2
 - **Runtime**: Node.js ≥18, TypeScript, ESM
 - **CLI**: oclif
-- **Parser**: SWC (fast TS/JS AST parsing)
-- **Tests**: vitest
-- **Linter/formatter**: oxlint (`.oxlintrc.json`) + oxfmt (`.oxfmtrc.json`)
-- **Package manager**: pnpm
+- **Tests**: vitest (JS), `cargo test` (Rust)
+- **Linter/formatter**: oxlint (`.oxlintrc.json`) + oxfmt (`.oxfmtrc.json`); clippy + rustfmt for Rust
+- **Package manager**: pnpm (monorepo)
 
 ## Project structure
 
 ```
-src/
-  commands/       # CLI commands: check.ts, debug.ts
-  config/         # Config loading and types
-  files/          # File discovery and feature ownership
-  graph/          # Dependency graph structures
-  linter/         # Main linting engine (FeatureBoundariesLinter)
-  parser/         # SWC-based import extractor
-  resolution/     # Module resolver (handles tsconfig paths)
-  rules/          # CycleDetector, FeatureBoundaryValidator
-  reporter/       # Colored CLI output
-  services/       # LintOrchestrator, StatisticsCalculator, ViolationFilter
-  tsconfig/       # tsconfig.json parser
+crates/
+  domainlint-graph/        # Rust core: discovery, parse, resolve, graph, built-in rules (lib + `domainlint-rs` CLI)
+  domainlint-graph-napi/   # napi-rs addon exposing the core to Node (`lint`, `parseImports`, `resolveImports`)
+packages/domainlint/
+  src/
+    commands/      # CLI commands: check.ts, debug.ts
+    config/        # Config loading, types, rule overrides
+    files/         # FileInfo + feature ownership (discovery itself is native)
+    graph/         # DependencyGraph types + GraphQuery (custom rule API)
+    linter/        # Main linting engine (FeatureBoundariesLinter)
+    native/        # Addon loader + pipeline rebuilding the JS graph from typed arrays
+    parser/        # Import types only
+    rules/         # Custom Rule API + workspace rules (noPackageImport, noPackageCycle)
+    reporter/      # Colored CLI output
+    services/      # LintOrchestrator, StatisticsCalculator, ViolationFilter
+    workspace/     # Workspace detection and per-package runner
+    path-utils.ts
+  npm/<platform>/  # Prebuilt `domainlint-binding-<platform>` packages
+  scripts/         # ensure-native, inject-optional-deps, generate-schema
+benchmarks/        # Benchmark fixtures generator + runner
+docs/              # Astro/Starlight docs site
 ```
 
 ## CLI commands
@@ -44,12 +54,16 @@ domainlint debug <file>       # Debug imports/violations for a single file
 ## Common tasks
 
 ```bash
+pnpm --filter domainlint build:native   # Build the napi addon (tests auto-build it if missing)
 pnpm test:run         # Run tests once
 pnpm build            # Compile TypeScript to dist/
 pnpm lint             # oxlint
 pnpm lint:fix         # oxlint --fix
 pnpm format           # oxfmt (write)
 pnpm format:check     # oxfmt --check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
 ```
 
 ## Configuration
@@ -58,7 +72,7 @@ Config file: `domainlint.json` (or via CLI flags). Key options:
 - `srcDir` (default: `src`)
 - `featuresDir` (default: `src/features`)
 - `barrelFiles` (default: `["index.ts"]`)
-- `extensions` (default: `[".ts", ".tsx"]`)
+- `extensions` (default: `[".ts", ".tsx", ".d.ts"]`)
 - `includeDynamicImports` (default: `false`)
 
 ## Violation codes
@@ -66,6 +80,8 @@ Config file: `domainlint.json` (or via CLI flags). Key options:
 - `noImportCycle` — circular dependency detected
 - `noFeatureImportFromNonDomain` — feature file imports from outside the features directory
 - `noCrossFeatureDeepImport` — cross-feature import bypasses barrel
+- `noPackageImport` — workspace mode: import denied by `packageRules`
+- `noPackageCycle` — workspace mode: circular dependency between packages
 
 ## Exit codes
 
