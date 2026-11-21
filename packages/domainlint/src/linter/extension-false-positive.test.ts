@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { FeatureBoundariesLinter } from './feature-boundaries-linter.js';
@@ -9,7 +9,7 @@ let testDir: string;
 
 function writeFile(relativePath: string, content: string): void {
   const fullPath = join(testDir, relativePath);
-  const dir = fullPath.slice(0, fullPath.lastIndexOf('/'));
+  const dir = dirname(fullPath);
   mkdirSync(dir, { recursive: true });
   writeFileSync(fullPath, content);
 }

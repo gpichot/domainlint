@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockFileSystem } from '../test-utils/setup.js';
@@ -73,7 +74,7 @@ describe('Config Loader', () => {
     });
 
     expect(config).toMatchObject({
-      srcDir: '/project/app', // CLI override wins
+      srcDir: resolve('/project/app'), // CLI override wins
       includeDynamicImports: false, // CLI override wins
     });
   });
@@ -91,7 +92,7 @@ describe('Config Loader', () => {
     const config = await loadConfig('/project', 'custom-config.json');
 
     expect(config).toMatchObject({
-      srcDir: '/project/custom',
+      srcDir: resolve('/project/custom'),
       extensions: ['.js', '.jsx'],
     });
   });

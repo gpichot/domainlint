@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { getBarrelPath, getFeature } from './file-discovery.js';
@@ -56,7 +57,7 @@ describe('getFeature edge cases', () => {
 describe('getBarrelPath', () => {
   it('returns the path to the first barrel file for a given feature', () => {
     const barrelPath = getBarrelPath('auth', config);
-    expect(barrelPath).toBe('/project/src/features/auth/index.ts');
+    expect(barrelPath).toBe(resolve('/project/src/features/auth/index.ts'));
   });
 
   it('uses the first barrel file when multiple are configured', () => {
@@ -65,6 +66,6 @@ describe('getBarrelPath', () => {
       barrelFiles: ['index.ts', 'index.tsx'],
     };
     const barrelPath = getBarrelPath('billing', multiBarrelConfig);
-    expect(barrelPath).toBe('/project/src/features/billing/index.ts');
+    expect(barrelPath).toBe(resolve('/project/src/features/billing/index.ts'));
   });
 });

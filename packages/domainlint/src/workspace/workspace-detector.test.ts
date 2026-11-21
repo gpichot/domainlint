@@ -13,17 +13,21 @@ vi.mock('node:fs/promises', async () => {
 
 vi.mock('glob', () => ({
   glob: async (pattern: string, options: { cwd?: string } = {}) => {
+    // memfs keys and cwd may carry a drive letter and `\\` on Windows: compare
+    // them as drive-less POSIX paths.
+    const norm = (p: string) =>
+      p
+        .replace(/^[a-zA-Z]:/, '')
+        .split(sep)
+        .join('/');
     const cwd = options.cwd || process.cwd();
+    const posixCwd = norm(cwd);
     // Simple glob expansion for "packages/*" style patterns
     const allPaths = Object.keys(vol.toJSON());
     const dirs = new Set<string>();
     for (const p of allPaths) {
-      if (p.startsWith(cwd)) {
-        // memfs keys use the platform separator; patterns use '/'
-        const rel = p
-          .slice(cwd.length + 1)
-          .split(sep)
-          .join('/');
+      if (norm(p).startsWith(`${posixCwd}/`)) {
+        const rel = norm(p).slice(posixCwd.length + 1);
         // Match "packages/*" pattern
         if (pattern.endsWith('/*')) {
           const prefix = pattern.slice(0, -2);

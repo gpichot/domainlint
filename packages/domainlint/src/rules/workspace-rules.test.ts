@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImportInfo } from '../parser/types.js';
@@ -132,7 +133,9 @@ describe('buildPackageJsonEdges', () => {
     expect(edges).toHaveLength(1);
     expect(edges[0].fromPackage).toBe('packages/core');
     expect(edges[0].toPackage).toBe('packages/shared');
-    expect(edges[0].file).toBe('/workspace/packages/core/package.json');
+    expect(edges[0].file).toBe(
+      join('/workspace/packages/core', 'package.json'),
+    );
     expect(edges[0].specifier).toBe('@myorg/shared');
   });
 
