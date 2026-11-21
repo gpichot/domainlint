@@ -2,9 +2,20 @@
 name = "domainlint-graph"
 version = "0.1.0"
 edition = "2024"
+description = "Native (Rust) import-graph build + built-in domainlint rules; performance spike"
+publish = false
+
+[lib]
+name = "domainlint_graph"
+path = "src/lib.rs"
+
+[[bin]]
+name = "domainlint-rs"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.104"
+clap = { version = "4", features = ["derive"] }
 globset = "0.4.21"
 ignore = "0.4.34"
 json_comments = "0.2.2"
@@ -19,3 +30,9 @@ serde_json = "1.0.154"
 
 [dev-dependencies]
 tempfile = "3.27.0"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

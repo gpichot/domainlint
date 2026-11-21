@@ -1,14 +1,157 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! Native import-graph build + the two built-in domainlint rules (R1 cycles, R2 feature
+//! boundaries). Designed so a napi binding can call [`run`] directly.
+//!
+//! Pipeline (each phase timed separately, see [`Timings`]):
+//!   walk -> read+parse (rayon) -> resolve (rayon, one shared `Resolver`) -> graph -> rules.
+//! Parse and resolve are deliberately separate passes (not fused per file) so their cost can be
+//! attributed; fusing would save one barrier and some cache misses.
+//!
+//! Differences from the Node pipeline (all deliberate): rules that are `off` are skipped instead of
+//! computed-then-filtered; tsconfig is only consumed by the resolver (Node additionally shells out
+//! to `npx tsc --showConfig`, whose result is unused by resolution); user rules files
+//! (`domainlint.rules.ts`) and workspaces are not supported.
+
+pub mod config;
+pub mod discover;
+pub mod graph;
+pub mod parse;
+pub mod report;
+pub mod resolve;
+pub mod rules;
+
+use std::time::{Duration, Instant};
+
+use anyhow::Result;
+use oxc_allocator::Allocator;
+use rayon::prelude::*;
+
+pub use config::{CliOverrides, Config, Level, RuleName};
+pub use graph::Graph;
+pub use rules::{Code, SccStats, Violation};
+
+#[derive(Debug, Clone, Default)]
+pub struct RunOptions {
+    /// Also run the Tarjan SCC cross-check (reported in [`RunResult::scc`]).
+    pub scc: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Clone, Default)]
+pub struct Timings {
+    pub walk: Duration,
+    pub read_parse: Duration,
+    pub resolve: Duration,
+    pub graph_build: Duration,
+    pub cycles: Duration,
+    pub boundaries: Duration,
+    pub scc: Duration,
+    pub total: Duration,
+    pub cycles_skipped: bool,
+    pub boundaries_skipped: bool,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+#[derive(Debug)]
+pub struct RunResult {
+    pub file_count: usize,
+    pub edge_count: usize,
+    pub import_count: usize,
+    pub graph: Graph,
+    /// Cycles first, then boundary violations (same order as Node's output).
+    pub violations: Vec<Violation>,
+    pub scc: Option<SccStats>,
+    pub timings: Timings,
+}
+
+pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
+    let t_total = Instant::now();
+    let mut timings = Timings::default();
+
+    // Node requires the tsconfig to exist (loadTsConfig throws otherwise).
+    if !config.tsconfig_path.exists() {
+        anyhow::bail!(
+            "Failed to read tsconfig.json at {}: no such file",
+            config.tsconfig_path.display()
+        );
     }
+
+    // 1. walk
+    let t = Instant::now();
+    let files = discover::discover_files(config)?;
+    timings.walk = t.elapsed();
+
+    // 2. read + parse
+    let t = Instant::now();
+    let include_dynamic = config.include_dynamic_imports;
+    let imports: Vec<Vec<parse::ImportInfo>> = files
+        .par_iter()
+        .map_init(Allocator::default, |alloc, path| {
+            alloc.reset();
+            let bytes =
+                std::fs::read(path).map_err(|e| anyhow::anyhow!("Failed to read {path}: {e}"))?;
+            let source = String::from_utf8_lossy(&bytes);
+            parse::parse_imports(std::path::Path::new(path), &source, alloc, include_dynamic)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    timings.read_parse = t.elapsed();
+    let import_count: usize = imports.iter().map(Vec::len).sum();
+
+    // 3. resolve
+    let t = Instant::now();
+    let resolver = resolve::build_resolver(config);
+    let resolved: Vec<Vec<Option<String>>> = files
+        .par_iter()
+        .zip(imports.par_iter())
+        .map(|(file, imps)| {
+            imps.iter()
+                .map(|i| resolve::resolve_local(&resolver, file, &i.specifier))
+                .collect()
+        })
+        .collect();
+    timings.resolve = t.elapsed();
+
+    // 4. graph
+    let t = Instant::now();
+    let graph = graph::build_graph(&files, imports, &resolved, &config.extensions);
+    timings.graph_build = t.elapsed();
+
+    // 5. rules (skipped entirely when off)
+    let mut violations = Vec::new();
+
+    let t = Instant::now();
+    if config.rule_possibly_enabled(RuleName::ImportCycles) {
+        let cycles = rules::find_cycles(&graph);
+        violations.extend(rules::cycle_violations(&graph, config, &cycles));
+    } else {
+        timings.cycles_skipped = true;
+    }
+    timings.cycles = t.elapsed();
+
+    let t = Instant::now();
+    if config.rule_possibly_enabled(RuleName::CrossFeatureImports)
+        || config.rule_possibly_enabled(RuleName::NoExternalFeatureImports)
+    {
+        violations.extend(rules::boundary_violations(&graph, config));
+    } else {
+        timings.boundaries_skipped = true;
+    }
+    timings.boundaries = t.elapsed();
+
+    let scc = if opts.scc {
+        let t = Instant::now();
+        let s = rules::scc_stats(&graph);
+        timings.scc = t.elapsed();
+        Some(s)
+    } else {
+        None
+    };
+
+    timings.total = t_total.elapsed();
+    Ok(RunResult {
+        file_count: files.len(),
+        edge_count: graph.edges.len(),
+        import_count,
+        graph,
+        violations,
+        scc,
+        timings,
+    })
 }
