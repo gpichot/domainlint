@@ -6,7 +6,6 @@ import type { DependencyGraph } from '../graph/types.js';
 import { createDefaultConfig } from '../test-utils/setup.js';
 import {
   findRulesFile,
-  loadRules,
   type Rule,
   type RuleContext,
   runRules,

@@ -9,7 +9,6 @@ vi.mock('../config/config-loader.js', () => ({
 
 // Use a class for the mock so `new` works properly
 vi.mock('../linter/feature-boundaries-linter.js', () => {
-  // biome-ignore lint/complexity/noStaticOnlyClass: needed for vi.mock
   class MockFeatureBoundariesLinter {
     static lintMock = vi.fn();
     lint = MockFeatureBoundariesLinter.lintMock;

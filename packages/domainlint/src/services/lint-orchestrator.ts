@@ -3,10 +3,7 @@ import type {
   ConfigOverrides,
   FeatureBoundariesConfig,
 } from '../config/types.js';
-import {
-  FeatureBoundariesLinter,
-  type LintResult,
-} from '../linter/feature-boundaries-linter.js';
+import { FeatureBoundariesLinter } from '../linter/feature-boundaries-linter.js';
 import {
   ColoredReporter,
   type FeatureStats,

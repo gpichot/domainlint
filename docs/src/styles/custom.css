@@ -39,7 +39,11 @@
   height: 120%;
   z-index: -1;
   background:
-    radial-gradient(40% 50% at 30% 30%, rgb(124 92 255 / 0.28), transparent 70%),
+    radial-gradient(
+      40% 50% at 30% 30%,
+      rgb(124 92 255 / 0.28),
+      transparent 70%
+    ),
     radial-gradient(35% 45% at 75% 40%, rgb(34 211 238 / 0.18), transparent 70%);
   filter: blur(30px);
   animation: dl-float 14s ease-in-out infinite alternate;
@@ -61,12 +65,18 @@
 }
 
 @keyframes dl-float {
-  from { transform: translate3d(-3%, 0, 0) scale(1); }
-  to { transform: translate3d(3%, 4%, 0) scale(1.08); }
+  from {
+    transform: translate3d(-3%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 4%, 0) scale(1.08);
+  }
 }
 
 @keyframes dl-shine {
-  to { background-position: 200% center; }
+  to {
+    background-position: 200% center;
+  }
 }
 
 /* ---------- Shared landing primitives ---------- */
@@ -115,7 +125,10 @@
   border: 1px solid var(--dl-border);
   border-radius: 14px;
   padding: 1.25rem 1.35rem;
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .dl-card:hover {
@@ -144,7 +157,9 @@
 .dl-reveal {
   opacity: 0;
   transform: translateY(18px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
   transition-delay: var(--dl-delay, 0s);
 }
 
@@ -159,7 +174,11 @@
   border-radius: 20px;
   border: 1px solid var(--dl-border);
   background:
-    radial-gradient(60% 120% at 50% 0%, rgb(124 92 255 / 0.22), transparent 70%),
+    radial-gradient(
+      60% 120% at 50% 0%,
+      rgb(124 92 255 / 0.22),
+      transparent 70%
+    ),
     var(--dl-card-bg);
 }
 

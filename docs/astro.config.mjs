@@ -1,41 +1,41 @@
-import { defineConfig } from "astro/config";
-import starlight from "@astrojs/starlight";
+import starlight from '@astrojs/starlight';
+import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   integrations: [
     starlight({
-      title: "domainlint",
-      customCss: ["./src/styles/custom.css"],
+      title: 'domainlint',
+      customCss: ['./src/styles/custom.css'],
       description:
-        "Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.",
+        'Architecture linter for TypeScript/JavaScript codebases. Enforces feature boundary rules and detects import cycles.',
       social: [
         {
-          icon: "github",
-          label: "GitHub",
-          href: "https://github.com/gpichot/domainlint",
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/gpichot/domainlint',
         },
       ],
       sidebar: [
-        { label: "Getting Started", slug: "getting-started" },
-        { label: "Feature Structure", slug: "feature-structure" },
-        { label: "Configuration", slug: "configuration" },
+        { label: 'Getting Started', slug: 'getting-started' },
+        { label: 'Feature Structure', slug: 'feature-structure' },
+        { label: 'Configuration', slug: 'configuration' },
         {
-          label: "Reference",
+          label: 'Reference',
           items: [
-            { label: "Rules", slug: "rules" },
-            { label: "CLI", slug: "cli" },
+            { label: 'Rules', slug: 'rules' },
+            { label: 'CLI', slug: 'cli' },
           ],
         },
         {
-          label: "Advanced",
+          label: 'Advanced',
           items: [
-            { label: "Custom Rules", slug: "custom-rules" },
-            { label: "GraphQuery API", slug: "graphquery-api" },
-            { label: "Workspaces", slug: "workspaces" },
-            { label: "CI Integration", slug: "ci" },
+            { label: 'Custom Rules', slug: 'custom-rules' },
+            { label: 'GraphQuery API', slug: 'graphquery-api' },
+            { label: 'Workspaces', slug: 'workspaces' },
+            { label: 'CI Integration', slug: 'ci' },
           ],
         },
-        { label: "Philosophy", slug: "philosophy" },
+        { label: 'Philosophy', slug: 'philosophy' },
       ],
     }),
   ],

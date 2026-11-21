@@ -12,17 +12,27 @@ export default [
     settings: {
       'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx'] },
       'import-x/extensions': ['.ts', '.tsx'],
-      'import-x/resolver-next': [createTypeScriptImportResolver({ project: './tsconfig.json' })],
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({ project: './tsconfig.json' }),
+      ],
       'import/resolver': { typescript: { project: './tsconfig.json' } },
       'boundaries/elements': [
-        { type: 'feature', pattern: 'src/features/*', mode: 'folder', capture: ['name'] },
+        {
+          type: 'feature',
+          pattern: 'src/features/*',
+          mode: 'folder',
+          capture: ['name'],
+        },
       ],
     },
     rules: {
       'import-x/no-cycle': 'error',
       'boundaries/entry-point': [
         'error',
-        { default: 'disallow', rules: [{ target: ['feature'], allow: 'index.ts' }] },
+        {
+          default: 'disallow',
+          rules: [{ target: ['feature'], allow: 'index.ts' }],
+        },
       ],
     },
   },

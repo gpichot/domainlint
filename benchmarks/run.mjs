@@ -36,7 +36,10 @@ const { values } = parseArgs({
     sizes: { type: 'string', default: '20x25,100x100' },
     runs: { type: 'string', default: '5' },
     tools: { type: 'string' },
-    out: { type: 'string', default: path.join(os.tmpdir(), 'domainlint-bench') },
+    out: {
+      type: 'string',
+      default: path.join(os.tmpdir(), 'domainlint-bench'),
+    },
     json: { type: 'string' },
   },
 });
@@ -57,16 +60,34 @@ const TOOL_DEPS = {
 
 const domainlint = (config) => [
   process.execPath,
-  [domainlintBin, 'check', '.', '--no-color', ...(config ? ['-c', path.join(configs, config)] : [])],
+  [
+    domainlintBin,
+    'check',
+    '.',
+    '--no-color',
+    ...(config ? ['-c', path.join(configs, config)] : []),
+  ],
 ];
-const depcruise = (config) => [bin('depcruise'), ['src', '-c', path.join(configs, config)]];
+const depcruise = (config) => [
+  bin('depcruise'),
+  ['src', '-c', path.join(configs, config)],
+];
 // ESLint and oxlint resolve plugins relative to the config file, so configs are copied
 // into the fixture (next to its node_modules symlink) and referenced by name.
 const eslint = (config) => [bin('eslint'), ['src', '-c', config]];
 // oxlint runs eslint-plugin-boundaries through its ESLint-compatible JS plugin support.
 const oxlintBoundaries = (...extra) => [
   bin('oxlint'),
-  ['-c', 'oxlint-boundaries.json', '-A', 'all', '-D', 'boundaries/entry-point', ...extra, 'src'],
+  [
+    '-c',
+    'oxlint-boundaries.json',
+    '-A',
+    'all',
+    '-D',
+    'boundaries/entry-point',
+    ...extra,
+    'src',
+  ],
 ];
 
 // Each entry: label, command, and a parser that extracts the number of
@@ -79,45 +100,98 @@ const lines = (re) => (out) => out.split('\n').filter((l) => re.test(l)).length;
 
 const SCENARIOS = {
   cycles: {
-    domainlint: { label: 'domainlint', cmd: domainlint('domainlint-cycles.json'), findings: lines(/ ERROR /) },
+    domainlint: {
+      label: 'domainlint',
+      cmd: domainlint('domainlint-cycles.json'),
+      findings: lines(/ ERROR /),
+    },
     oxlint: {
       label: 'oxlint import/no-cycle',
-      cmd: [bin('oxlint'), ['--import-plugin', '-A', 'all', '-D', 'import/no-cycle', 'src']],
+      cmd: [
+        bin('oxlint'),
+        ['--import-plugin', '-A', 'all', '-D', 'import/no-cycle', 'src'],
+      ],
       findings: lines(/import\(no-cycle\)/),
     },
     madge: {
       label: 'madge --circular',
-      cmd: [bin('madge'), ['--circular', '--extensions', 'ts', '--ts-config', 'tsconfig.json', 'src']],
+      cmd: [
+        bin('madge'),
+        [
+          '--circular',
+          '--extensions',
+          'ts',
+          '--ts-config',
+          'tsconfig.json',
+          'src',
+        ],
+      ],
       findings: lines(/^\d+\)/),
     },
-    depcruise: { label: 'dependency-cruiser', cmd: depcruise('depcruise-cycles.cjs'), findings: count(/(\d+) dependency violations/) },
-    eslint: { label: 'ESLint import-x/no-cycle', cmd: eslint('eslint-cycles.mjs'), findings: count(/(\d+) problems?/) },
+    depcruise: {
+      label: 'dependency-cruiser',
+      cmd: depcruise('depcruise-cycles.cjs'),
+      findings: count(/(\d+) dependency violations/),
+    },
+    eslint: {
+      label: 'ESLint import-x/no-cycle',
+      cmd: eslint('eslint-cycles.mjs'),
+      findings: count(/(\d+) problems?/),
+    },
   },
   boundaries: {
-    domainlint: { label: 'domainlint', cmd: domainlint('domainlint-boundaries.json'), findings: lines(/ ERROR /) },
-    depcruise: { label: 'dependency-cruiser', cmd: depcruise('depcruise-boundaries.cjs'), findings: count(/(\d+) dependency violations/) },
+    domainlint: {
+      label: 'domainlint',
+      cmd: domainlint('domainlint-boundaries.json'),
+      findings: lines(/ ERROR /),
+    },
+    depcruise: {
+      label: 'dependency-cruiser',
+      cmd: depcruise('depcruise-boundaries.cjs'),
+      findings: count(/(\d+) dependency violations/),
+    },
     oxlint: {
       label: 'oxlint + boundaries (JS plugin)',
       cmd: oxlintBoundaries(),
       findings: lines(/boundaries\(entry-point\)/),
     },
-    eslint: { label: 'ESLint boundaries/entry-point', cmd: eslint('eslint-boundaries.mjs'), findings: count(/(\d+) problems?/) },
+    eslint: {
+      label: 'ESLint boundaries/entry-point',
+      cmd: eslint('eslint-boundaries.mjs'),
+      findings: count(/(\d+) problems?/),
+    },
   },
   full: {
-    domainlint: { label: 'domainlint', cmd: domainlint(), findings: lines(/ ERROR /) },
-    depcruise: { label: 'dependency-cruiser', cmd: depcruise('depcruise-full.cjs'), findings: count(/(\d+) dependency violations/) },
+    domainlint: {
+      label: 'domainlint',
+      cmd: domainlint(),
+      findings: lines(/ ERROR /),
+    },
+    depcruise: {
+      label: 'dependency-cruiser',
+      cmd: depcruise('depcruise-full.cjs'),
+      findings: count(/(\d+) dependency violations/),
+    },
     oxlint: {
       label: 'oxlint no-cycle + boundaries',
       cmd: oxlintBoundaries('--import-plugin', '-D', 'import/no-cycle'),
       findings: lines(/boundaries\(entry-point\)|import\(no-cycle\)/),
     },
-    eslint: { label: 'ESLint import-x + boundaries', cmd: eslint('eslint-full.mjs'), findings: count(/(\d+) problems?/) },
+    eslint: {
+      label: 'ESLint import-x + boundaries',
+      cmd: eslint('eslint-full.mjs'),
+      findings: count(/(\d+) problems?/),
+    },
   },
 };
 
 function ensureTools() {
   const pkgPath = path.join(toolsDir, 'package.json');
-  const wanted = JSON.stringify({ private: true, dependencies: TOOL_DEPS }, null, 2);
+  const wanted = JSON.stringify(
+    { private: true, dependencies: TOOL_DEPS },
+    null,
+    2,
+  );
   const upToDate =
     fs.existsSync(pkgPath) &&
     fs.readFileSync(pkgPath, 'utf8') === wanted &&
@@ -126,10 +200,14 @@ function ensureTools() {
   fs.mkdirSync(toolsDir, { recursive: true });
   fs.writeFileSync(pkgPath, wanted);
   console.log('Installing competitor tools into benchmarks/.tools …');
-  execFileSync('npm', ['install', '--legacy-peer-deps', '--no-audit', '--no-fund'], {
-    cwd: toolsDir,
-    stdio: 'inherit',
-  });
+  execFileSync(
+    'npm',
+    ['install', '--legacy-peer-deps', '--no-audit', '--no-fund'],
+    {
+      cwd: toolsDir,
+      stdio: 'inherit',
+    },
+  );
 }
 
 function prepareFixture(features, files) {
@@ -142,9 +220,13 @@ function prepareFixture(features, files) {
     '--files',
     String(files),
   ]);
-  fs.symlinkSync(path.join(toolsDir, 'node_modules'), path.join(dir, 'node_modules'));
+  fs.symlinkSync(
+    path.join(toolsDir, 'node_modules'),
+    path.join(dir, 'node_modules'),
+  );
   for (const f of fs.readdirSync(configs)) {
-    if (/^(eslint|oxlint)-/.test(f)) fs.copyFileSync(path.join(configs, f), path.join(dir, f));
+    if (/^(eslint|oxlint)-/.test(f))
+      fs.copyFileSync(path.join(configs, f), path.join(dir, f));
   }
   return dir;
 }
@@ -152,7 +234,11 @@ function prepareFixture(features, files) {
 function run(tool, cwd) {
   const [command, args] = tool.cmd;
   const start = process.hrtime.bigint();
-  const res = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
+  const res = spawnSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 1 << 28,
+  });
   const ms = Number(process.hrtime.bigint() - start) / 1e6;
   if (res.error) throw res.error;
   return { ms, output: `${res.stdout}\n${res.stderr}` };
@@ -166,7 +252,8 @@ if (!fs.existsSync(path.join(repoRoot, 'packages/domainlint/dist'))) {
 }
 
 const scenarios = values.scenarios.split(',');
-for (const s of scenarios) if (!SCENARIOS[s]) throw new Error(`Unknown scenario: ${s}`);
+for (const s of scenarios)
+  if (!SCENARIOS[s]) throw new Error(`Unknown scenario: ${s}`);
 const toolFilter = values.tools?.split(',');
 const runs = Number(values.runs);
 ensureTools();
@@ -178,18 +265,29 @@ for (const size of values.sizes.split(',')) {
   const fileCount = features * (files + 1);
 
   for (const scenario of scenarios) {
-    console.log(`\n[${scenario}] ${fileCount} files (${features} features × ${files + 1})`);
+    console.log(
+      `\n[${scenario}] ${fileCount} files (${features} features × ${files + 1})`,
+    );
     for (const [key, tool] of Object.entries(SCENARIOS[scenario])) {
       if (toolFilter && !toolFilter.includes(key)) continue;
       const warm = run(tool, dir); // warm-up (fs cache, JIT) + findings check
       const findings = tool.findings(warm.output);
       const samples = Array.from({ length: runs }, () => run(tool, dir).ms);
       const ms = median(samples);
-      results.push({ scenario, fileCount, tool: key, label: tool.label, medianMs: Math.round(ms), findings, samples });
+      results.push({
+        scenario,
+        fileCount,
+        tool: key,
+        label: tool.label,
+        medianMs: Math.round(ms),
+        findings,
+        samples,
+      });
       console.log(
         `  ${tool.label.padEnd(30)} ${(ms / 1000).toFixed(2).padStart(6)} s   ${String(findings).padStart(5)} findings`,
       );
-      if (findings === 0) console.warn('    ⚠ no findings: the tool may be misconfigured');
+      if (findings === 0)
+        console.warn('    ⚠ no findings: the tool may be misconfigured');
     }
   }
 }

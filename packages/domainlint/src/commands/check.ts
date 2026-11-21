@@ -1,5 +1,5 @@
 import { relative } from 'node:path';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Command, Flags, type Interfaces } from '@oclif/core';
 import chalk from 'chalk';
 import { loadConfig } from '../config/config-loader.js';
 import { ColoredReporter } from '../reporter/colored-reporter.js';
@@ -60,102 +60,108 @@ export default class Check extends Command {
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(Check);
 
+    // The exit decision lives outside the try block: oclif's `this.exit()`
+    // throws an ExitError, which the catch would otherwise report as an
+    // internal error (exit 2) instead of a violation (exit 1).
+    let hasViolations: boolean;
     try {
-      // Execute linting using orchestrator
-      const result = await this.orchestrator.executeLinting({
-        projectPath: args.path,
-        configPath: flags.config,
-        configOverrides: {
-          srcDir: flags['src-dir'],
-          featuresDir: flags['features-dir'],
-          tsconfigPath: flags['tsconfig-path'],
-          includeDynamicImports: flags['include-dynamic-imports'],
-        },
-        filterOptions: {
-          feature: flags.feature,
-          shortestCycles: flags['shortest-cycles'],
-          maxCycleLength: flags['max-cycle-length'],
-        },
-        reporterOptions: {
-          colors: !flags['no-color'],
-          verbose: flags.verbose,
-        },
-        includeFeatureStats: !flags.feature,
-      });
-
-      // Workspace mode — display per-package results
-      if (result.workspaceResult) {
-        this.displayWorkspaceResults(result.workspaceResult, {
-          colors: !flags['no-color'],
-          verbose: flags.verbose,
-        });
-
-        if (result.hasViolations) {
-          this.exit(1);
-        }
-        return;
-      }
-
-      // Single-project mode (existing behavior)
-      this.log(
-        `Analyzed ${result.fileCount} files in ${result.analysisTimeMs}ms`,
-      );
-      this.log('');
-
-      // Load config for formatting (we need this for the rootDir)
-      const config = await loadConfig(args.path, flags.config, {
-        srcDir: flags['src-dir'],
-        featuresDir: flags['features-dir'],
-        tsconfigPath: flags['tsconfig-path'],
-        includeDynamicImports: flags['include-dynamic-imports'],
-      });
-
-      // Format and display results
-      const formatted = this.orchestrator.formatResults(
-        result,
-        config,
-        {
-          colors: !flags['no-color'],
-          verbose: flags.verbose,
-        },
-        {
-          feature: flags.feature,
-        },
-      );
-
-      // Output violations
-      for (const violation of formatted.violationOutput) {
-        this.log(violation);
-      }
-
-      // Output summary
-      this.log('');
-      this.log(formatted.summaryOutput);
-
-      // Output domain summary
-      if (formatted.domainSummaryOutput) {
-        this.log(formatted.domainSummaryOutput);
-      }
-
-      // Output cycle analysis
-      if (formatted.cycleAnalysisOutput) {
-        this.log(formatted.cycleAnalysisOutput);
-      }
-
-      // Exit with appropriate code
-      if (result.hasViolations) {
-        this.exit(1);
-      }
+      hasViolations = await this.lint(args, flags);
     } catch (error) {
-      // `this.exit(1)` (violations found) throws an ExitError: let it through
-      if ((error as { oclif?: { exit?: number } })?.oclif?.exit !== undefined) {
-        throw error;
-      }
       this.error(
         `Internal error: ${error instanceof Error ? error.message : String(error)}`,
         { exit: 2 },
       );
     }
+
+    if (hasViolations) {
+      this.exit(1);
+    }
+  }
+
+  /** Runs the lint and prints results. Returns whether violations were found. */
+  private async lint(
+    args: Interfaces.InferredArgs<typeof Check.args>,
+    flags: Interfaces.InferredFlags<typeof Check.flags>,
+  ): Promise<boolean> {
+    // Execute linting using orchestrator
+    const result = await this.orchestrator.executeLinting({
+      projectPath: args.path,
+      configPath: flags.config,
+      configOverrides: {
+        srcDir: flags['src-dir'],
+        featuresDir: flags['features-dir'],
+        tsconfigPath: flags['tsconfig-path'],
+        includeDynamicImports: flags['include-dynamic-imports'],
+      },
+      filterOptions: {
+        feature: flags.feature,
+        shortestCycles: flags['shortest-cycles'],
+        maxCycleLength: flags['max-cycle-length'],
+      },
+      reporterOptions: {
+        colors: !flags['no-color'],
+        verbose: flags.verbose,
+      },
+      includeFeatureStats: !flags.feature,
+    });
+
+    // Workspace mode — display per-package results
+    if (result.workspaceResult) {
+      this.displayWorkspaceResults(result.workspaceResult, {
+        colors: !flags['no-color'],
+        verbose: flags.verbose,
+      });
+
+      return result.hasViolations;
+    }
+
+    // Single-project mode (existing behavior)
+    this.log(
+      `Analyzed ${result.fileCount} files in ${result.analysisTimeMs}ms`,
+    );
+    this.log('');
+
+    // Load config for formatting (we need this for the rootDir)
+    const config = await loadConfig(args.path, flags.config, {
+      srcDir: flags['src-dir'],
+      featuresDir: flags['features-dir'],
+      tsconfigPath: flags['tsconfig-path'],
+      includeDynamicImports: flags['include-dynamic-imports'],
+    });
+
+    // Format and display results
+    const formatted = this.orchestrator.formatResults(
+      result,
+      config,
+      {
+        colors: !flags['no-color'],
+        verbose: flags.verbose,
+      },
+      {
+        feature: flags.feature,
+      },
+    );
+
+    // Output violations
+    for (const violation of formatted.violationOutput) {
+      this.log(violation);
+    }
+
+    // Output summary
+    this.log('');
+    this.log(formatted.summaryOutput);
+
+    // Output domain summary
+    if (formatted.domainSummaryOutput) {
+      this.log(formatted.domainSummaryOutput);
+    }
+
+    // Output cycle analysis
+    if (formatted.cycleAnalysisOutput) {
+      this.log(formatted.cycleAnalysisOutput);
+    }
+
+    return result.hasViolations;
   }
 
   private displayWorkspaceResults(

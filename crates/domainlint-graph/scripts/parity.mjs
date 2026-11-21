@@ -23,7 +23,9 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../../..');
 const nodeCli = path.join(repo, 'packages/domainlint/bin/run.js');
-const rsBin = process.env.DOMAINLINT_RS ?? path.resolve(here, '../../../target/release/domainlint-rs');
+const rsBin =
+  process.env.DOMAINLINT_RS ??
+  path.resolve(here, '../../../target/release/domainlint-rs');
 
 const args = process.argv.slice(2);
 const dirs = [];
@@ -35,12 +37,21 @@ for (let i = 0; i < args.length; i++) {
   else dirs.push(path.resolve(args[i]));
 }
 if (dirs.length === 0) {
-  console.error('usage: parity.mjs <fixtureDir>... [--config file]... [--ordered]');
+  console.error(
+    'usage: parity.mjs <fixtureDir>... [--config file]... [--ordered]',
+  );
   process.exit(2);
 }
 if (configs.length === 0) {
   const cdir = path.join(repo, 'benchmarks/configs');
-  configs.push(null, ...fs.readdirSync(cdir).filter((f) => /^domainlint-.*\.json$/.test(f)).sort().map((f) => path.join(cdir, f)));
+  configs.push(
+    null,
+    ...fs
+      .readdirSync(cdir)
+      .filter((f) => /^domainlint-.*\.json$/.test(f))
+      .sort()
+      .map((f) => path.join(cdir, f)),
+  );
 }
 
 // Split stdout into violation blocks: a header line `<file>:<l>:<c> (ERROR|WARN) <code>` plus
@@ -88,7 +99,11 @@ let failures = 0;
 for (const dir of dirs) {
   for (const cfg of configs) {
     const extra = cfg ? ['-c', cfg] : [];
-    const node = runTool('node', [nodeCli, 'check', '.', '--no-color', ...extra], dir);
+    const node = runTool(
+      'node',
+      [nodeCli, 'check', '.', '--no-color', ...extra],
+      dir,
+    );
     const rs = runTool(rsBin, ['.', '--no-color', ...extra], dir);
     const a = parse(node.stdout);
     const b = parse(rs.stdout);
@@ -99,11 +114,20 @@ for (const dir of dirs) {
     const onlyNode = sa.filter((x) => !setB.has(x));
     const onlyRs = sb.filter((x) => !setA.has(x));
     const sameCount = sa.length === sb.length;
-    const sameOrder = a.blocks.length === b.blocks.length && a.blocks.every((x, i) => x === b.blocks[i]);
-    const exact = onlyNode.length === 0 && onlyRs.length === 0 && sameCount && a.summary === b.summary;
+    const sameOrder =
+      a.blocks.length === b.blocks.length &&
+      a.blocks.every((x, i) => x === b.blocks[i]);
+    const exact =
+      onlyNode.length === 0 &&
+      onlyRs.length === 0 &&
+      sameCount &&
+      a.summary === b.summary;
     const ca = a.blocks.map(canon).sort();
     const cb = b.blocks.map(canon).sort();
-    const agnostic = ca.length === cb.length && ca.every((x, i) => x === cb[i]) && a.summary === b.summary;
+    const agnostic =
+      ca.length === cb.length &&
+      ca.every((x, i) => x === cb[i]) &&
+      a.summary === b.summary;
     const ok = agnostic && (!ordered || sameOrder);
     if (!ok) failures++;
     const cycles = (s) => s.filter((x) => x.includes(' noImportCycle')).length;
@@ -114,10 +138,16 @@ for (const dir of dirs) {
         `same order: ${sameOrder} | summary equal: ${a.summary === b.summary}`,
     );
     if (!agnostic) {
-      if (node.status === 2 && sa.length === 0) console.log('  node stderr:', node.stderr.slice(0, 400));
-      for (const x of onlyNode.slice(0, 5)) console.log('  only in node:\n' + x.replace(/^/gm, '    '));
-      for (const x of onlyRs.slice(0, 5)) console.log('  only in rust:\n' + x.replace(/^/gm, '    '));
-      if (onlyNode.length > 5 || onlyRs.length > 5) console.log(`  ... (${onlyNode.length} only-node, ${onlyRs.length} only-rust total)`);
+      if (node.status === 2 && sa.length === 0)
+        console.log('  node stderr:', node.stderr.slice(0, 400));
+      for (const x of onlyNode.slice(0, 5))
+        console.log('  only in node:\n' + x.replace(/^/gm, '    '));
+      for (const x of onlyRs.slice(0, 5))
+        console.log('  only in rust:\n' + x.replace(/^/gm, '    '));
+      if (onlyNode.length > 5 || onlyRs.length > 5)
+        console.log(
+          `  ... (${onlyNode.length} only-node, ${onlyRs.length} only-rust total)`,
+        );
     }
   }
 }

@@ -14,7 +14,7 @@ Two core rules:
 - **CLI**: oclif
 - **Parser**: SWC (fast TS/JS AST parsing)
 - **Tests**: vitest
-- **Linter/formatter**: Biome
+- **Linter/formatter**: oxlint (`.oxlintrc.json`) + oxfmt (`.oxfmtrc.json`)
 - **Package manager**: pnpm
 
 ## Project structure
@@ -46,8 +46,10 @@ domainlint debug <file>       # Debug imports/violations for a single file
 ```bash
 pnpm test:run         # Run tests once
 pnpm build            # Compile TypeScript to dist/
-pnpm lint             # Biome check
-pnpm lint:fix         # Biome auto-fix
+pnpm lint             # oxlint
+pnpm lint:fix         # oxlint --fix
+pnpm format           # oxfmt (write)
+pnpm format:check     # oxfmt --check
 ```
 
 ## Configuration

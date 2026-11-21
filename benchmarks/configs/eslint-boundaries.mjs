@@ -10,13 +10,21 @@ export default [
     settings: {
       'import/resolver': { typescript: { project: './tsconfig.json' } },
       'boundaries/elements': [
-        { type: 'feature', pattern: 'src/features/*', mode: 'folder', capture: ['name'] },
+        {
+          type: 'feature',
+          pattern: 'src/features/*',
+          mode: 'folder',
+          capture: ['name'],
+        },
       ],
     },
     rules: {
       'boundaries/entry-point': [
         'error',
-        { default: 'disallow', rules: [{ target: ['feature'], allow: 'index.ts' }] },
+        {
+          default: 'disallow',
+          rules: [{ target: ['feature'], allow: 'index.ts' }],
+        },
       ],
     },
   },

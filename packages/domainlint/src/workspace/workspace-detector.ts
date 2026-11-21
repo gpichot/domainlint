@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { glob } from 'glob';
-import { parse as parseJsonc } from 'jsonc-parser';
 
 export interface WorkspacePackage {
   /** Absolute path to the package root */
