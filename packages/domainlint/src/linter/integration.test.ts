@@ -634,3 +634,52 @@ describe('Integration Tests', () => {
     });
   });
 });
+
+describe('custom rules on the native graph', () => {
+  const baseFiles = {
+    '/project/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
+    '/project/src/features/auth/index.ts': `export * from './user';`,
+    '/project/src/features/auth/user.ts': `export const user = 1;`,
+    '/project/src/features/billing/index.ts': `import { user } from '../auth';\nexport const bill = user;`,
+  };
+
+  it('runs a rules file against the graph and query API', async () => {
+    createFileSystem({
+      ...baseFiles,
+      '/project/my-rules.mjs': `
+export const rules = [{
+  name: 'billing-must-not-depend-on-auth',
+  check({ query, graph, emitViolation }) {
+    const found = query
+      .edgesBetween('src/features/billing/**', 'src/features/auth/**')
+      .violations('billingDependsOnAuth', () => 'nope ' + graph.nodes.size);
+    for (const v of found) emitViolation(v);
+  },
+}];`,
+    });
+
+    const linter = new FeatureBoundariesLinter(
+      createConfig({ rulesFile: 'my-rules.mjs' }),
+    );
+    const result = await linter.lint();
+
+    const custom = result.violations.filter(
+      (v) => v.code === 'billingDependsOnAuth',
+    );
+    expect(custom).toHaveLength(1);
+    expect(custom[0].file).toBe(join(testDir, 'src/features/billing/index.ts'));
+    expect(custom[0].message).toBe('nope 3');
+  });
+
+  it('reports a rules file without a rules array', async () => {
+    createFileSystem({
+      ...baseFiles,
+      '/project/bad-rules.mjs': `export const nothing = [];`,
+    });
+
+    const linter = new FeatureBoundariesLinter(
+      createConfig({ rulesFile: 'bad-rules.mjs' }),
+    );
+    await expect(linter.lint()).rejects.toThrow(/must export a "rules" array/);
+  });
+});

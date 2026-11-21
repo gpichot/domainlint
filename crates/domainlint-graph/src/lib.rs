@@ -106,7 +106,7 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
 
     // 3. resolve
     let t = Instant::now();
-    let resolver = resolve::build_resolver(config);
+    let resolver = resolve::build_local_resolver(config);
     let resolved: Vec<Vec<Option<String>>> = files
         .par_iter()
         .zip(imports.par_iter())
@@ -189,7 +189,7 @@ pub fn resolve_specifiers(
     from_file: &str,
     specifiers: &[String],
 ) -> Vec<Option<String>> {
-    let resolver = resolve::build_resolver(config);
+    let resolver = resolve::build_local_resolver(config);
     specifiers
         .iter()
         .map(|s| resolve::resolve_local(&resolver, from_file, s))

@@ -263,3 +263,36 @@ fn dynamic_imports_only_when_enabled_and_rules_can_be_turned_off() {
     );
     assert_eq!(Code::NoImportCycle.as_str(), "noImportCycle");
 }
+
+/// macOS temp dirs live under `/var -> /private/var`: a root behind a symlink
+/// must still resolve relative and `@/*` alias imports to the walked paths.
+#[cfg(unix)]
+#[test]
+fn project_root_behind_a_symlink_keeps_all_edges() {
+    let (d, real) = project(
+        &[
+            ("src/features/a/index.ts", "export const a = 1;\n"),
+            ("src/features/b/index.ts", "export const b = 1;\n"),
+            ("src/features/b/inner.ts", "export const inner = 1;\n"),
+            (
+                "src/features/a/use.ts",
+                "import { a } from './index';\nimport { inner } from '@/features/b/inner';\n",
+            ),
+        ],
+        None,
+    );
+    let link_holder = tempfile::tempdir().unwrap();
+    let link = link_holder.path().join("link");
+    std::os::unix::fs::symlink(d.path(), &link).unwrap();
+    let c = Config::load(&link, None, &CliOverrides::default()).unwrap();
+    let r = run(&c, &RunOptions::default()).unwrap();
+    assert_eq!(r.edge_count, 2);
+    assert_eq!(codes(&r), ["noCrossFeatureDeepImport"]);
+    assert!(r.violations[0].file.starts_with(link.to_str().unwrap()));
+    assert!(
+        r.violations[0]
+            .resolved_to
+            .starts_with(link.to_str().unwrap())
+    );
+    let _ = real;
+}
