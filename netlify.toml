@@ -1,7 +1,0 @@
-[build]
-  command = "pnpm --filter domainlint-docs build"
-  publish = "docs/dist"
-
-[build.environment]
-  NODE_VERSION = "24"
-  PNPM_VERSION = "latest"
