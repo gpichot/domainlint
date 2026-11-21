@@ -21,3 +21,10 @@ coverage
 # Benchmark tooling and generated fixtures
 benchmarks/.tools
 benchmarks/.fixtures
+
+# Rust
+/target
+
+# napi-rs build output (generated)
+packages/domainlint/native/
+*.node

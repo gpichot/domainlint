@@ -31,7 +31,7 @@ node benchmarks/run.mjs
 skipped with a warning unless built:
 
 ```bash
-cargo build --release --manifest-path crates/domainlint-graph/Cargo.toml
+cargo build --release -p domainlint-graph
 ```
 
 Options:

@@ -2,14 +2,9 @@
 //! `**/*<ext>` for each extension under `srcDir`, no dotfiles/dot-dirs (glob's `dot:false`),
 //! then `exclude` globs matched against the path relative to `srcDir`.
 //!
-//! Order: Node's async `glob` has no defined order and is NOT even stable between runs on the same
-//! tree (observed on a 10k-file fixture: 3 runs, 3 different orders; readdir completion order
-//! races). On small/regular trees it behaves like a level-order walk with each directory's
-//! entries in descending name order, with one group per configured extension pattern
-//! (`**/*.ts` results first, then `**/*.tsx` ones not yet seen, ...). We emulate exactly that,
-//! deterministically: sort by (depth ascending, then path components descending), then group by
-//! extension in config order. Node order only matters for *which file of a cycle is reported as
-//! the cycle start*; it never changes which files are in a cycle or any boundary finding.
+//! Order: sorted by path in UTF-16 code unit order, the same as `Array.prototype.sort()` on the
+//! absolute paths in the JS fallback (`file-discovery.ts` sorts too), so node order, and with it
+//! which file of a cycle is reported as its start, is deterministic and identical in both pipelines.
 
 use anyhow::Result;
 use globset::{GlobBuilder, GlobSetBuilder};
@@ -56,30 +51,9 @@ pub fn discover_files(config: &Config) -> Result<Vec<String>> {
         }
         out.push(path.to_string_lossy().into_owned());
     }
-    out.sort_unstable();
+    // Deterministic order, identical to the JS fallback's `Array.prototype.sort()` (UTF-16 code
+    // unit order; differs from byte order only for astral vs. U+E000..U+FFFF characters).
+    out.sort_unstable_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
     out.dedup();
-    // Approximate Node's glob order (see module docs).
-    let src = config.src_dir.to_string_lossy().into_owned();
-    let rel_components = |p: &str| -> Vec<String> {
-        p.strip_prefix(src.as_str())
-            .unwrap_or(p)
-            .trim_start_matches('/')
-            .split('/')
-            .map(str::to_string)
-            .collect()
-    };
-    let mut keyed: Vec<(Vec<String>, String)> =
-        out.into_iter().map(|p| (rel_components(&p), p)).collect();
-    keyed.sort_by(|(a, _), (b, _)| a.len().cmp(&b.len()).then_with(|| b.cmp(a)));
-    let mut seen = vec![false; keyed.len()];
-    let mut ordered = Vec::with_capacity(keyed.len());
-    for ext in &config.extensions {
-        for (i, (_, p)) in keyed.iter().enumerate() {
-            if !seen[i] && p.ends_with(ext.as_str()) {
-                seen[i] = true;
-                ordered.push(p.clone());
-            }
-        }
-    }
-    Ok(ordered)
+    Ok(out)
 }

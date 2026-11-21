@@ -29,8 +29,8 @@ const toolsDir = path.join(here, '.tools');
 const configs = path.join(here, 'configs');
 const bin = (name) => path.join(toolsDir, 'node_modules', '.bin', name);
 const domainlintBin = path.join(repoRoot, 'packages/domainlint/bin/run.js');
-// Rust prototype (crates/domainlint-graph); build with `cargo build --release --manifest-path crates/domainlint-graph/Cargo.toml`.
-const domainlintRsBin = path.join(repoRoot, 'crates/domainlint-graph/target/release/domainlint-rs');
+// Rust prototype (crates/domainlint-graph); build with `cargo build --release -p domainlint-graph`.
+const domainlintRsBin = path.join(repoRoot, 'target/release/domainlint-rs');
 
 const { values } = parseArgs({
   options: {

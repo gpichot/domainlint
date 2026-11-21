@@ -5,15 +5,14 @@
 // Two comparisons are reported per run:
 //   exact     - identical sets of blocks (every violation byte-for-byte).
 //   start-agnostic - cycle blocks are reduced to their member-file set, ignoring which file is the
-//                    reported cycle start. Needed because Node's async `glob` returns files in a
-//                    run-to-run varying order and the cycle DFS (and hence the start file) depends
-//                    on node order. Boundary findings never depend on order.
+//                    reported cycle start. Both pipelines sort files now, so this normally
+//                    equals the exact comparison; it stays as a safety net.
 // The process exits non-zero only if the start-agnostic comparison fails.
 //
 // Usage:
 //   node crates/domainlint-graph/scripts/parity.mjs <fixtureDir>... [--config <file>]... [--ordered]
 // Defaults: configs = (none), benchmarks/configs/domainlint-*.json.
-// Build first:  pnpm --filter domainlint build && cargo build --release  (in crates/domainlint-graph)
+// Build first:  pnpm --filter domainlint build && cargo build --release -p domainlint-graph
 //
 // --ordered additionally compares the violations in emitted order (not just as sets).
 import { spawnSync } from 'node:child_process';
@@ -24,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../../..');
 const nodeCli = path.join(repo, 'packages/domainlint/bin/run.js');
-const rsBin = process.env.DOMAINLINT_RS ?? path.resolve(here, '../target/release/domainlint-rs');
+const rsBin = process.env.DOMAINLINT_RS ?? path.resolve(here, '../../../target/release/domainlint-rs');
 
 const args = process.argv.slice(2);
 const dirs = [];
@@ -66,7 +65,13 @@ function parse(stdout) {
 
 function runTool(cmd, argv, cwd) {
   const t = process.hrtime.bigint();
-  const r = spawnSync(cmd, argv, { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
+  const r = spawnSync(cmd, argv, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 1 << 28,
+    // Compare the Rust binary against the pure-JS pipeline, not the native addon.
+    env: { ...process.env, DOMAINLINT_NATIVE: '0' },
+  });
   const ms = Number(process.hrtime.bigint() - t) / 1e6;
   return { ...r, ms };
 }

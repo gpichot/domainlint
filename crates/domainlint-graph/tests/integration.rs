@@ -117,22 +117,22 @@ fn two_file_cycle_is_reported_once_with_path() {
     ]);
     assert_eq!(codes(&r), ["noImportCycle"]);
     let v = &r.violations[0];
-    // Node order (desc): m2 is visited first, so the cycle starts at m2.
+    // Files are sorted, so m1 is visited first and the cycle starts at m1 (its import is on line 2).
     let cycle: Vec<String> = v.cycle.iter().map(|p| rel(&c, p)).collect();
     assert_eq!(
         cycle,
         [
-            "src/features/a/m2.ts",
             "src/features/a/m1.ts",
-            "src/features/a/m2.ts"
+            "src/features/a/m2.ts",
+            "src/features/a/m1.ts"
         ]
     );
-    assert_eq!((v.line, v.col), (1, 1));
+    assert_eq!((v.line, v.col), (2, 1));
     assert_eq!(r.scc.unwrap().cyclic_sccs, 1);
     let out = report::format_violation(v, &c.root_dir);
     assert_eq!(
         out,
-        "src/features/a/m2.ts:1:1 ERROR noImportCycle\n  Import cycle detected:\n    ./src/features/a/m2.ts ->\n    ./src/features/a/m1.ts ->\n    ./src/features/a/m2.ts ->"
+        "src/features/a/m1.ts:2:1 ERROR noImportCycle\n  Import cycle detected:\n    ./src/features/a/m1.ts ->\n    ./src/features/a/m2.ts ->\n    ./src/features/a/m1.ts ->"
     );
 }
 

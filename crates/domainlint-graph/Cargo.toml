@@ -30,9 +30,3 @@ serde_json = "1.0.154"
 
 [dev-dependencies]
 tempfile = "3.27.0"
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"

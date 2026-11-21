@@ -47,6 +47,42 @@ pub fn get_feature<'a>(path: &'a str, features_dir: &Path) -> Option<&'a str> {
     rel.components().next()?.as_os_str().to_str()
 }
 
+/// Port of `isBarrelFile` / `checkIsBarrel`: is `path` (inside feature `feature`) one of the
+/// configured barrel files, relative to the feature directory?
+pub fn is_barrel(path: &str, feature: &str, config: &Config) -> bool {
+    let feature_dir = config.features_dir.join(feature);
+    Path::new(path)
+        .strip_prefix(&feature_dir)
+        .ok()
+        .map(|r| {
+            r.components()
+                .map(|c| c.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .is_some_and(|rel| config.barrel_files.contains(&rel))
+}
+
+impl Violation {
+    /// The message of the equivalent JS rule violation (`cycle-detector.ts`,
+    /// `feature-boundary-validator.ts`), byte for byte.
+    pub fn message(&self) -> String {
+        match self.code {
+            Code::NoImportCycle => {
+                format!("Import cycle detected: {}", self.cycle.join(" -> "))
+            }
+            Code::NoCrossFeatureDeepImport => format!(
+                "Cross-feature deep import not allowed. Import \"{}\" resolves to \"{}\" but should import from feature barrel \"{}\" instead.",
+                self.specifier, self.resolved_to, self.barrel
+            ),
+            Code::NoFeatureImportFromNonDomain => format!(
+                "Feature files cannot import from non-domain directories. Import \"{}\" resolves to \"{}\" which is outside the features directory. Feature files should only import from within features or feature barrel files.",
+                self.specifier, self.resolved_to
+            ),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // R1: cycles
 // ---------------------------------------------------------------------------------------------
@@ -300,17 +336,7 @@ pub fn boundary_violations(graph: &Graph, config: &Config) -> Vec<Violation> {
             continue;
         }
         // Rule 2: cross-feature import must hit a barrel.
-        let feature_dir = config.features_dir.join(to_feature);
-        let is_barrel = Path::new(to_path)
-            .strip_prefix(&feature_dir)
-            .ok()
-            .map(|r| {
-                r.components()
-                    .map(|c| c.as_os_str().to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join("/")
-            })
-            .is_some_and(|rel| config.barrel_files.contains(&rel));
+        let is_barrel = is_barrel(to_path, to_feature, config);
         if is_barrel {
             continue;
         }

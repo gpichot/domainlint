@@ -16,6 +16,8 @@ pub struct Node {
 pub struct Edge {
     pub from: u32,
     pub to: u32,
+    /// Index of the import in the flat (file order, then import order) list of all parsed imports.
+    pub import_index: u32,
     pub import: ImportInfo,
 }
 
@@ -50,7 +52,7 @@ fn normalize<'a>(path: &'a str, extensions: &[String]) -> &'a str {
 /// of `imports[i][k]` (`None` = external/unresolved, dropped).
 pub fn build_graph(
     files: &[String],
-    imports: Vec<Vec<ImportInfo>>,
+    imports: &[Vec<ImportInfo>],
     resolved: &[Vec<Option<String>>],
     extensions: &[String],
 ) -> Graph {
@@ -90,9 +92,12 @@ pub fn build_graph(
     // are processed contiguously because each file appears once).
     let mut seen = vec![0u32; nodes.len()];
 
-    for (fi, file_imports) in imports.into_iter().enumerate() {
+    let mut import_index = 0u32;
+    for (fi, file_imports) in imports.iter().enumerate() {
         let from = file_node[fi];
-        for (k, info) in file_imports.into_iter().enumerate() {
+        for (k, info) in file_imports.iter().enumerate() {
+            let this_import = import_index;
+            import_index += 1;
             let Some(target) = resolved[fi][k].as_deref() else {
                 continue;
             };
@@ -102,7 +107,8 @@ pub fn build_graph(
             edges.push(Edge {
                 from,
                 to,
-                import: info,
+                import_index: this_import,
+                import: info.clone(),
             });
             if seen[to as usize] != from + 1 {
                 seen[to as usize] = from + 1;

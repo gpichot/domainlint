@@ -27,7 +27,7 @@ use rayon::prelude::*;
 
 pub use config::{CliOverrides, Config, Level, RuleName};
 pub use graph::Graph;
-pub use rules::{Code, SccStats, Violation};
+pub use rules::{Code, SccStats, Violation, get_feature, is_barrel};
 
 #[derive(Debug, Clone, Default)]
 pub struct RunOptions {
@@ -55,6 +55,10 @@ pub struct RunResult {
     pub edge_count: usize,
     pub import_count: usize,
     pub graph: Graph,
+    /// Discovered files (sorted); `graph.nodes[i]` belongs to `files[i]`.
+    pub files: Vec<String>,
+    /// All parsed imports per file (external and unresolved ones included), in file order.
+    pub imports: Vec<Vec<parse::ImportInfo>>,
     /// Cycles first, then boundary violations (same order as Node's output).
     pub violations: Vec<Violation>,
     pub scc: Option<SccStats>,
@@ -65,11 +69,11 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
     let t_total = Instant::now();
     let mut timings = Timings::default();
 
-    // Node requires the tsconfig to exist (loadTsConfig throws otherwise).
+    // Node requires the tsconfig to exist (loadTsConfig throws otherwise); same message.
     if !config.tsconfig_path.exists() {
+        let p = config.tsconfig_path.display();
         anyhow::bail!(
-            "Failed to read tsconfig.json at {}: no such file",
-            config.tsconfig_path.display()
+            "Failed to read tsconfig.json at {p}: ENOENT: no such file or directory, open '{p}'"
         );
     }
 
@@ -110,7 +114,7 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
 
     // 4. graph
     let t = Instant::now();
-    let graph = graph::build_graph(&files, imports, &resolved, &config.extensions);
+    let graph = graph::build_graph(&files, &imports, &resolved, &config.extensions);
     timings.graph_build = t.elapsed();
 
     // 5. rules (skipped entirely when off)
@@ -150,6 +154,8 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
         edge_count: graph.edges.len(),
         import_count,
         graph,
+        files,
+        imports,
         violations,
         scc,
         timings,

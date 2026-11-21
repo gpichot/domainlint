@@ -21,6 +21,15 @@ pub enum RuleName {
     NoExternalFeatureImports,
 }
 
+/// Which built-in rules to compute, decided by the caller (the napi binding passes this; the JS side
+/// applies the per-file override levels afterwards, so violations are returned unfiltered).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RuleSelection {
+    pub import_cycles: bool,
+    pub cross_feature_imports: bool,
+    pub no_external_feature_imports: bool,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct RuleLevels {
     #[serde(rename = "import-cycles")]
@@ -85,6 +94,10 @@ pub struct Config {
     pub exclude: Vec<String>,
     pub include_dynamic_imports: bool,
     pub overrides: Overrides,
+    /// When set, the caller has already decided which rules to compute and will apply override
+    /// levels itself: `overrides` is ignored, nothing is filtered by level, and every emitted
+    /// violation carries `Level::Error`.
+    pub selection: Option<RuleSelection>,
 }
 
 /// Lexical equivalent of Node's `path.resolve(base, p)` (no filesystem access).
@@ -175,6 +188,7 @@ impl Config {
                 .or(file.include_dynamic_imports)
                 .unwrap_or(false),
             overrides: file.overrides.unwrap_or_default(),
+            selection: None,
             root_dir,
         };
 
@@ -195,6 +209,9 @@ impl Config {
 
     /// Port of `checkRuleOverride` (rule-overrides.ts): effective level of `rule` for a violation in `file`.
     pub fn effective_level(&self, rule: RuleName, file: &str) -> Level {
+        if self.selection.is_some() {
+            return Level::Error;
+        }
         let mut level = if rule == RuleName::NoExternalFeatureImports {
             Level::Off
         } else {
@@ -228,6 +245,13 @@ impl Config {
     /// True if `rule` could be enabled for at least one file (global level or any feature override).
     /// Used to skip computing a rule entirely (Node computes everything and filters afterwards).
     pub fn rule_possibly_enabled(&self, rule: RuleName) -> bool {
+        if let Some(sel) = self.selection {
+            return match rule {
+                RuleName::ImportCycles => sel.import_cycles,
+                RuleName::CrossFeatureImports => sel.cross_feature_imports,
+                RuleName::NoExternalFeatureImports => sel.no_external_feature_imports,
+            };
+        }
         let mut global = if rule == RuleName::NoExternalFeatureImports {
             Level::Off
         } else {

@@ -1,42 +1,55 @@
-//! Spike: three ways to hand the Rust import graph to JS.
-//!   buildGraph        objects-per-edge (what a naive port would do)
-//!   buildGraphCompact typed arrays + string table
-//!   buildGraphJson    one JSON string, JSON.parse on the JS side
-//! All three run the full Rust pipeline (`domainlint_graph::run`) and differ only in marshalling.
+//! napi binding: one production entry point, `lint`.
+//!
+//! Takes the already-resolved JS config (config parsing, `domainlint.json` and CLI overrides stay in
+//! `packages/domainlint/src/config`), runs the native pipeline (discover, parse, resolve, graph,
+//! built-in rules) and returns the result as flat typed arrays plus a string table, which the JS
+//! side (`src/native/native-pipeline.ts`) turns back into `DependencyGraph` / `FileInfo[]` /
+//! `ParseResult[]`. Violations come back as plain objects, unfiltered by override level: JS applies
+//! `filterViolationsByOverrides` exactly as it does for the JS pipeline.
 
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
-use domainlint_graph::{CliOverrides, Config, RunOptions, RunResult, run};
+use domainlint_graph::config::{Overrides, RuleSelection};
+use domainlint_graph::{Config, RunOptions, get_feature, is_barrel, run};
 use napi::Error;
-use napi::bindgen_prelude::Uint32Array;
+use napi::bindgen_prelude::{Int32Array, Uint8Array, Uint32Array};
 use napi_derive::napi;
 
 #[napi(object)]
-pub struct JsEdge {
-    pub from: u32,
-    pub to: u32,
-    pub specifier: String,
-    pub line: u32,
-    pub col: u32,
-    pub is_type_only: bool,
-    pub is_dynamic: bool,
+pub struct LintOptions {
+    /// Absolute project root.
+    pub root_dir: String,
+    /// Absolute source directory (already resolved against `rootDir`).
+    pub src_dir: String,
+    /// Absolute features directory.
+    pub features_dir: String,
+    pub barrel_files: Vec<String>,
+    pub extensions: Vec<String>,
+    pub exclude: Vec<String>,
+    pub include_dynamic_imports: bool,
+    /// Absolute tsconfig path (must exist, like the JS pipeline).
+    pub tsconfig_path: String,
+    /// Compute `noImportCycle` violations.
+    pub compute_cycles: bool,
+    /// Compute `noCrossFeatureDeepImport` violations.
+    pub compute_cross_feature: bool,
+    /// Compute `noFeatureImportFromNonDomain` violations.
+    pub compute_non_domain: bool,
 }
 
 #[napi(object)]
-pub struct JsViolation {
+pub struct NativeViolation {
     pub code: String,
-    pub level: String,
+    /// Absolute path of the offending file.
     pub file: String,
     pub line: u32,
     pub col: u32,
-    pub specifier: String,
-    pub resolved_to: String,
-    pub barrel: String,
-    pub cycle: Vec<String>,
+    pub message: String,
 }
 
 #[napi(object)]
-pub struct JsTimings {
+pub struct NativeTimings {
     pub walk: f64,
     pub read_parse: f64,
     pub resolve: f64,
@@ -46,169 +59,165 @@ pub struct JsTimings {
     pub total: f64,
 }
 
+/// Result of [`lint`]. Index `i` of `files` / `node_keys` / `file_feature` / `file_is_barrel` is
+/// file (and graph node) `i`. Imports are stored flat in (file, source) order; file `i` owns
+/// imports `import_offsets[i] .. import_offsets[i + 1]`.
 #[napi(object)]
-pub struct JsGraph {
-    /// Original file paths (index == node id).
+pub struct NativeLintResult {
+    /// Original absolute paths, sorted (UTF-16 code unit order).
     pub files: Vec<String>,
-    /// Node keys (extension-stripped), index == node id.
-    pub nodes: Vec<String>,
-    pub edges: Vec<JsEdge>,
-    pub violations: Vec<JsViolation>,
-    pub timings_ms: JsTimings,
-}
-
-#[napi(object)]
-pub struct JsGraphCompact {
-    pub files: Vec<String>,
-    pub nodes: Vec<String>,
+    /// Graph node key per file: extension-stripped path, or the full path on a collision.
+    pub node_keys: Vec<String>,
+    /// Distinct feature names (first path segment below the features dir).
+    pub features: Vec<String>,
+    /// Index into `features`, or -1 when the file is outside the features dir.
+    pub file_feature: Int32Array,
+    /// 1 when the file is a barrel of its feature.
+    pub file_is_barrel: Uint8Array,
+    /// Length `files.length + 1`.
+    pub import_offsets: Uint32Array,
+    /// Index into `specifiers`.
+    pub import_specifier: Uint32Array,
+    pub import_line: Uint32Array,
+    pub import_col: Uint32Array,
+    /// bit 0 = type-only, bit 1 = dynamic.
+    pub import_flags: Uint8Array,
+    /// De-duplicated import specifiers.
+    pub specifiers: Vec<String>,
+    /// Graph edges in graph order; `edge_import` indexes the flat import arrays.
     pub edge_from: Uint32Array,
     pub edge_to: Uint32Array,
-    pub line: Uint32Array,
-    pub col: Uint32Array,
-    /// bit0 = type-only, bit1 = dynamic
-    pub flags: Uint32Array,
-    pub specifiers: Vec<String>,
-    pub violations: Vec<JsViolation>,
-    pub timings_ms: JsTimings,
+    pub edge_import: Uint32Array,
+    pub violations: Vec<NativeViolation>,
+    pub timings_ms: NativeTimings,
 }
 
 fn ms(d: std::time::Duration) -> f64 {
     d.as_secs_f64() * 1000.0
 }
 
-fn exec(root_dir: &str, config_path: Option<String>) -> napi::Result<(RunResult, Config)> {
-    let cfg = Config::load(Path::new(root_dir), config_path.as_deref(), &CliOverrides::default())
-        .map_err(|e| Error::from_reason(format!("{e:#}")))?;
-    let res = run(&cfg, &RunOptions::default()).map_err(|e| Error::from_reason(format!("{e:#}")))?;
-    Ok((res, cfg))
-}
-
-fn timings(r: &RunResult) -> JsTimings {
-    let t = &r.timings;
-    JsTimings {
-        walk: ms(t.walk),
-        read_parse: ms(t.read_parse),
-        resolve: ms(t.resolve),
-        graph_build: ms(t.graph_build),
-        cycles: ms(t.cycles),
-        boundaries: ms(t.boundaries),
-        total: ms(t.total),
+fn to_config(o: LintOptions) -> Config {
+    Config {
+        root_dir: PathBuf::from(o.root_dir),
+        src_dir: PathBuf::from(o.src_dir),
+        features_dir: PathBuf::from(o.features_dir),
+        barrel_files: o.barrel_files,
+        extensions: o.extensions,
+        tsconfig_path: PathBuf::from(o.tsconfig_path),
+        exclude: o.exclude,
+        include_dynamic_imports: o.include_dynamic_imports,
+        overrides: Overrides::default(),
+        selection: Some(RuleSelection {
+            import_cycles: o.compute_cycles,
+            cross_feature_imports: o.compute_cross_feature,
+            no_external_feature_imports: o.compute_non_domain,
+        }),
     }
 }
 
-fn violations(r: &RunResult) -> Vec<JsViolation> {
-    r.violations
+/// Runs the whole native pipeline. Synchronous (tens of ms even at 20k files). Throws
+/// `Failed to parse <file>: <message>` on a syntax error, like the JS parser.
+#[napi]
+pub fn lint(options: LintOptions) -> napi::Result<NativeLintResult> {
+    let config = to_config(options);
+    let r = run(&config, &RunOptions::default()).map_err(|e| Error::from_reason(format!("{e:#}")))?;
+
+    let n = r.files.len();
+    let node_keys: Vec<String> = r.graph.nodes.iter().map(|x| x.key.clone()).collect();
+
+    // features + barrel flags
+    let mut features: Vec<String> = Vec::new();
+    let mut feature_ids: HashMap<&str, i32> = HashMap::new();
+    let mut file_feature = Vec::with_capacity(n);
+    let mut file_is_barrel = Vec::with_capacity(n);
+    for f in &r.files {
+        match get_feature(f, &config.features_dir) {
+            Some(name) => {
+                let id = *feature_ids.entry(name).or_insert_with(|| {
+                    features.push(name.to_string());
+                    (features.len() - 1) as i32
+                });
+                file_feature.push(id);
+                file_is_barrel.push(u8::from(is_barrel(f, name, &config)));
+            }
+            None => {
+                file_feature.push(-1);
+                file_is_barrel.push(0);
+            }
+        }
+    }
+
+    // imports (flat) + specifier table
+    let total: usize = r.imports.iter().map(Vec::len).sum();
+    let mut import_offsets = Vec::with_capacity(n + 1);
+    let mut import_specifier = Vec::with_capacity(total);
+    let mut import_line = Vec::with_capacity(total);
+    let mut import_col = Vec::with_capacity(total);
+    let mut import_flags = Vec::with_capacity(total);
+    let mut specifiers: Vec<String> = Vec::new();
+    let mut spec_ids: HashMap<&str, u32> = HashMap::new();
+    import_offsets.push(0u32);
+    for file_imports in &r.imports {
+        for i in file_imports {
+            let id = *spec_ids.entry(i.specifier.as_str()).or_insert_with(|| {
+                specifiers.push(i.specifier.clone());
+                (specifiers.len() - 1) as u32
+            });
+            import_specifier.push(id);
+            import_line.push(i.line);
+            import_col.push(i.col);
+            import_flags.push(u8::from(i.is_type_only) | (u8::from(i.is_dynamic) << 1));
+        }
+        import_offsets.push(import_specifier.len() as u32);
+    }
+
+    let e = r.graph.edges.len();
+    let mut edge_from = Vec::with_capacity(e);
+    let mut edge_to = Vec::with_capacity(e);
+    let mut edge_import = Vec::with_capacity(e);
+    for edge in &r.graph.edges {
+        edge_from.push(edge.from);
+        edge_to.push(edge.to);
+        edge_import.push(edge.import_index);
+    }
+
+    let violations = r
+        .violations
         .iter()
-        .map(|v| JsViolation {
+        .map(|v| NativeViolation {
             code: v.code.as_str().to_string(),
-            level: format!("{:?}", v.level).to_lowercase(),
             file: v.file.clone(),
             line: v.line,
             col: v.col,
-            specifier: v.specifier.clone(),
-            resolved_to: v.resolved_to.clone(),
-            barrel: v.barrel.clone(),
-            cycle: v.cycle.clone(),
-        })
-        .collect()
-}
-
-fn files_nodes(r: &RunResult) -> (Vec<String>, Vec<String>) {
-    (
-        r.graph.nodes.iter().map(|n| n.path.clone()).collect(),
-        r.graph.nodes.iter().map(|n| n.key.clone()).collect(),
-    )
-}
-
-#[napi(js_name = "buildGraph")]
-pub fn build_graph(root_dir: String, config_path: Option<String>) -> napi::Result<JsGraph> {
-    let (r, _) = exec(&root_dir, config_path)?;
-    let (files, nodes) = files_nodes(&r);
-    let edges = r
-        .graph
-        .edges
-        .iter()
-        .map(|e| JsEdge {
-            from: e.from,
-            to: e.to,
-            specifier: e.import.specifier.clone(),
-            line: e.import.line,
-            col: e.import.col,
-            is_type_only: e.import.is_type_only,
-            is_dynamic: e.import.is_dynamic,
+            message: v.message(),
         })
         .collect();
-    Ok(JsGraph { files, nodes, edges, violations: violations(&r), timings_ms: timings(&r) })
-}
 
-#[napi(js_name = "buildGraphCompact")]
-pub fn build_graph_compact(root_dir: String, config_path: Option<String>) -> napi::Result<JsGraphCompact> {
-    let (r, _) = exec(&root_dir, config_path)?;
-    let (files, nodes) = files_nodes(&r);
-    let n = r.graph.edges.len();
-    let (mut from, mut to, mut line, mut col, mut flags) = (
-        Vec::with_capacity(n),
-        Vec::with_capacity(n),
-        Vec::with_capacity(n),
-        Vec::with_capacity(n),
-        Vec::with_capacity(n),
-    );
-    let mut specifiers = Vec::with_capacity(n);
-    for e in &r.graph.edges {
-        from.push(e.from);
-        to.push(e.to);
-        line.push(e.import.line);
-        col.push(e.import.col);
-        flags.push(u32::from(e.import.is_type_only) | (u32::from(e.import.is_dynamic) << 1));
-        specifiers.push(e.import.specifier.clone());
-    }
-    Ok(JsGraphCompact {
-        files,
-        nodes,
-        edge_from: Uint32Array::new(from),
-        edge_to: Uint32Array::new(to),
-        line: Uint32Array::new(line),
-        col: Uint32Array::new(col),
-        flags: Uint32Array::new(flags),
-        specifiers,
-        violations: violations(&r),
-        timings_ms: timings(&r),
-    })
-}
-
-#[napi(js_name = "buildGraphJson")]
-pub fn build_graph_json(root_dir: String, config_path: Option<String>) -> napi::Result<String> {
-    let (r, _) = exec(&root_dir, config_path)?;
-    let (files, nodes) = files_nodes(&r);
     let t = &r.timings;
-    let edges: Vec<serde_json::Value> = r
-        .graph
-        .edges
-        .iter()
-        .map(|e| {
-            serde_json::json!({
-                "from": e.from, "to": e.to, "specifier": e.import.specifier,
-                "line": e.import.line, "col": e.import.col,
-                "isTypeOnly": e.import.is_type_only, "isDynamic": e.import.is_dynamic,
-            })
-        })
-        .collect();
-    let viol: Vec<serde_json::Value> = violations(&r)
-        .into_iter()
-        .map(|v| {
-            serde_json::json!({
-                "code": v.code, "level": v.level, "file": v.file, "line": v.line, "col": v.col,
-                "specifier": v.specifier, "resolvedTo": v.resolved_to, "barrel": v.barrel, "cycle": v.cycle,
-            })
-        })
-        .collect();
-    let out = serde_json::json!({
-        "files": files, "nodes": nodes, "edges": edges, "violations": viol,
-        "timingsMs": {
-            "walk": ms(t.walk), "readParse": ms(t.read_parse), "resolve": ms(t.resolve),
-            "graphBuild": ms(t.graph_build), "cycles": ms(t.cycles),
-            "boundaries": ms(t.boundaries), "total": ms(t.total),
+    Ok(NativeLintResult {
+        files: r.files,
+        node_keys,
+        features,
+        file_feature: Int32Array::new(file_feature),
+        file_is_barrel: Uint8Array::new(file_is_barrel),
+        import_offsets: Uint32Array::new(import_offsets),
+        import_specifier: Uint32Array::new(import_specifier),
+        import_line: Uint32Array::new(import_line),
+        import_col: Uint32Array::new(import_col),
+        import_flags: Uint8Array::new(import_flags),
+        specifiers,
+        edge_from: Uint32Array::new(edge_from),
+        edge_to: Uint32Array::new(edge_to),
+        edge_import: Uint32Array::new(edge_import),
+        violations,
+        timings_ms: NativeTimings {
+            walk: ms(t.walk),
+            read_parse: ms(t.read_parse),
+            resolve: ms(t.resolve),
+            graph_build: ms(t.graph_build),
+            cycles: ms(t.cycles),
+            boundaries: ms(t.boundaries),
+            total: ms(t.total),
         },
-    });
-    serde_json::to_string(&out).map_err(|e| Error::from_reason(e.to_string()))
+    })
 }

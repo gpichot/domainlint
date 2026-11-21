@@ -19,6 +19,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@napi-rs/cli": "3.10.12",
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^4.1.16",
     "@tanstack/intent": "^0.0.41",
@@ -72,7 +73,22 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "version": "oclif readme && git add README.md"
+    "version": "oclif readme && git add README.md",
+    "build:native": "napi build --platform --release --strip --manifest-path ../../crates/domainlint-graph-napi/Cargo.toml --output-dir native --commonjs --js binding.cjs --dts binding.d.ts --no-dts-header",
+    "build:native:debug": "napi build --platform --manifest-path ../../crates/domainlint-graph-napi/Cargo.toml --output-dir native --commonjs --js binding.cjs --dts binding.d.ts --no-dts-header"
   },
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "napi": {
+    "binaryName": "domainlint",
+    "packageName": "domainlint-binding",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ]
+  }
 }
