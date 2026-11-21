@@ -9,6 +9,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write # release-please manages labels (autorelease: pending/tagged)
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.releases_created }}
@@ -18,7 +19,10 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          # Built-in token. Requires "Allow GitHub Actions to create and approve pull requests"
+          # (Settings > Actions > General). Note: PRs opened with GITHUB_TOKEN do not trigger
+          # other workflows, so CI won't run automatically on the release PR.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # One native addon (`domainlint.<platform>.node`) per supported platform. Each is published
   # as its own `domainlint-binding-<platform>` package (see packages/domainlint/npm/) that
