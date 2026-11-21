@@ -166,6 +166,19 @@ Verify before approving Step 2:
 
 ---
 
+## 10. Migrate tooling from Biome to oxlint + oxfmt
+
+**Status:** done
+**Scope:** `.oxlintrc.json`, `.oxfmtrc.json`, root `package.json`, `.github/workflows/ci.yml`
+
+- Replaced Biome with `oxlint` (lint) and `oxfmt` (format), pinned to exact versions
+- oxlint: `typescript`, `import`, `unicorn` plugins with the `correctness` category (roughly Biome's recommended set); `no-unused-vars` ignores `_`-prefixed names
+- oxfmt: config migrated from `biome.json` (single quotes, 2-space indent, 80 cols); import sorting enabled to replace Biome's organizeImports; Markdown/MDX/YAML/TOML left unformatted
+- Root scripts `lint`, `lint:fix`, `format`, `format:check` cover the whole repo; CI now runs `pnpm lint` and `pnpm format:check`
+- lint-staged runs `oxlint --fix` + `oxfmt` on staged JS/TS (incl. `.mjs`/`.cjs`) and JSON files
+
+---
+
 ## Non-goals (for now)
 
 - Intra-feature layering enforcement (e.g. `ui` cannot import `domain`)
