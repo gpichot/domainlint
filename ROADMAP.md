@@ -166,10 +166,17 @@ Verify before approving Step 2:
 
 ### Benchmark findings (10,100 files, 4 vCPU, Node 22, median of 5)
 
-domainlint 4.45s · dependency-cruiser 7.46s · madge 8.20s · ESLint import-x/no-cycle 14.13s. On ~500 files all tools take about 1s.
+| Scenario | domainlint | oxlint | dependency-cruiser | madge | ESLint |
+|---|---|---|---|---|---|
+| cycles | 3.81s | 0.24s | 6.91s | 7.58s | 13.38s |
+| boundaries | 3.99s | 2.97s (eslint-plugin-boundaries via jsPlugins) | 6.89s | n/a | 12.42s |
+| full | 3.69s | 3.48s | 7.01s | n/a | 16.31s |
+
+oxlint is the fastest in every scenario. domainlint's measured speed edge is over dependency-cruiser (~2×) and ESLint (~4×), not over oxlint. On ~500 files every tool takes about 1s.
 
 ### Follow-up tasks
 
+- **Close the gap with oxlint (highest-leverage perf work).** oxlint's no-cycle parses and resolves the same 10k files in 0.24s; domainlint takes ~3.8s. Turning a rule `off` doesn't skip its computation either: the boundaries-only run is no faster than the full one.
 - **I/O is the bottleneck, not parsing.** A CPU profile shows oxc parsing takes ~280ms of a ~4.4s run; most time is per-file `fs/promises` open/read/close, `path.relative`/`normalize`, and idle waits. Batched/sync reads or a worker pool could plausibly cut total time substantially. Re-run `node benchmarks/run.mjs` and update `docs/src/components/BenchmarkChart.astro` after any perf change.
 - **`check` exits 2 instead of 1 on violations.** `this.exit(1)` inside the `try` in `src/commands/check.ts` is caught and rethrown as "Internal error: EEXIT: 1". Docs describe the intended contract (1 = violations).
 

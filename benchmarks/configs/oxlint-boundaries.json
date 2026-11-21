@@ -1,0 +1,23 @@
+{
+  "jsPlugins": ["eslint-plugin-boundaries"],
+  "settings": {
+    "import/resolver": { "typescript": { "project": "./tsconfig.json" } },
+    "boundaries/elements": [
+      {
+        "type": "feature",
+        "pattern": "src/features/*",
+        "mode": "folder",
+        "capture": ["name"]
+      }
+    ]
+  },
+  "rules": {
+    "boundaries/entry-point": [
+      "error",
+      {
+        "default": "disallow",
+        "rules": [{ "target": ["feature"], "allow": "index.ts" }]
+      }
+    ]
+  }
+}

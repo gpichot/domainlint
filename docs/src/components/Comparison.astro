@@ -6,29 +6,29 @@
 type Cell = 'yes' | 'no' | 'partial';
 interface Row {
   label: string;
-  cells: [Cell, Cell, Cell, Cell];
+  cells: [Cell, Cell, Cell, Cell, Cell];
   hint?: string;
 }
 
-const tools = ['domainlint', 'dependency-cruiser', 'madge', 'ESLint plugins'];
+const tools = ['domainlint', 'oxlint', 'dependency-cruiser', 'madge', 'ESLint plugins'];
 const rows: Row[] = [
-  { label: 'Import cycle detection', cells: ['yes', 'yes', 'yes', 'yes'] },
+  { label: 'Import cycle detection', cells: ['yes', 'yes', 'yes', 'yes', 'yes'] },
   {
     label: 'Barrel-only cross-feature imports',
-    cells: ['yes', 'partial', 'no', 'partial'],
-    hint: 'Others can express it with regex / element-type config you write and maintain.',
+    cells: ['yes', 'partial', 'partial', 'no', 'partial'],
+    hint: 'Others can express it with regex / element-type config you write and maintain (oxlint via eslint-plugin-boundaries as a JS plugin).',
   },
-  { label: 'Zero config for src/features layouts', cells: ['yes', 'no', 'no', 'no'] },
-  { label: 'tsconfig paths & extends', cells: ['yes', 'yes', 'yes', 'yes'] },
-  { label: 'Monorepo package rules', cells: ['yes', 'partial', 'no', 'partial'] },
+  { label: 'Zero config for src/features layouts', cells: ['yes', 'no', 'no', 'no', 'no'] },
+  { label: 'tsconfig paths & extends', cells: ['yes', 'yes', 'yes', 'yes', 'yes'] },
+  { label: 'Monorepo package rules', cells: ['yes', 'partial', 'partial', 'no', 'partial'] },
   {
     label: 'Custom rules over the whole graph',
-    cells: ['yes', 'partial', 'no', 'no'],
-    hint: 'domainlint rules get the full dependency graph via a typed query API; ESLint rules see one file at a time.',
+    cells: ['yes', 'no', 'partial', 'no', 'no'],
+    hint: 'domainlint rules get the full dependency graph via a typed query API; ESLint and oxlint rules see one file at a time.',
   },
-  { label: 'Fast at 10k+ files (measured)', cells: ['yes', 'partial', 'partial', 'no'] },
-  { label: 'In-editor squiggles', cells: ['no', 'no', 'no', 'yes'] },
-  { label: 'Dependency graph images', cells: ['no', 'yes', 'yes', 'no'] },
+  { label: 'Fast on 10k+ files (measured)', cells: ['yes', 'yes', 'partial', 'partial', 'no'] },
+  { label: 'In-editor squiggles', cells: ['no', 'yes', 'no', 'no', 'yes'] },
+  { label: 'Dependency graph images', cells: ['no', 'no', 'yes', 'yes', 'no'] },
 ];
 const icon = { yes: '✓', no: '—', partial: '~' } as const;
 const sr = { yes: 'Yes', no: 'No', partial: 'Partially, with configuration' } as const;
@@ -74,7 +74,7 @@ const sr = { yes: 'Yes', no: 'No', partial: 'Partially, with configuration' } as
   table {
     display: table;
     width: 100%;
-    min-width: 36rem;
+    min-width: 40rem;
     border-collapse: collapse;
     margin: 0 !important;
     font-size: var(--sl-text-sm);

@@ -103,7 +103,9 @@ Each folder in `src/features/` is a feature, and its `index.ts` is the only way 
 
 ## Fast enough to run on every commit
 
-Parsing goes through [oxc](https://oxc.rs), a Rust-native JavaScript toolchain, and module resolution through `oxc-resolver`. Parsing 10,000 files takes about 300 ms, so most of the run is plain file I/O. On a 10k-file project, domainlint checks **cycles and boundaries together** in less time than other tools take for cycles alone.
+Parsing goes through [oxc](https://oxc.rs), a Rust-native JavaScript toolchain, and module resolution through `oxc-resolver`. On a 10,000-file project domainlint runs the full check, cycles and boundaries together, about **2× faster than dependency-cruiser** and **4× faster than ESLint plugins**.
+
+We also measured oxlint, and it's faster still, especially for cycles alone. Pick a scenario below; every number can be reproduced from the repo.
 
 </Reveal>
 
@@ -129,16 +131,20 @@ Good tools already exist for parts of this problem. domainlint is narrower on pu
 <Reveal delay={0.15}>
 <div class="dl-grid" style="margin-top: 1rem">
   <div class="dl-card">
+    <h3>Pick oxlint if…</h3>
+    <p>you already run oxlint. Its `import/no-cycle`, plus `eslint-plugin-boundaries` loaded as a JS plugin (alpha API), was the fastest setup we measured and gives editor feedback. You write and maintain the element config yourself.</p>
+  </div>
+  <div class="dl-card">
     <h3>Pick dependency-cruiser if…</h3>
     <p>you need arbitrary path-based rules (layers inside a feature, "no `ui` → `db`"), or dependency graph images. It's the most flexible option, and you pay for that in config.</p>
   </div>
   <div class="dl-card">
     <h3>Pick ESLint plugins if…</h3>
-    <p>you want squiggles in the editor while you type. `eslint-plugin-boundaries` and `import-x/no-cycle` do that, but cycle detection gets slow on large graphs.</p>
+    <p>you want boundary squiggles in the editor while you type. `eslint-plugin-boundaries` does that, but it's ~3× slower than domainlint in CI.</p>
   </div>
   <div class="dl-card">
     <h3>Pick domainlint if…</h3>
-    <p>you organise code by feature and want those boundaries enforced in CI with no setup, fast, with a typed graph API for your own rules.</p>
+    <p>you organise code by feature and want boundaries and cycles enforced with zero config, feature-aware reports, monorepo package rules, and a typed graph API for your own rules.</p>
   </div>
 </div>
 </Reveal>

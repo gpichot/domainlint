@@ -1,52 +1,121 @@
 ---
 /**
- * Bar chart of benchmark results. Numbers come from `benchmarks/run.mjs`
- * (median of 5 runs after a warm-up). Update them when re-running.
+ * Tabbed bar chart of benchmark results. Numbers come from
+ * `node benchmarks/run.mjs` (10,100-file fixture, median of 5 runs after a
+ * warm-up). Update them when re-running.
  */
 interface Row {
   tool: string;
   seconds: number;
-  note: string;
-  highlight?: boolean;
+}
+interface Scenario {
+  id: string;
+  tab: string;
+  caption: string;
+  rows: Row[];
+  note?: string;
 }
 
-const rows: Row[] = [
-  { tool: 'domainlint', seconds: 4.45, note: 'cycles + boundaries', highlight: true },
-  { tool: 'dependency-cruiser', seconds: 7.46, note: 'cycles + boundaries' },
-  { tool: 'madge', seconds: 8.2, note: 'cycles only' },
-  { tool: 'ESLint import-x/no-cycle', seconds: 14.13, note: 'cycles only' },
+const scenarios: Scenario[] = [
+  {
+    id: 'full',
+    tab: 'Full CI check',
+    caption: 'Cycles + feature boundaries in one run',
+    rows: [
+      { tool: 'oxlint (no-cycle + boundaries JS plugin)', seconds: 3.48 },
+      { tool: 'domainlint', seconds: 3.69 },
+      { tool: 'dependency-cruiser', seconds: 7.01 },
+      { tool: 'ESLint (import-x + boundaries)', seconds: 16.31 },
+    ],
+    note: 'oxlint runs eslint-plugin-boundaries through its JS plugin API (alpha), with an element config you write. madge has no boundary rule.',
+  },
+  {
+    id: 'boundaries',
+    tab: 'Boundaries only',
+    caption: 'Cross-feature imports must go through index.ts',
+    rows: [
+      { tool: 'oxlint (boundaries JS plugin)', seconds: 2.97 },
+      { tool: 'domainlint', seconds: 3.99 },
+      { tool: 'dependency-cruiser', seconds: 6.89 },
+      { tool: 'ESLint (eslint-plugin-boundaries)', seconds: 12.42 },
+    ],
+  },
+  {
+    id: 'cycles',
+    tab: 'Cycles only',
+    caption: 'Import cycle detection',
+    rows: [
+      { tool: 'oxlint (import/no-cycle)', seconds: 0.24 },
+      { tool: 'domainlint', seconds: 3.81 },
+      { tool: 'dependency-cruiser', seconds: 6.91 },
+      { tool: 'madge', seconds: 7.58 },
+      { tool: 'ESLint (import-x/no-cycle)', seconds: 13.38 },
+    ],
+    note: 'If cycles are all you need and you already run oxlint, turn on import/no-cycle. It’s the fastest option we measured.',
+  },
 ];
-const max = Math.max(...rows.map((r) => r.seconds));
-const fastest = rows[0].seconds;
 ---
 
 <figure class="dl-bench">
-  <figcaption class="dl-bench-head">
-    <strong>10,100 TypeScript files · 100 features</strong>
-    <span>Wall-clock, lower is better</span>
-  </figcaption>
-  <ul>
+  <div class="dl-bench-tabs" role="tablist" aria-label="Benchmark scenario">
     {
-      rows.map((r, i) => (
-        <li class:list={{ hl: r.highlight }} style={`--w:${(r.seconds / max) * 100}%;--i:${i}`}>
-          <span class="name">
-            {r.tool}
-            <small>{r.note}</small>
-          </span>
-          <span class="track">
-            <span class="bar" />
-          </span>
-          <span class="val">
-            {r.seconds.toFixed(1)}s
-            {!r.highlight && <small>{(r.seconds / fastest).toFixed(1)}× slower</small>}
-          </span>
-        </li>
+      scenarios.map((s, i) => (
+        <button
+          type="button"
+          role="tab"
+          id={`dl-tab-${s.id}`}
+          aria-controls={`dl-panel-${s.id}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+        >
+          {s.tab}
+        </button>
       ))
     }
-  </ul>
+  </div>
+
+  {
+    scenarios.map((s, i) => {
+      const max = Math.max(...s.rows.map((r) => r.seconds));
+      const fastest = Math.min(...s.rows.map((r) => r.seconds));
+      return (
+        <div
+          class="dl-bench-panel"
+          role="tabpanel"
+          id={`dl-panel-${s.id}`}
+          aria-labelledby={`dl-tab-${s.id}`}
+          hidden={i !== 0}
+        >
+          <div class="dl-bench-head">
+            <strong>{s.caption}</strong>
+            <span>10,100 TypeScript files · lower is better</span>
+          </div>
+          <ul>
+            {s.rows.map((r, j) => (
+              <li
+                class:list={{ us: r.tool === 'domainlint', best: r.seconds === fastest }}
+                style={`--w:${Math.max((r.seconds / max) * 100, 1.5)}%;--i:${j}`}
+              >
+                <span class="name">{r.tool}</span>
+                <span class="track">
+                  <span class="bar" />
+                </span>
+                <span class="val">
+                  {r.seconds < 1 ? `${Math.round(r.seconds * 1000)}ms` : `${r.seconds.toFixed(1)}s`}
+                  {r.seconds !== fastest && <small>{(r.seconds / fastest).toFixed(1)}× slower</small>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {s.note && <p class="dl-bench-note">{s.note}</p>}
+        </div>
+      );
+    })
+  }
+
   <p class="dl-bench-foot">
     Synthetic project, Node 22, 4 vCPU Linux. Median of 5 runs after warm-up, including process
-    start-up. On small projects (~500 files) every tool finishes in about a second.
+    start-up. On ~500 files every tool finishes in about a second.
     <a href="https://github.com/gpichot/domainlint/tree/main/benchmarks">Reproduce it yourself →</a>
   </p>
 </figure>
@@ -58,6 +127,36 @@ const fastest = rows[0].seconds;
     border-radius: 18px;
     border: 1px solid var(--dl-border);
     background: var(--dl-card-bg);
+  }
+  .dl-bench-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid var(--dl-border);
+    margin-bottom: 1.25rem;
+  }
+  .dl-bench-tabs button {
+    all: unset;
+    cursor: pointer;
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    color: var(--sl-color-gray-2);
+    transition: background 0.2s, color 0.2s;
+  }
+  .dl-bench-tabs button[aria-selected='true'] {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-white);
+  }
+  :global([data-theme='light']) .dl-bench-tabs button[aria-selected='true'] {
+    color: #fff;
+  }
+  .dl-bench-tabs button:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
   }
   .dl-bench-head {
     display: flex;
@@ -78,7 +177,7 @@ const fastest = rows[0].seconds;
   }
   li {
     display: grid;
-    grid-template-columns: minmax(7rem, 13rem) 1fr 5.5rem;
+    grid-template-columns: minmax(7rem, 15rem) 1fr 5.5rem;
     align-items: center;
     gap: 0.9rem;
     margin: 0 !important;
@@ -86,7 +185,7 @@ const fastest = rows[0].seconds;
   .name {
     font-weight: 600;
     font-size: var(--sl-text-sm);
-    line-height: 1.2;
+    line-height: 1.25;
     color: var(--sl-color-white);
   }
   small {
@@ -110,7 +209,8 @@ const fastest = rows[0].seconds;
     transform-origin: left;
     transform: scaleX(0);
   }
-  .hl .bar {
+  .best .bar { background: rgb(34 197 94); }
+  .us .bar {
     background: var(--dl-grad);
     box-shadow: 0 0 18px rgb(124 92 255 / 0.6);
   }
@@ -121,12 +221,19 @@ const fastest = rows[0].seconds;
     text-align: end;
     color: var(--sl-color-white);
   }
-  .hl .val { color: var(--dl-ok); }
-  :global(.is-visible) .bar {
+  .best .val { color: var(--dl-ok); }
+  :global(.is-visible) .dl-bench-panel:not([hidden]) .bar {
     animation: grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    animation-delay: calc(var(--i) * 0.15s + 0.2s);
+    animation-delay: calc(var(--i) * 0.12s + 0.15s);
   }
   @keyframes grow { to { transform: scaleX(1); } }
+  .dl-bench-note {
+    margin: 1rem 0 0 !important;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+    border-inline-start: 3px solid var(--sl-color-accent);
+    padding-inline-start: 0.75rem;
+  }
   .dl-bench-foot {
     margin: 1.2rem 0 0 !important;
     font-size: var(--sl-text-xs);
@@ -140,3 +247,28 @@ const fastest = rows[0].seconds;
     .bar { transform: none; animation: none !important; }
   }
 </style>
+
+<script>
+  for (const fig of document.querySelectorAll<HTMLElement>('.dl-bench')) {
+    const tabs = [...fig.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const select = (tab: HTMLButtonElement) => {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        const panel = fig.querySelector<HTMLElement>(`#${t.getAttribute('aria-controls')}`);
+        if (panel) panel.hidden = !on;
+      }
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!d) return;
+        const next = tabs[(i + d + tabs.length) % tabs.length];
+        select(next);
+        next.focus();
+      });
+    });
+  }
+</script>

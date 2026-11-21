@@ -1,14 +1,21 @@
 # Benchmarks
 
-Reproducible speed comparison of `domainlint check` against other tools that
-detect import cycles and/or boundary violations:
+Reproducible speed comparison of `domainlint check` against other tools, in
+three scenarios:
 
-| Tool | What it runs |
-|------|--------------|
-| domainlint | `domainlint check .` (cycles + feature boundaries) |
-| madge | `madge --circular` (cycles only) |
-| dependency-cruiser | `depcruise` with a `no-circular` + "no deep cross-feature import" config |
-| ESLint | `eslint-plugin-import-x` `no-cycle` rule (cycles only) |
+| Scenario | What is checked | Tools |
+|----------|-----------------|-------|
+| `cycles` | Import cycles only | domainlint, oxlint `import/no-cycle`, madge, dependency-cruiser, ESLint `import-x/no-cycle` |
+| `boundaries` | "Domain" rule only: cross-feature imports must go through the feature's `index.ts` | domainlint, oxlint + `eslint-plugin-boundaries` (JS plugin), dependency-cruiser, ESLint `eslint-plugin-boundaries` |
+| `full` | Both, in one run (what you'd put in CI) | domainlint, oxlint (no-cycle + boundaries JS plugin), dependency-cruiser, ESLint (import-x + boundaries) |
+
+madge has no boundaries rule, so it only runs in `cycles`. oxlint has no native
+one either; it runs [`eslint-plugin-boundaries`](https://www.jsboundaries.dev/)
+through its alpha `jsPlugins` API.
+
+Not included: [`oxlint-plugin-boundaries`](https://www.npmjs.com/package/oxlint-plugin-boundaries)
+(0.1.0, alpha). It enforces an element-type allow-matrix by file path but has no
+entry-point (barrel) rule, so it can't express this scenario.
 
 Nothing large is committed: projects are generated on demand.
 
@@ -23,16 +30,23 @@ node benchmarks/run.mjs
 Options:
 
 ```bash
-node benchmarks/run.mjs --sizes 20x25,100x100,200x100 --runs 5 --json results.json
-node benchmarks/run.mjs --tools domainlint,madge
+node benchmarks/run.mjs --scenarios boundaries --sizes 100x100,200x100 --runs 5
+node benchmarks/run.mjs --tools domainlint,oxlint --json results.json
 ```
 
-`--sizes` takes `<features>x<filesPerFeature>`. Each tool gets one warm-up run,
-then the median of `--runs` timed runs is reported (wall clock, including
-process start-up).
+- `--sizes` takes `<features>x<filesPerFeature>`.
+- Each tool gets one warm-up run, then the median of `--runs` timed runs is
+  reported (wall clock, including process start-up).
+- The `findings` column is a sanity check that each tool actually detected the
+  seeded problems. Units differ between tools (madge counts cycles, others
+  count offending files or imports), so compare magnitudes, not exact numbers.
 
 Competitor tools are installed once into `benchmarks/.tools/` at pinned
-versions; fixtures go to `benchmarks/.fixtures/`. Both are gitignored.
+versions (gitignored). Fixtures are generated under the OS temp dir
+(`--out` to change it): oxlint always honours `.gitignore`, so fixtures can't
+live inside this repository.
+
+Per-scenario tool configs live in [`configs/`](./configs).
 
 ## Generate a fixture only
 
@@ -47,7 +61,5 @@ every 9th feature. Generation is deterministic (`--seed`).
 ## Caveats
 
 - Synthetic code: small, uniform files. Real projects have bigger files, which
-  favours fast parsers (oxc), and more `node_modules` imports.
-- madge and the ESLint rule only detect cycles; domainlint and
-  dependency-cruiser also check boundaries in the same run.
+  favours native parsers (domainlint, oxlint), and more `node_modules` imports.
 - Results depend heavily on disk and CPU; compare numbers from the same machine.
