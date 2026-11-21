@@ -15,5 +15,5 @@ tsconfig.tsbuildinfo
 .claude
 coverage
 
-# Local Netlify folder
-.netlify
+# Local Wrangler/Cloudflare folder
+.wrangler
