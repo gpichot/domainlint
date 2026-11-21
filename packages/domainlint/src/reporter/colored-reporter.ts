@@ -1,8 +1,8 @@
-import { relative } from 'node:path';
 import chalk from 'chalk';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { getFeature } from '../files/file-discovery.js';
 import type { Violation } from '../graph/types.js';
+import { relativePosix, replaceRootDir } from '../path-utils.js';
 
 export interface ReporterOptions {
   colors?: boolean;
@@ -146,7 +146,7 @@ export class ColoredReporter {
     const { file, line, col, code, message, level = 'error' } = violation;
 
     // Use relative path if rootDir is provided
-    const displayFile = rootDir ? relative(rootDir, file) : file;
+    const displayFile = rootDir ? relativePosix(rootDir, file) : file;
 
     if (!this.options.colors) {
       return this.formatViolationPlain(
@@ -909,9 +909,6 @@ export class ColoredReporter {
 
     // Replace absolute paths with relative paths in the message
     // This handles paths in quoted strings within error messages
-    return message.replace(
-      new RegExp(rootDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-      '.',
-    );
+    return replaceRootDir(message, rootDir);
   }
 }

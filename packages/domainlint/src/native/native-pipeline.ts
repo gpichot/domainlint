@@ -1,4 +1,5 @@
 import { relative, sep } from 'node:path';
+import { toPosix } from '../path-utils.js';
 import type { FeatureBoundariesConfig, RuleName } from '../config/types.js';
 import type { FileInfo } from '../files/file-discovery.js';
 import type {
@@ -77,9 +78,11 @@ export function runNativePipeline(
     const feature = r.fileFeature[i];
     files[i] = {
       path,
-      relativePath: path.startsWith(rootPrefix)
-        ? path.slice(rootPrefix.length)
-        : relative(config.rootDir, path),
+      relativePath: toPosix(
+        path.startsWith(rootPrefix)
+          ? path.slice(rootPrefix.length)
+          : relative(config.rootDir, path),
+      ),
       feature: feature >= 0 ? r.features[feature] : null,
       isBarrel: r.fileIsBarrel[i] === 1,
       lineCount: r.fileLines[i],

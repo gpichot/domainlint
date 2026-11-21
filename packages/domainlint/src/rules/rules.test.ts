@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
@@ -50,7 +51,7 @@ describe('findRulesFile', () => {
     });
 
     const result = await findRulesFile('/project');
-    expect(result).toBe('/project/domainlint.rules.ts');
+    expect(result).toBe(resolve('/project/domainlint.rules.ts'));
   });
 
   it('should find domainlint.rules.js as fallback', async () => {
@@ -59,7 +60,7 @@ describe('findRulesFile', () => {
     });
 
     const result = await findRulesFile('/project');
-    expect(result).toBe('/project/domainlint.rules.js');
+    expect(result).toBe(resolve('/project/domainlint.rules.js'));
   });
 
   it('should prefer .ts over .js', async () => {
@@ -69,7 +70,7 @@ describe('findRulesFile', () => {
     });
 
     const result = await findRulesFile('/project');
-    expect(result).toBe('/project/domainlint.rules.ts');
+    expect(result).toBe(resolve('/project/domainlint.rules.ts'));
   });
 
   it('should return null when no rules file exists', async () => {
@@ -87,7 +88,7 @@ describe('findRulesFile', () => {
     });
 
     const result = await findRulesFile('/project', 'custom/my-rules.ts');
-    expect(result).toBe('/project/custom/my-rules.ts');
+    expect(result).toBe(resolve('/project/custom/my-rules.ts'));
   });
 
   it('should throw when explicit rulesFile does not exist', async () => {

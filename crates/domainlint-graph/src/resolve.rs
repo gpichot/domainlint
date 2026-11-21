@@ -47,11 +47,25 @@ pub struct LocalResolver {
 pub fn build_local_resolver(config: &Config) -> LocalResolver {
     let root_map = std::fs::canonicalize(&config.root_dir)
         .ok()
+        .map(|canon| strip_verbatim(&canon))
         .filter(|canon| canon != &config.root_dir)
         .map(|canon| (canon, config.root_dir.clone()));
     LocalResolver {
         resolver: build_resolver(config),
         root_map,
+    }
+}
+
+/// On Windows `fs::canonicalize` returns verbatim paths (`\\?\C:\...`, `\\?\UNC\...`) that
+/// never match the plain paths used everywhere else; strip the prefix. No-op for other paths.
+fn strip_verbatim(p: &Path) -> PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        p.to_path_buf()
     }
 }
 
@@ -70,5 +84,19 @@ pub fn resolve_local(resolver: &LocalResolver, from_file: &str, specifier: &str)
         None
     } else {
         Some(p.into_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_verbatim_removes_windows_prefixes() {
+        let s = |p: &str| strip_verbatim(Path::new(p)).to_string_lossy().into_owned();
+        assert_eq!(s(r"\\?\C:\proj\src"), r"C:\proj\src");
+        assert_eq!(s(r"\\?\UNC\server\share\x"), r"\\server\share\x");
+        assert_eq!(s("/home/proj"), "/home/proj");
+        assert_eq!(s(r"C:\proj"), r"C:\proj");
     }
 }

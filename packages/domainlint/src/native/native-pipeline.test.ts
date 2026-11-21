@@ -1,9 +1,10 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FeatureBoundariesConfig } from '../config/types.js';
 import { FeatureBoundariesLinter } from '../linter/feature-boundaries-linter.js';
+import { toPosix } from '../path-utils.js';
 import { loadNativeBinding } from './native-binding.js';
 import { runNativePipeline, toNativeOptions } from './native-pipeline.js';
 
@@ -58,8 +59,14 @@ function run(overrides: Partial<FeatureBoundariesConfig> = {}) {
   return runNativePipeline(config(overrides));
 }
 
+/** Path relative to the temp project, with `/` separators on every platform. */
 function rel(p: string): string {
-  return p.replace(`${dir}/`, '');
+  return toPosix(relative(dir, p));
+}
+
+/** Strips the temp project dir from a message and normalises separators. */
+function relMessage(m: string): string {
+  return toPosix(m.replaceAll(`${dir}${sep}`, ''));
 }
 
 describe('native parsing', () => {
@@ -79,7 +86,7 @@ describe('native parsing', () => {
         'export const x = 1; export const y = 2; export type T = 1; export type U = 1;',
     });
     const r = run();
-    const a = r.parseResults.find((p) => p.filePath.endsWith('src/a.ts'));
+    const a = r.parseResults.find((p) => p.filePath.endsWith(join('src', 'a.ts')));
     expect(
       a?.imports.map((i) => [i.specifier, i.line, i.isTypeOnly, i.isDynamic]),
     ).toEqual([
@@ -141,7 +148,7 @@ describe('native parsing', () => {
     write({ 'src/bad.ts': 'import { from ;;; <<<' });
     const linter = new FeatureBoundariesLinter(config());
     await expect(linter.lint()).rejects.toThrow(
-      /Linting failed: Failed to parse .*src\/bad\.ts: /,
+      /Linting failed: Failed to parse .*src[\\/]bad\.ts: /,
     );
   });
 
@@ -210,13 +217,13 @@ describe('native graph', () => {
     });
     const g = run().graph;
     expect([...g.nodes].map(rel)).toEqual(['src/a', 'src/b']);
-    expect(rel(g.normalizedToOriginalPath?.get(`${dir}/src/b`) ?? '')).toBe(
+    expect(rel(g.normalizedToOriginalPath?.get(join(dir, 'src/b')) ?? '')).toBe(
       'src/b.tsx',
     );
     expect(g.edges.map((e) => [rel(e.from), rel(e.to)])).toEqual([
       ['src/a', 'src/b'],
     ]);
-    expect([...(g.adjacencyList.get(`${dir}/src/a`) ?? [])].map(rel)).toEqual([
+    expect([...(g.adjacencyList.get(join(dir, 'src/a')) ?? [])].map(rel)).toEqual([
       'src/b',
     ]);
   });
@@ -275,7 +282,7 @@ describe('native built-in rules', () => {
       'src/y.ts': `import './x';`,
     });
     const cycles = run().violations.filter((v) => v.code === 'noImportCycle');
-    expect(cycles.map((v) => v.message.replaceAll(`${dir}/`, ''))).toEqual([
+    expect(cycles.map((v) => relMessage(v.message))).toEqual([
       'Import cycle detected: src/a.ts -> src/b.ts -> src/c.ts -> src/a.ts',
       'Import cycle detected: src/self.ts -> src/self.ts',
       'Import cycle detected: src/x.ts -> src/y.ts -> src/x.ts',
@@ -309,15 +316,15 @@ describe('native built-in rules', () => {
     expect(v).toHaveLength(2);
     expect(v[0]).toMatchObject({
       code: 'noCrossFeatureDeepImport',
-      file: `${dir}/src/features/a/use.ts`,
+      file: join(dir, 'src/features/a/use.ts'),
       line: 1,
       col: 1,
-      message: `Cross-feature deep import not allowed. Import "../b/inner" resolves to "${dir}/src/features/b/inner.ts" but should import from feature barrel "${dir}/src/features/b/index.ts" instead.`,
+      message: `Cross-feature deep import not allowed. Import "../b/inner" resolves to "${join(dir, 'src/features/b/inner.ts')}" but should import from feature barrel "${join(dir, 'src/features/b/index.ts')}" instead.`,
     });
     expect(v[1]).toMatchObject({
       code: 'noFeatureImportFromNonDomain',
       line: 2,
-      message: `Feature files cannot import from non-domain directories. Import "../../shared" resolves to "${dir}/src/shared.ts" which is outside the features directory. Feature files should only import from within features or feature barrel files.`,
+      message: `Feature files cannot import from non-domain directories. Import "../../shared" resolves to "${join(dir, 'src/shared.ts')}" which is outside the features directory. Feature files should only import from within features or feature barrel files.`,
     });
   });
 

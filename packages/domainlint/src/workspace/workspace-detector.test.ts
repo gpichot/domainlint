@@ -1,3 +1,4 @@
+import { resolve, sep } from 'node:path';
 import { vol } from 'memfs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -18,14 +19,18 @@ vi.mock('glob', () => ({
     const dirs = new Set<string>();
     for (const p of allPaths) {
       if (p.startsWith(cwd)) {
-        const rel = p.slice(cwd.length + 1);
+        // memfs keys use the platform separator; patterns use '/'
+        const rel = p
+          .slice(cwd.length + 1)
+          .split(sep)
+          .join('/');
         // Match "packages/*" pattern
         if (pattern.endsWith('/*')) {
           const prefix = pattern.slice(0, -2);
           if (rel.startsWith(prefix + '/')) {
             const rest = rel.slice(prefix.length + 1);
             const firstDir = rest.split('/')[0];
-            dirs.add(`${cwd}/${prefix}/${firstDir}`);
+            dirs.add(resolve(cwd, prefix, firstDir));
           }
         }
       }
@@ -74,7 +79,7 @@ describe('detectWorkspace', () => {
 
     expect(result).not.toBeNull();
     expect(result!.type).toBe('pnpm');
-    expect(result!.root).toBe('/workspace');
+    expect(result!.root).toBe(resolve('/workspace'));
     expect(result!.packages).toHaveLength(2);
     expect(result!.packages.map((p) => p.name)).toEqual(['@my/core', '@my/ui']);
   });

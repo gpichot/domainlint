@@ -1,9 +1,10 @@
 import { access, readFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { PackageImportRestriction } from '../config/types.js';
 import type { Violation } from '../graph/types.js';
 import type { ImportInfo } from '../parser/types.js';
+import { relativePosix } from '../path-utils.js';
 import type { WorkspacePackage } from '../workspace/workspace-detector.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -71,16 +72,17 @@ export function buildPackageImportEdges(
   // Build maps
   const packageNameToRelPath = new Map<string, string>();
   for (const pkg of packages) {
-    packageNameToRelPath.set(pkg.name, relative(workspaceRoot, pkg.path));
+    packageNameToRelPath.set(pkg.name, relativePosix(workspaceRoot, pkg.path));
   }
 
   // Map files → package rel paths (use trailing / to avoid prefix collisions)
   const fileToPackageRelPath = new Map<string, string>();
   for (const pkg of packages) {
-    const relPath = relative(workspaceRoot, pkg.path);
-    const prefix = `${pkg.path}/`;
+    const relPath = relativePosix(workspaceRoot, pkg.path);
+    const prefix = `${pkg.path}${sep}`;
+    const altPrefix = `${pkg.path}/`;
     for (const filePath of fileImports.keys()) {
-      if (filePath.startsWith(prefix)) {
+      if (filePath.startsWith(prefix) || filePath.startsWith(altPrefix)) {
         fileToPackageRelPath.set(filePath, relPath);
       }
     }
@@ -126,7 +128,7 @@ export async function buildPackageJsonEdges(
   const packageNames = new Set(packages.map((p) => p.name));
   const packageNameToRelPath = new Map<string, string>();
   for (const pkg of packages) {
-    packageNameToRelPath.set(pkg.name, relative(workspaceRoot, pkg.path));
+    packageNameToRelPath.set(pkg.name, relativePosix(workspaceRoot, pkg.path));
   }
 
   for (const pkg of packages) {
@@ -139,7 +141,7 @@ export async function buildPackageJsonEdges(
       continue;
     }
 
-    const fromPackage = relative(workspaceRoot, pkg.path);
+    const fromPackage = relativePosix(workspaceRoot, pkg.path);
     const depFields = ['dependencies', 'devDependencies', 'peerDependencies'];
 
     for (const field of depFields) {

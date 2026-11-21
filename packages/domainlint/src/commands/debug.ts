@@ -1,4 +1,4 @@
-import { isAbsolute, join, relative } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { Args, Command, Flags } from '@oclif/core';
 import { loadConfig } from '../config/config-loader.js';
 import type { FeatureBoundariesConfig } from '../config/types.js';
@@ -9,6 +9,7 @@ import {
 } from '../linter/feature-boundaries-linter.js';
 import { loadNativeBinding } from '../native/native-binding.js';
 import { toNativeOptions } from '../native/native-pipeline.js';
+import { relativePosix } from '../path-utils.js';
 import { ColoredReporter } from '../reporter/colored-reporter.js';
 
 interface FileDebugInfo {
@@ -236,7 +237,7 @@ export default class Debug extends Command {
     config: FeatureBoundariesConfig,
     _reporter: ColoredReporter,
   ): void {
-    const relativePath = relative(config.rootDir, debugInfo.filePath);
+    const relativePath = relativePosix(config.rootDir, debugInfo.filePath);
 
     this.log(`\n🔍 Debug analysis for: ${relativePath}`);
     this.log(`📁 Feature: ${debugInfo.feature || '(none)'}`);
@@ -249,7 +250,7 @@ export default class Debug extends Command {
     } else {
       for (const imp of debugInfo.outgoingImports) {
         const targetPath = imp.resolvedPath
-          ? relative(config.rootDir, imp.resolvedPath)
+          ? relativePosix(config.rootDir, imp.resolvedPath)
           : '(external)';
         const typeFlag = imp.isTypeOnly ? ' [type-only]' : '';
         const dynamicFlag = imp.isDynamic ? ' [dynamic]' : '';
@@ -280,7 +281,7 @@ export default class Debug extends Command {
       this.log('  (no incoming imports)');
     } else {
       for (const imp of debugInfo.incomingImports) {
-        const fromPath = relative(config.rootDir, imp.fromFile);
+        const fromPath = relativePosix(config.rootDir, imp.fromFile);
         const typeFlag = imp.isTypeOnly ? ' [type-only]' : '';
         const dynamicFlag = imp.isDynamic ? ' [dynamic]' : '';
 
