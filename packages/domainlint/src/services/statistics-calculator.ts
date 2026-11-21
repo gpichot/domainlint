@@ -33,18 +33,23 @@ export class StatisticsCalculator {
       const feature = getFeature(file.path, config);
       if (!feature) continue; // Skip non-feature files
 
-      if (!featureStatsMap.has(feature)) {
-        featureStatsMap.set(feature, {
-          fileCount: 0,
-          totalLines: 0,
-          dependencies: new Set(),
-        });
+      let stats = featureStatsMap.get(feature);
+      if (!stats) {
+        stats = { fileCount: 0, totalLines: 0, dependencies: new Set() };
+        featureStatsMap.set(feature, stats);
       }
 
-      featureStatsMap.get(feature)!.fileCount++;
-      featureFiles.push({ path: file.path, feature });
+      stats.fileCount++;
+      if (file.lineCount !== undefined) {
+        if (this.options.includeLineCount !== false) {
+          stats.totalLines += file.lineCount;
+        }
+      } else {
+        featureFiles.push({ path: file.path, feature });
+      }
     }
 
+    // Fallback for callers that pass FileInfo without a line count: read the files.
     if (this.options.includeLineCount !== false) {
       // Bounded concurrency: reading every file at once exhausts file descriptors (EMFILE).
       for (let i = 0; i < featureFiles.length; i += READ_CONCURRENCY) {

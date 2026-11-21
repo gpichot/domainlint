@@ -1,4 +1,4 @@
-import { relative } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { Args, Command, Flags } from '@oclif/core';
 import { loadConfig } from '../config/config-loader.js';
 import type { FeatureBoundariesConfig } from '../config/types.js';
@@ -114,8 +114,8 @@ export default class Debug extends Command {
 
   private resolveFilePath(filePath: string, rootDir: string): string {
     // Convert relative path to absolute path if needed
-    if (!filePath.startsWith('/')) {
-      return `${rootDir}/${filePath}`;
+    if (!isAbsolute(filePath)) {
+      return join(rootDir, filePath);
     }
     return filePath;
   }

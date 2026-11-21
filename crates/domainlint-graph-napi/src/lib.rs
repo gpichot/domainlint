@@ -11,7 +11,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use domainlint_graph::config::{Overrides, RuleSelection};
-use domainlint_graph::{Config, RunOptions, get_feature, is_barrel, parse_file, resolve_specifiers, run};
+use domainlint_graph::{
+    Config, RunOptions, get_feature, is_barrel, parse_file, resolve_specifiers, run,
+};
 use napi::Error;
 use napi::bindgen_prelude::{Int32Array, Uint8Array, Uint32Array};
 use napi_derive::napi;
@@ -88,6 +90,8 @@ pub struct NativeLintResult {
     pub edge_from: Uint32Array,
     pub edge_to: Uint32Array,
     pub edge_import: Uint32Array,
+    /// Non-blank lines per file (lines that are not empty after a JS `trim()`).
+    pub file_lines: Uint32Array,
     pub violations: Vec<NativeViolation>,
     pub timings_ms: NativeTimings,
 }
@@ -120,7 +124,8 @@ fn to_config(o: LintOptions) -> Config {
 #[napi]
 pub fn lint(options: LintOptions) -> napi::Result<NativeLintResult> {
     let config = to_config(options);
-    let r = run(&config, &RunOptions::default()).map_err(|e| Error::from_reason(format!("{e:#}")))?;
+    let r =
+        run(&config, &RunOptions::default()).map_err(|e| Error::from_reason(format!("{e:#}")))?;
 
     let n = r.files.len();
     let node_keys: Vec<String> = r.graph.nodes.iter().map(|x| x.key.clone()).collect();
@@ -209,6 +214,7 @@ pub fn lint(options: LintOptions) -> napi::Result<NativeLintResult> {
         edge_from: Uint32Array::new(edge_from),
         edge_to: Uint32Array::new(edge_to),
         edge_import: Uint32Array::new(edge_import),
+        file_lines: Uint32Array::new(r.line_counts),
         violations,
         timings_ms: NativeTimings {
             walk: ms(t.walk),

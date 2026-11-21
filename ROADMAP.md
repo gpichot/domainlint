@@ -177,7 +177,7 @@ oxlint is the fastest in every scenario. domainlint's measured speed edge is ove
 ### Follow-up tasks
 
 - **Close the gap with oxlint (highest-leverage perf work).** oxlint's no-cycle parses and resolves the same 10k files in 0.24s; domainlint takes ~3.8s. Turning a rule `off` doesn't skip its computation either: the boundaries-only run is no faster than the full one.
-  - **Status: spike done (Rust native core), decision pending.** Branch `claude/rust-graph-spike`. See "Native graph spike" below.
+  - **Status: done — domainlint now runs on a native Rust core via napi.** See "Native core (Rust + napi)" below.
 
 ### Native graph spike (Rust)
 
@@ -237,7 +237,35 @@ Contrarian check:
 4. Port workspace mode.
 5. Move `GraphQuery`'s glob matching to precompiled matchers.
 - **I/O is the bottleneck, not parsing.** A CPU profile shows oxc parsing takes ~280ms of a ~4.4s run; most time is per-file `fs/promises` open/read/close, `path.relative`/`normalize`, and idle waits. Batched/sync reads or a worker pool could plausibly cut total time substantially. Re-run `node benchmarks/run.mjs` and update `docs/src/components/BenchmarkChart.astro` after any perf change.
-- **`check` exits 2 instead of 1 on violations.** `this.exit(1)` inside the `try` in `src/commands/check.ts` is caught and rethrown as "Internal error: EEXIT: 1". Docs describe the intended contract (1 = violations).
+- ~~**`check` exits 2 instead of 1 on violations.**~~ Fixed: the catch block now rethrows oclif's exit error.
+
+---
+
+## 10. Native core (Rust + napi)
+
+**Status:** done (release pipeline untested end to end)
+**Scope:** `Cargo.toml`, `crates/domainlint-graph/`, `crates/domainlint-graph-napi/`, `packages/domainlint/src/native/`, `packages/domainlint/npm/`, `.github/workflows/`
+
+Follows the spike above (recommendation: hybrid). The JS core is removed; there is no JS fallback.
+
+- **Rust** (`crates/domainlint-graph`, `oxc_parser` 0.158, `oxc_resolver` 11, `rayon`): file discovery (sorted, so cycle start files are deterministic), parsing, resolution, graph, `noImportCycle`, `noCrossFeatureDeepImport`, `noFeatureImportFromNonDomain`, and per-file line counts. Violation messages are byte-identical to the old JS rules.
+- **napi addon** (`crates/domainlint-graph-napi`, napi-rs v3): `lint(options)` returns typed arrays (files, node keys, imports, edges, line counts) plus violations; `parseImports` / `resolveImports` serve `domainlint debug`.
+- **JS keeps:** the CLI, config loading, overrides (`filterViolationsByOverrides`), reporter, workspace detection/orchestration and the workspace rules (`noPackageImport`, `noPackageCycle`), plus the custom `Rule` / `GraphQuery` API, which runs on the graph rebuilt from the typed arrays.
+- **Deleted:** the JS parser, resolver, graph builder, glob-based discovery, the built-in cycle and boundary rules, the tsconfig loader (it shelled out to `npx tsc`), and the `oxc-parser` / `oxc-resolver` deps. Their behavioural tests moved to `src/native/native-pipeline.test.ts` and the Rust tests.
+- **Also fixed:** the EMFILE crash at ~20k files (it's gone with the JS pipeline), `check` exiting 2 instead of 1, and Windows path handling in `getFeature`, `debug` and the Rust graph/config/resolve code.
+- **Performance** (10,100 files, `check` wall clock): ~3.5s → ~0.3s. The native `lint()` call takes ~80ms; the rest is Node start-up, module loading and graph rebuild. Benchmark (median of 5): full 0.30s vs oxlint+boundaries 3.55s, dependency-cruiser 6.33s, ESLint 15.81s. Cycles only: 0.29s vs oxlint's native `import/no-cycle` at 0.26s (on par).
+- **Packaging:** `@napi-rs/cli` 3.10. There are 7 prebuilt targets published as unscoped `domainlint-binding-<platform>` (linux x64/arm64 gnu+musl, darwin x64/arm64, win32-x64-msvc), in `packages/domainlint/npm/<platform>/`, with versions bumped by release-please `extra-files`. `optionalDependencies` are injected at publish time (`scripts/inject-optional-deps.mjs`): committing them would break `pnpm install --frozen-lockfile` until the packages exist. The loader tries a locally built `native/domainlint.<platform>.node` first. A missing addon gives a clear error and exit code 2.
+- **CI:** Rust fmt/clippy/test plus native build in the test job. Native smoke matrix on Linux, macOS and Windows (Windows is `continue-on-error` until seen green: memfs tests use POSIX paths).
+- **Release:** a `build-native` matrix (napi-cross / zig for linux, macOS cross for x64, windows), then `napi artifacts`, then each platform package is published (skipped if already published), then domainlint.
+
+### Follow-up tasks
+
+- **First publish (manual).** Publish each `domainlint-binding-*` package once by hand, then add a trusted publisher on npmjs.com (this repo + `release.yml`) for each. Until then, published `domainlint` installs without an addon.
+- **Validate the release workflow** on a real tag: musl via zig (`mlugg/setup-zig@v2` pin unverified), macOS x64 cross-build, Windows, and npm OIDC. Pin action refs to SHAs/versions ≥7 days old.
+- **Make the Windows CI job required** once green; check reporter paths for `\` on Windows.
+- **Port the workspace rules to Rust** (optional; small).
+- **`GraphQuery` performance.** minimatch over every node plus lazy reverse adjacency costs ~200ms for a handful of queries at 10k files. Precompile matchers, or push hot queries into Rust.
+- **`pnpm pack` warning.** It prints an ENOENT on `oclif.manifest.json` after `postpack` removes it (pre-existing); watch it on the first publish.
 
 ---
 

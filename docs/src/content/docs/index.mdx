@@ -1,9 +1,9 @@
 ---
 title: domainlint
-description: Fast architecture linter for TypeScript. Enforce feature boundaries and catch import cycles in seconds, powered by the Rust-based oxc parser.
+description: Fast architecture linter for TypeScript. Enforce feature boundaries and catch import cycles in seconds, powered by a native Rust core.
 template: splash
 hero:
-  tagline: Keep feature boundaries clean and import cycles out of your TypeScript codebase. Zero config, Rust-powered parsing, ready for CI in one command.
+  tagline: Keep feature boundaries clean and import cycles out of your TypeScript codebase. Zero config, a native Rust core, ready for CI in one command.
   actions:
     - text: Get started
       link: /getting-started/
@@ -103,9 +103,9 @@ Each folder in `src/features/` is a feature, and its `index.ts` is the only way 
 
 ## Fast enough to run on every commit
 
-Parsing goes through [oxc](https://oxc.rs), a Rust-native JavaScript toolchain, and module resolution through `oxc-resolver`. On a 10,000-file project domainlint runs the full check, cycles and boundaries together, about **2× faster than dependency-cruiser** and **4× faster than ESLint plugins**.
+File discovery, parsing ([oxc](https://oxc.rs)), module resolution (`oxc-resolver`), the dependency graph and the built-in rules all run in a native Rust addon, shipped as prebuilt binaries. On a 10,000-file project domainlint runs the full check, cycles and boundaries together, in about **0.3 seconds**: roughly **20× faster than dependency-cruiser**, **12× faster than oxlint with its boundaries plugin** and **50× faster than ESLint plugins**.
 
-We also measured oxlint, and it's faster still, especially for cycles alone. Pick a scenario below; every number can be reproduced from the repo.
+For cycles alone, oxlint's built-in `import/no-cycle` is just as fast. Pick a scenario below; every number can be reproduced from the repo.
 
 </Reveal>
 
@@ -132,7 +132,7 @@ Good tools already exist for parts of this problem. domainlint is narrower on pu
 <div class="dl-grid" style="margin-top: 1rem">
   <div class="dl-card">
     <h3>Pick oxlint if…</h3>
-    <p>you already run oxlint. Its `import/no-cycle`, plus `eslint-plugin-boundaries` loaded as a JS plugin (alpha API), was the fastest setup we measured and gives editor feedback. You write and maintain the element config yourself.</p>
+    <p>you already run oxlint. Its `import/no-cycle`, plus `eslint-plugin-boundaries` loaded as a JS plugin (alpha API), gives editor feedback, and is the right call if cycles are all you need. For boundaries it is about 10× slower than domainlint in our benchmark. You write and maintain the element config yourself.</p>
   </div>
   <div class="dl-card">
     <h3>Pick dependency-cruiser if…</h3>
@@ -140,7 +140,7 @@ Good tools already exist for parts of this problem. domainlint is narrower on pu
   </div>
   <div class="dl-card">
     <h3>Pick ESLint plugins if…</h3>
-    <p>you want boundary squiggles in the editor while you type. `eslint-plugin-boundaries` does that, but it's ~3× slower than domainlint in CI.</p>
+    <p>you want boundary squiggles in the editor while you type. `eslint-plugin-boundaries` does that, but it's ~50× slower than domainlint in CI.</p>
   </div>
   <div class="dl-card">
     <h3>Pick domainlint if…</h3>

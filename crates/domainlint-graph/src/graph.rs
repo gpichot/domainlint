@@ -32,7 +32,8 @@ pub struct Graph {
 
 /// Node's `path.extname`.
 pub fn extname(p: &str) -> &str {
-    let base = p.rsplit('/').next().unwrap_or(p);
+    // Both separators: discovered paths use `\` on Windows.
+    let base = p.rsplit(['/', '\\']).next().unwrap_or(p);
     match base.rfind('.') {
         Some(0) | None => "",
         Some(i) => &base[i..],

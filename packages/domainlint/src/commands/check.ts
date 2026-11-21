@@ -147,6 +147,10 @@ export default class Check extends Command {
         this.exit(1);
       }
     } catch (error) {
+      // `this.exit(1)` (violations found) throws an ExitError: let it through
+      if ((error as { oclif?: { exit?: number } })?.oclif?.exit !== undefined) {
+        throw error;
+      }
       this.error(
         `Internal error: ${error instanceof Error ? error.message : String(error)}`,
         { exit: 2 },

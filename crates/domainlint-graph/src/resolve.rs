@@ -34,7 +34,7 @@ pub fn resolve_local(resolver: &Resolver, from_file: &str, specifier: &str) -> O
     match resolver.resolve(dir, specifier) {
         Ok(r) => {
             let p = r.path().to_string_lossy();
-            if p.contains("/node_modules/") {
+            if p.contains("/node_modules/") || p.contains("\\node_modules\\") {
                 None
             } else {
                 Some(p.into_owned())

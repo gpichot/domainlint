@@ -13,18 +13,8 @@
         },
         {
           "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-darwin-arm64\"]"
-        },
-        {
-          "type": "json",
           "path": "npm/darwin-x64/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-darwin-x64\"]"
         },
         {
           "type": "json",
@@ -33,18 +23,8 @@
         },
         {
           "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-linux-arm64-gnu\"]"
-        },
-        {
-          "type": "json",
           "path": "npm/linux-arm64-musl/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-linux-arm64-musl\"]"
         },
         {
           "type": "json",
@@ -53,28 +33,13 @@
         },
         {
           "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-linux-x64-gnu\"]"
-        },
-        {
-          "type": "json",
           "path": "npm/linux-x64-musl/package.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-linux-x64-musl\"]"
-        },
-        {
-          "type": "json",
           "path": "npm/win32-x64-msvc/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.optionalDependencies[\"domainlint-binding-win32-x64-msvc\"]"
         }
       ]
     }

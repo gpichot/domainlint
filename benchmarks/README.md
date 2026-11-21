@@ -23,16 +23,13 @@ Nothing large is committed: projects are generated on demand.
 
 ```bash
 pnpm install
+pnpm --filter domainlint build:native   # needs a Rust toolchain
 pnpm --filter domainlint build
 node benchmarks/run.mjs
 ```
 
-`domainlint-rs (prototype)` is the Rust spike in `crates/domainlint-graph`. It is
-skipped with a warning unless built:
-
-```bash
-cargo build --release -p domainlint-graph
-```
+`domainlint` is the real CLI (`packages/domainlint/bin/run.js`), which runs on
+the native Rust core, so build the addon first.
 
 Options:
 

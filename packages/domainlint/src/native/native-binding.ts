@@ -44,6 +44,8 @@ export interface NativeLintResult {
   features: string[];
   fileFeature: Int32Array;
   fileIsBarrel: Uint8Array;
+  /** Non-blank lines per file */
+  fileLines: Uint32Array;
   importOffsets: Uint32Array;
   importSpecifier: Uint32Array;
   importLine: Uint32Array;

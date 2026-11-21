@@ -231,7 +231,7 @@ impl Config {
             // Node: `startsWith(featuresDir)` (no trailing slash!) then `split('/')[1]` of the remainder.
             if let Some(l) = file
                 .strip_prefix(fd.as_ref())
-                .and_then(|rest| rest.split('/').nth(1))
+                .and_then(|rest| rest.split(['/', '\\']).nth(1))
                 .and_then(|name| features.get(name))
                 .and_then(|o| o.rules.as_ref())
                 .and_then(|r| r.get(rule))

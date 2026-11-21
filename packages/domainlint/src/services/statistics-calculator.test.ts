@@ -242,6 +242,47 @@ describe('StatisticsCalculator', () => {
     });
   });
 
+  describe('precomputed line counts', () => {
+    const files: FileInfo[] = [
+      {
+        path: '/project/src/features/auth/user.ts',
+        relativePath: 'src/features/auth/user.ts',
+        feature: 'auth',
+        isBarrel: false,
+        lineCount: 7,
+      },
+    ];
+    const lintResult: LintResult = {
+      violations: [],
+      fileCount: 1,
+      analysisTimeMs: 1,
+      dependencyGraph: {
+        nodes: new Set(),
+        edges: [],
+        adjacencyList: new Map(),
+      },
+      parseResults: [],
+      files: [],
+    };
+
+    it('uses FileInfo.lineCount without reading the file', async () => {
+      // No file in the (empty) volume: a read would count 0
+      const stats = await new StatisticsCalculator(
+        {},
+        testFs,
+      ).calculateFeatureStats(files, mockConfig, lintResult);
+      expect(stats[0].linesOfCode).toBe(7);
+    });
+
+    it('still honours includeLineCount: false', async () => {
+      const stats = await new StatisticsCalculator(
+        { includeLineCount: false },
+        testFs,
+      ).calculateFeatureStats(files, mockConfig, lintResult);
+      expect(stats[0].linesOfCode).toBe(0);
+    });
+  });
+
   describe('discoverAllFeatures', () => {
     it('should discover unique features from files', async () => {
       const calculator = new StatisticsCalculator({}, testFs);

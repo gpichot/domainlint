@@ -82,6 +82,7 @@ export function runNativePipeline(
         : relative(config.rootDir, path),
       feature: feature >= 0 ? r.features[feature] : null,
       isBarrel: r.fileIsBarrel[i] === 1,
+      lineCount: r.fileLines[i],
     };
   }
 

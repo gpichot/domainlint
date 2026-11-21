@@ -59,6 +59,8 @@ pub struct RunResult {
     pub files: Vec<String>,
     /// All parsed imports per file (external and unresolved ones included), in file order.
     pub imports: Vec<Vec<parse::ImportInfo>>,
+    /// Non-blank line count per file (same order as `files`).
+    pub line_counts: Vec<u32>,
     /// Cycles first, then boundary violations (same order as Node's output).
     pub violations: Vec<Violation>,
     pub scc: Option<SccStats>,
@@ -85,16 +87,20 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
     // 2. read + parse
     let t = Instant::now();
     let include_dynamic = config.include_dynamic_imports;
-    let imports: Vec<Vec<parse::ImportInfo>> = files
+    let parsed: Vec<(Vec<parse::ImportInfo>, u32)> = files
         .par_iter()
         .map_init(Allocator::default, |alloc, path| {
             alloc.reset();
             let bytes =
                 std::fs::read(path).map_err(|e| anyhow::anyhow!("Failed to read {path}: {e}"))?;
             let source = String::from_utf8_lossy(&bytes);
-            parse::parse_imports(std::path::Path::new(path), &source, alloc, include_dynamic)
+            let loc = parse::count_loc(&source);
+            let imports =
+                parse::parse_imports(std::path::Path::new(path), &source, alloc, include_dynamic)?;
+            Ok((imports, loc))
         })
         .collect::<Result<Vec<_>>>()?;
+    let (imports, line_counts): (Vec<_>, Vec<_>) = parsed.into_iter().unzip();
     timings.read_parse = t.elapsed();
     let import_count: usize = imports.iter().map(Vec::len).sum();
 
@@ -156,6 +162,7 @@ pub fn run(config: &Config, opts: &RunOptions) -> Result<RunResult> {
         graph,
         files,
         imports,
+        line_counts,
         violations,
         scc,
         timings,

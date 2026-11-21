@@ -35,6 +35,37 @@ struct Raw {
     is_type_only: bool,
 }
 
+/// JS `String.prototype.trim` whitespace (WhiteSpace + LineTerminator). Differs from
+/// `char::is_whitespace`: includes U+FEFF, excludes U+0085.
+fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{9}'..='\u{d}'
+            | ' '
+            | '\u{a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200a}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+            | '\u{feff}'
+    )
+}
+
+/// Lines of code: lines (split on `\n`) that are not empty after a JS `trim()`. This is exactly
+/// what `StatisticsCalculator` computed in JS (`split('\n').filter(l => l.trim().length > 0)`).
+pub fn count_loc(source: &str) -> u32 {
+    let mut count = 0u32;
+    for line in source.split('\n') {
+        if line.chars().any(|c| !is_js_whitespace(c)) {
+            count += 1;
+        }
+    }
+    count
+}
+
 pub fn parse_imports(
     path: &Path,
     source: &str,
@@ -184,4 +215,20 @@ fn to_import_infos(source: &str, raws: Vec<Raw>) -> Vec<ImportInfo> {
             is_type_only: r.is_type_only,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod loc_tests {
+    use super::count_loc;
+
+    #[test]
+    fn counts_non_blank_lines_like_js() {
+        assert_eq!(count_loc(""), 0);
+        assert_eq!(count_loc("a"), 1);
+        assert_eq!(count_loc("a\n\n  \t\nb\n"), 2);
+        assert_eq!(count_loc("a\r\n\r\nb\r\n"), 2);
+        // U+FEFF and U+00A0 are JS whitespace, U+0085 is not.
+        assert_eq!(count_loc("\u{feff}\n\u{a0}\u{3000}\n"), 0);
+        assert_eq!(count_loc("\u{85}"), 1);
+    }
 }

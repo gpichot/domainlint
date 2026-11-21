@@ -38,5 +38,6 @@ npx domainlint check
 ## Tips
 
 - Run domainlint **after** `npm ci` / `pnpm install` so that `tsconfig.json` path resolution works correctly.
+- Don't install with `--omit=optional`: domainlint's native addon is shipped as an optional dependency. See [supported platforms](/getting-started/#supported-platforms).
 - Use `--no-color` if your CI logs don't support ANSI colors.
 - Use `--feature=<name>` to scope checks to a specific feature in large codebases.

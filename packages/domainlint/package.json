@@ -16,15 +16,6 @@
     "minimatch": "^10.2.4",
     "zod": "^4.3.6"
   },
-  "optionalDependencies": {
-    "domainlint-binding-darwin-arm64": "0.8.0",
-    "domainlint-binding-darwin-x64": "0.8.0",
-    "domainlint-binding-linux-arm64-gnu": "0.8.0",
-    "domainlint-binding-linux-arm64-musl": "0.8.0",
-    "domainlint-binding-linux-x64-gnu": "0.8.0",
-    "domainlint-binding-linux-x64-musl": "0.8.0",
-    "domainlint-binding-win32-x64-msvc": "0.8.0"
-  },
   "devDependencies": {
     "@napi-rs/cli": "3.10.12",
     "@oclif/prettier-config": "^0.2.1",

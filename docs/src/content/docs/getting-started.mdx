@@ -8,7 +8,7 @@ import Terminal from '../../components/Terminal.astro';
 import ImportFix from '../../components/ImportFix.astro';
 import Reveal from '../../components/Reveal.astro';
 
-This guide takes you from nothing to a failing-then-green CI check. You need Node.js 18+ and a TypeScript or JavaScript project.
+This guide takes you from nothing to a failing-then-green CI check. You need Node.js 18+ and a TypeScript or JavaScript project, on one of the [supported platforms](#supported-platforms).
 
 <Steps>
 
@@ -99,6 +99,8 @@ This guide takes you from nothing to a failing-then-green CI check. You need Nod
      </TabItem>
    </Tabs>
 
+   domainlint ships its analysis core as a prebuilt native binary, installed automatically for your platform. No Rust toolchain or compiler is needed. See [Supported platforms](#supported-platforms).
+
    Add a script next to your type check:
 
    ```json title="package.json" ins={4}
@@ -155,6 +157,37 @@ domainlint ships agent skills for adopting, configuring, and debugging violation
 | `0`  | No violations |
 | `1`  | Violations found |
 | `2`  | Internal error (e.g. unreadable tsconfig) |
+
+## Supported platforms
+
+The parser, module resolver, dependency graph and built-in rules run in a native (Rust) addon. It is published as one small package per platform (`domainlint-binding-<platform>`), declared as an optional dependency of `domainlint`, so your package manager downloads only the one that matches your machine.
+
+| OS | Architectures |
+|----|---------------|
+| Linux (glibc: Debian, Ubuntu, Fedora, …) | x64, arm64 |
+| Linux (musl: Alpine) | x64, arm64 |
+| macOS | x64 (Intel), arm64 (Apple Silicon) |
+| Windows | x64 |
+
+The addon works with any Node.js 18+ release, with no rebuild when you upgrade Node.
+
+<Aside type="caution" title="Don't skip optional dependencies">
+If you install with `--omit=optional`, `--no-optional` or `pnpm install --no-optional`, the native addon is skipped and domainlint stops with `Failed to load the domainlint native addon`, naming the package it expected. Reinstall with optional dependencies enabled. Likewise, when a Docker image or CI cache is built on one OS and reused on another, reinstall `node_modules` on the target platform.
+</Aside>
+
+**Unsupported platform** (for example Windows on ARM, FreeBSD or 32-bit systems): no binary is published, so domainlint fails to start with an error naming your platform. You can [build the addon from source](#building-from-source) if Rust supports your target.
+
+### Building from source
+
+Only needed on an unsupported platform, or when working on domainlint itself. Install a stable [Rust toolchain](https://rustup.rs), then in a clone of the repository:
+
+```sh
+pnpm install
+pnpm --filter domainlint build:native   # writes packages/domainlint/native/
+pnpm --filter domainlint build
+```
+
+A locally built addon is preferred over the platform package.
 
 ## Next steps
 

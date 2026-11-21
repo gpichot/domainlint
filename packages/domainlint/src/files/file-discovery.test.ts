@@ -37,6 +37,22 @@ describe('getFeature', () => {
   });
 });
 
+describe('getFeature edge cases', () => {
+  it('handles dot segments, sibling dirs and the features dir itself', () => {
+    expect(
+      getFeature('/project/src/features/auth/../billing/x.ts', config),
+    ).toBe('billing');
+    expect(
+      getFeature('/project/src/features/../shared/x.ts', config),
+    ).toBeNull();
+    expect(getFeature('/project/src/features-extra/a/x.ts', config)).toBeNull();
+    expect(getFeature('/project/src/features', config)).toBeNull();
+    expect(getFeature('/project/src/features/.hidden/x.ts', config)).toBe(
+      '.hidden',
+    );
+  });
+});
+
 describe('getBarrelPath', () => {
   it('returns the path to the first barrel file for a given feature', () => {
     const barrelPath = getBarrelPath('auth', config);
