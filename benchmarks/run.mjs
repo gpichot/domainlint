@@ -29,6 +29,8 @@ const toolsDir = path.join(here, '.tools');
 const configs = path.join(here, 'configs');
 const bin = (name) => path.join(toolsDir, 'node_modules', '.bin', name);
 const domainlintBin = path.join(repoRoot, 'packages/domainlint/bin/run.js');
+// Rust prototype (crates/domainlint-graph); build with `cargo build --release --manifest-path crates/domainlint-graph/Cargo.toml`.
+const domainlintRsBin = path.join(repoRoot, 'crates/domainlint-graph/target/release/domainlint-rs');
 
 const { values } = parseArgs({
   options: {
@@ -59,6 +61,10 @@ const domainlint = (config) => [
   process.execPath,
   [domainlintBin, 'check', '.', '--no-color', ...(config ? ['-c', path.join(configs, config)] : [])],
 ];
+const domainlintRs = (config) => [
+  domainlintRsBin,
+  ['.', ...(config ? ['-c', path.join(configs, config)] : [])],
+];
 const depcruise = (config) => [bin('depcruise'), ['src', '-c', path.join(configs, config)]];
 // ESLint and oxlint resolve plugins relative to the config file, so configs are copied
 // into the fixture (next to its node_modules symlink) and referenced by name.
@@ -80,6 +86,7 @@ const lines = (re) => (out) => out.split('\n').filter((l) => re.test(l)).length;
 const SCENARIOS = {
   cycles: {
     domainlint: { label: 'domainlint', cmd: domainlint('domainlint-cycles.json'), findings: lines(/ ERROR /) },
+    'domainlint-rs': { label: 'domainlint-rs (prototype)', cmd: domainlintRs('domainlint-cycles.json'), findings: lines(/ ERROR /) },
     oxlint: {
       label: 'oxlint import/no-cycle',
       cmd: [bin('oxlint'), ['--import-plugin', '-A', 'all', '-D', 'import/no-cycle', 'src']],
@@ -95,6 +102,7 @@ const SCENARIOS = {
   },
   boundaries: {
     domainlint: { label: 'domainlint', cmd: domainlint('domainlint-boundaries.json'), findings: lines(/ ERROR /) },
+    'domainlint-rs': { label: 'domainlint-rs (prototype)', cmd: domainlintRs('domainlint-boundaries.json'), findings: lines(/ ERROR /) },
     depcruise: { label: 'dependency-cruiser', cmd: depcruise('depcruise-boundaries.cjs'), findings: count(/(\d+) dependency violations/) },
     oxlint: {
       label: 'oxlint + boundaries (JS plugin)',
@@ -105,6 +113,7 @@ const SCENARIOS = {
   },
   full: {
     domainlint: { label: 'domainlint', cmd: domainlint(), findings: lines(/ ERROR /) },
+    'domainlint-rs': { label: 'domainlint-rs (prototype)', cmd: domainlintRs(), findings: lines(/ ERROR /) },
     depcruise: { label: 'dependency-cruiser', cmd: depcruise('depcruise-full.cjs'), findings: count(/(\d+) dependency violations/) },
     oxlint: {
       label: 'oxlint no-cycle + boundaries',
@@ -181,6 +190,10 @@ for (const size of values.sizes.split(',')) {
     console.log(`\n[${scenario}] ${fileCount} files (${features} features × ${files + 1})`);
     for (const [key, tool] of Object.entries(SCENARIOS[scenario])) {
       if (toolFilter && !toolFilter.includes(key)) continue;
+      if (key === 'domainlint-rs' && !fs.existsSync(domainlintRsBin)) {
+        console.warn(`  ⚠ skipping ${tool.label}: ${domainlintRsBin} not built`);
+        continue;
+      }
       const warm = run(tool, dir); // warm-up (fs cache, JIT) + findings check
       const findings = tool.findings(warm.output);
       const samples = Array.from({ length: runs }, () => run(tool, dir).ms);

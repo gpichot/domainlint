@@ -27,6 +27,13 @@ pnpm --filter domainlint build
 node benchmarks/run.mjs
 ```
 
+`domainlint-rs (prototype)` is the Rust spike in `crates/domainlint-graph`. It is
+skipped with a warning unless built:
+
+```bash
+cargo build --release --manifest-path crates/domainlint-graph/Cargo.toml
+```
+
 Options:
 
 ```bash
