@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/gpichot/domainlint/compare/domainlint-v0.9.0...domainlint-v0.9.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **release:** drop postpack hook that breaks pnpm 11 publish ([9cb4f39](https://github.com/gpichot/domainlint/commit/9cb4f3999b5ef01c0c36618fddcb9bf08238d067))
+* **release:** drop postpack hook that breaks pnpm 11 publish ([7ad981e](https://github.com/gpichot/domainlint/commit/7ad981e0befe2e6233a175bfbe8eaf0f5399a9ed))
+
 ## [0.9.0](https://github.com/gpichot/domainlint/compare/domainlint-v0.8.0...domainlint-v0.9.0) (2026-11-21)
 
 
