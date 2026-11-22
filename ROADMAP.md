@@ -285,13 +285,13 @@ Follows the spike above (recommendation: hybrid). The JS core is removed; there 
 
 ### Follow-up tasks
 
-- **First publish (manual).** Publish each `domainlint-binding-*` package once by hand, then add a trusted publisher on npmjs.com (this repo + `release.yml`) for each. Until then, published `domainlint` installs without an addon.
+- ~~**First publish (manual).**~~ Done: a `0.0.0` placeholder of each `domainlint-binding-*` package was published by hand (dist-tag `placeholder`), then a trusted publisher (this repo + `release.yml`, direct publish) was added to each. The 0.9.0 bindings were then published by CI via OIDC.
 - **Validate the release workflow** on a real tag: musl via zig (`mlugg/setup-zig@v2` pin unverified), macOS x64 cross-build, Windows, and npm OIDC. Pin action refs to SHAs/versions ≥7 days old.
 - ~~**Make the Windows CI job required** once green.~~ Done (Windows passed on #58; `continue-on-error` removed).
 - **Check reporter paths for `\` on Windows.**
 - **Port the workspace rules to Rust** (optional; small).
 - **`GraphQuery` performance.** minimatch over every node plus lazy reverse adjacency costs ~200ms for a handful of queries at 10k files. Precompile matchers, or push hot queries into Rust.
-- **`pnpm pack` warning.** It prints an ENOENT on `oclif.manifest.json` after `postpack` removes it (pre-existing); watch it on the first publish.
+- ~~**`pnpm pack` warning.**~~ Fixed: pnpm 11 runs `postpack` before stat-ing the packed files, so deleting `oclif.manifest.json` there failed `pnpm publish` (0.9.0). The `postpack` hook is removed; the manifest is gitignored.
 
 ---
 

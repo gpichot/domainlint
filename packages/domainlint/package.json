@@ -63,7 +63,6 @@
   "repository": "gpichot/domainlint",
   "scripts": {
     "build": "shx rm -rf dist && tsc -b && node scripts/generate-schema.mjs",
-    "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "oclif manifest && oclif readme",
     "test": "node scripts/ensure-native.mjs && vitest",
     "test:run": "node scripts/ensure-native.mjs && vitest run",

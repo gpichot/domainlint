@@ -129,9 +129,9 @@ jobs:
 
       # NOTE: the first publish of each new `domainlint-binding-*` package cannot use OIDC: npm
       # only lets you configure a trusted publisher (npmjs.com > package > Settings) on a package
-      # that already exists. Publish 0.x of each of the 7 packages once by hand
-      # (`npm publish --access public` in packages/domainlint/npm/<platform>/), then add this
-      # repository + `release.yml` as trusted publisher of every one of them.
+      # that already exists. Publish a `0.0.0` placeholder of the new package once by hand
+      # (`npm publish --access public --tag placeholder` with just a package.json), then add this
+      # repository + `release.yml` as its trusted publisher (allow direct publish).
       - name: Publish platform packages
         working-directory: packages/domainlint
         run: |
